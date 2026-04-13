@@ -167,7 +167,7 @@ public class CraneOperationManager : MonoBehaviour
         }
         else
         {
-            return ApplyDeadZone(-Input.GetAxis(joyStick2Vertical));
+            return ApplyDeadZone(Input.GetAxis(joyStick2Vertical));
         }
     }
 
