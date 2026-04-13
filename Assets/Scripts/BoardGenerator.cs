@@ -4,74 +4,110 @@ using UnityEngine;
 
 public class BoardGenerator : MonoBehaviour
 {
-    [Header("生成する板Prefab")]
+    [Header("Prefab")]
     [SerializeField] private GameObject boardPrefab;
+    [SerializeField] private GameObject boardStagePrefab;
 
-    [Header("生成位置の中心")]
-    [SerializeField] private Vector3 spawnCenter = Vector3.zero;
+    [Header("配置座標一覧")]
+    [SerializeField] private List<Vector3> spawnPositions = new List<Vector3>();
 
-    [Header("生成位置の範囲")]
-    [SerializeField] private Vector3 spawnRange = new Vector3(5f, 0f, 5f);
+    [Header("各座標に生成する枚数")]
+    [SerializeField] private int boardsPerPoint = 3;
 
-    [Header("板の寸法範囲")]
-    [SerializeField] private Vector2 widthRange = new Vector2(1.5f, 7.35f);   // X方向
-    [SerializeField] private Vector2 heightRange = new Vector2(0.00225f, 0.0675f);  // Y方向（厚み）
-    [SerializeField] private Vector2 depthRange = new Vector2(0.5f, 1.65f);   // Z方向
+    [Header("板サイズのランダム範囲")]
+    [SerializeField] private Vector2 boardRandomXRange = new Vector2(1.5f, 7.35f);
+    [SerializeField] private Vector2 boardRandomYRange = new Vector2(0.00225f, 0.0675f);
+    [SerializeField] private Vector2 boardRandomZRange = new Vector2(0.5f, 1.65f);
 
-    [Header("自動生成設定")]
-    [SerializeField] private bool autoSpawn = false;
-    [SerializeField] private float spawnInterval = 2.0f;
+    [Header("BoardStageのサイズ")]
+    [SerializeField] private float boardStageSizeX = 7.5f;
+    [SerializeField] private Vector2 boardStageRandomYRange = new Vector2(0.05f, 1f);
+    [SerializeField] private float boardStageSizeZ = 1.7f;
 
-    private float timer = 0f;
+    [Header("板の積み上げ間隔")]
+    [SerializeField] private float boardGapY = 0.05f;
 
-    void Update()
+    [Header("生成先の親オブジェクト")]
+    [SerializeField] private Transform parentTransform;
+
+    private void Start()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            SpawnBoard();
-        }
-        
-        if (!autoSpawn) return;
-
-        timer += Time.deltaTime;
-
-        if (timer >= spawnInterval)
-        {
-            SpawnBoard();
-            timer = 0f;
-        }
+        SpawnBoardsWithStage();
     }
 
-    public void SpawnBoard()
+    [ContextMenu("板とBoardStageを生成")]
+    public void SpawnBoardsWithStage()
     {
         if (boardPrefab == null)
         {
-            Debug.LogWarning("boardPrefab が設定されていません。");
+            Debug.LogError("boardPrefabが設定されていません。");
             return;
         }
 
-        // 生成位置を範囲内でランダム決定
-        float randomX = Random.Range(-spawnRange.x / 2f, spawnRange.x / 2f);
-        float randomY = Random.Range(-spawnRange.y / 2f, spawnRange.y / 2f);
-        float randomZ = Random.Range(-spawnRange.z / 2f, spawnRange.z / 2f);
+        if (boardStagePrefab == null)
+        {
+            Debug.LogError("boardStagePrefabが設定されていません。");
+            return;
+        }
 
-        Vector3 spawnPos = spawnCenter + new Vector3(randomX, randomY, randomZ);
+        for (int i = 0; i < spawnPositions.Count; i++)
+        {
+            Vector3 basePos = spawnPositions[i];
 
-        // 寸法をランダム決定
-        float width = Random.Range(widthRange.x, widthRange.y);
-        float height = Random.Range(heightRange.x, heightRange.y);
-        float depth = Random.Range(depthRange.x, depthRange.y);
+            // =========================
+            // 1. BoardStageを生成
+            // =========================
+            float stageY = Random.Range(boardStageRandomYRange.x, boardStageRandomYRange.y);
 
-        GameObject board = Instantiate(boardPrefab, spawnPos, Quaternion.identity);
+            // 指定座標を「床面位置」とみなし、中心を半分上にずらす
+            Vector3 stageCenterPos = basePos + new Vector3(0f, stageY / 2f, 0f);
 
-        // localScaleで寸法変更
-        board.transform.localScale = new Vector3(width, height, depth);
-    }
+            GameObject stage = Instantiate(
+                boardStagePrefab,
+                stageCenterPos,
+                Quaternion.identity,
+                parentTransform
+            );
 
-    // Sceneビューで生成範囲を見えるようにする
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireCube(spawnCenter, spawnRange);
+            stage.transform.localScale = new Vector3(boardStageSizeX, stageY, boardStageSizeZ);
+            stage.name = $"BoardStage_{i}";
+
+            // Stage上面の高さ
+            float stageTopY = basePos.y + stageY;
+
+            // =========================
+            // 2. Stageの上に板を3枚生成
+            // =========================
+            float currentTopY = stageTopY;
+
+            for (int j = 0; j < boardsPerPoint; j++)
+            {
+                float boardX = Random.Range(boardRandomXRange.x, boardRandomXRange.y);
+                float boardY = Random.Range(boardRandomYRange.x, boardRandomYRange.y);
+                float boardZ = Random.Range(boardRandomZRange.x, boardRandomZRange.y);
+
+                // 板の中心位置 = 現在の上端 + 板の高さの半分
+                Vector3 boardPos = new Vector3(
+                    basePos.x,
+                    currentTopY + boardY / 2f,
+                    basePos.z
+                );
+
+                GameObject board = Instantiate(
+                    boardPrefab,
+                    boardPos,
+                    Quaternion.identity,
+                    parentTransform
+                );
+
+                board.transform.localScale = new Vector3(boardX, boardY, boardZ);
+                board.name = $"Board_{i}_{j}";
+
+                // 次の板のために上端を更新
+                currentTopY += boardY + boardGapY;
+            }
+        }
+
+        Debug.Log("BoardStageと板の生成が完了しました。");
     }
 }
