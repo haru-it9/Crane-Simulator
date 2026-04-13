@@ -53,7 +53,7 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float maxMainY = -0.156f;
 
     [Header("Board Contact Check")]
-    [SerializeField] private MagContactDetector[] magDetectors;
+    [SerializeField] private MagnetSensor[] sensors;
 
 
     public void MoveMainCraneZ(float input)
@@ -82,8 +82,8 @@ public class CraneUnit : MonoBehaviour
     {
         if (mainLifMag == null) return;
 
-        // 下方向へ動かそうとしていて、直下に障害物があるなら止める
-        if (input > 0f && IsBlockedBelow())
+        // 下方向に動かそうとしていて、接触していたら止める
+        if (input < 0f && IsTouchingBoard())
         {
             input = 0f;
         }
@@ -146,19 +146,15 @@ public class CraneUnit : MonoBehaviour
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
     }
 
-    private bool IsBlockedBelow()
+    private bool IsTouchingBoard()
     {
-        if (magDetectors == null || magDetectors.Length == 0)
-            return false;
-
-        foreach (MagContactDetector detector in magDetectors)
+        foreach (var s in sensors)
         {
-            if (detector != null && detector.IsTouchingBoardBelow)
+            if (s != null && s.IsTouchingBoard)
             {
                 return true;
             }
         }
-
         return false;
     }
 }
