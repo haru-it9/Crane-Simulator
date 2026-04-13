@@ -52,10 +52,8 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float minMainY = -5.31f;
     [SerializeField] private float maxMainY = -0.156f;
 
-    [Header("Downward Stop Check")]
-    [SerializeField] private Transform[] bottomCheckPoints;
-    [SerializeField] private float downwardCheckDistance = 0.05f;
-    [SerializeField] private LayerMask downwardStopLayers;
+    [Header("Board Contact Check")]
+    [SerializeField] private MagContactDetector[] magDetectors;
 
 
     public void MoveMainCraneZ(float input)
@@ -85,7 +83,7 @@ public class CraneUnit : MonoBehaviour
         if (mainLifMag == null) return;
 
         // 下方向へ動かそうとしていて、直下に障害物があるなら止める
-        if (input < 0f && IsBlockedBelow())
+        if (input > 0f && IsBlockedBelow())
         {
             input = 0f;
         }
@@ -150,24 +148,17 @@ public class CraneUnit : MonoBehaviour
 
     private bool IsBlockedBelow()
     {
-        if (bottomCheckPoints == null || bottomCheckPoints.Length == 0)
+        if (magDetectors == null || magDetectors.Length == 0)
             return false;
 
-        foreach (Transform point in bottomCheckPoints)
+        foreach (MagContactDetector detector in magDetectors)
         {
-            if (point == null) continue;
-
-            RaycastHit hit;
-            if (Physics.Raycast(point.position, Vector3.down, out hit, downwardCheckDistance))
+            if (detector != null && detector.IsTouchingBoardBelow)
             {
-                // ★ここでタグチェック
-                if (hit.collider.CompareTag("Board"))
-                {
-                    return true;
-                }
+                return true;
             }
         }
-        
+
         return false;
     }
 }
