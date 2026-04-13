@@ -52,6 +52,11 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float minMainY = -5.31f;
     [SerializeField] private float maxMainY = -0.156f;
 
+    [Header("Downward Stop Check")]
+    [SerializeField] private Transform[] bottomCheckPoints;
+    [SerializeField] private float downwardCheckDistance = 0.05f;
+    [SerializeField] private LayerMask downwardStopLayers;
+
 
     public void MoveMainCraneZ(float input)
     {
@@ -78,6 +83,12 @@ public class CraneUnit : MonoBehaviour
     public void MoveMainLifMagY(float input)
     {
         if (mainLifMag == null) return;
+
+        // 下方向へ動かそうとしていて、直下に障害物があるなら止める
+        if (input < 0f && IsBlockedBelow())
+        {
+            input = 0f;
+        }
 
         float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
         Vector3 pos = mainLifMag.localPosition;
@@ -135,5 +146,28 @@ public class CraneUnit : MonoBehaviour
     {
         mainLifMagYSpeedIndex = (mainLifMagYSpeedIndex + 1) % mainLifMagYSpeeds.Length;
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
+    }
+
+    private bool IsBlockedBelow()
+    {
+        if (bottomCheckPoints == null || bottomCheckPoints.Length == 0)
+            return false;
+
+        foreach (Transform point in bottomCheckPoints)
+        {
+            if (point == null) continue;
+
+            RaycastHit hit;
+            if (Physics.Raycast(point.position, Vector3.down, out hit, downwardCheckDistance))
+            {
+                // ★ここでタグチェック
+                if (hit.collider.CompareTag("Board"))
+                {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 }
