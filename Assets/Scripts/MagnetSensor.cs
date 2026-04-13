@@ -7,11 +7,13 @@ public class MagnetSensor : MonoBehaviour
     public GameObject CurrentBoard { get; private set; }
     public bool IsTouchingBoard { get; private set; }
 
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Board"))
         {
             CurrentBoard = other.gameObject;
+            IsTouchingBoard = true;
             //Debug.Log("Boardに触れた（Enter）: " + other.name);
         }
     }
@@ -20,7 +22,6 @@ public class MagnetSensor : MonoBehaviour
     {
         if (other.CompareTag("Board"))
         {
-            IsTouchingBoard = true;
             //Debug.Log("Boardに触れている（Stay）: " + other.name);
         }
     }

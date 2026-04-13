@@ -54,7 +54,8 @@ public class CraneUnit : MonoBehaviour
 
     [Header("Board Contact Check")]
     [SerializeField] private MagnetSensor[] sensors;
-
+    private HoldBoardSensor holdBoardSensor;
+    private GameObject holdingBoard;
 
     public void MoveMainCraneZ(float input)
     {
@@ -62,7 +63,7 @@ public class CraneUnit : MonoBehaviour
 
         float speed = zSpeeds[zSpeedIndex] / 60f;
         Vector3 pos = mainCrane.localPosition;
-        pos.z += input * speed * Time.deltaTime;
+        pos.z += input * speed * Time.fixedDeltaTime;
         pos.z = Mathf.Clamp(pos.z, minZ, maxZ);
         mainCrane.localPosition = pos;
     }
@@ -73,7 +74,7 @@ public class CraneUnit : MonoBehaviour
 
         float speed = mainLifMagXSpeeds[mainLifMagXSpeedIndex] / 60f * 0.368f / 6f;
         Vector3 pos = mainLifMag.localPosition;
-        pos.x += input * speed * Time.deltaTime;
+        pos.x += input * speed * Time.fixedDeltaTime;
         pos.x = Mathf.Clamp(pos.x, minMainX, maxMainX);
         mainLifMag.localPosition = pos;
     }
@@ -90,7 +91,7 @@ public class CraneUnit : MonoBehaviour
 
         float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
         Vector3 pos = mainLifMag.localPosition;
-        pos.y += input * speed * Time.deltaTime;
+        pos.y += input * speed * Time.fixedDeltaTime;
         pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
         mainLifMag.localPosition = pos;
     }
@@ -105,7 +106,7 @@ public class CraneUnit : MonoBehaviour
         float speed = GetLifMagSpeed(index) / 60f * 0.4515f / 0.8375f;
 
         Vector3 pos = lifMags[index].target.localPosition;
-        pos.x += input * speed * Time.deltaTime;
+        pos.x += input * speed * Time.fixedDeltaTime;
         pos.x = Mathf.Clamp(pos.x, lifMags[index].minX, lifMags[index].maxX);
         lifMags[index].target.localPosition = pos;
     }
@@ -155,6 +156,12 @@ public class CraneUnit : MonoBehaviour
                 return true;
             }
         }
+
+        if (holdBoardSensor != null && holdBoardSensor.IsTouchingOtherBoard)
+        {
+        return true;
+        }
+
         return false;
     }
 }
