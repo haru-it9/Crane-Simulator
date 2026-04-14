@@ -53,9 +53,15 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float maxMainY = -0.156f;
 
     [Header("Board Contact Check")]
+    [SerializeField] private LifMagSystem lifMagSystem;
     [SerializeField] private MagnetSensor[] sensors;
-    private HoldBoardSensor holdBoardSensor;
-    private GameObject holdingBoard;
+    [SerializeField] private HoldBoardSensor holdBoardSensor;
+
+    [Header("Down Block Check")]
+    [SerializeField] private Transform downCheckOrigin;
+    [SerializeField] private Vector3 downCheckHalfExtents = new Vector3(0.35f, 0.05f, 0.35f);
+    [SerializeField] private LayerMask boardLayer;
+    [SerializeField] private float skinWidth = 0.01f;
 
     public void MoveMainCraneZ(float input)
     {
@@ -83,6 +89,39 @@ public class CraneUnit : MonoBehaviour
     {
         if (mainLifMag == null) return;
 
+        float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
+        float moveAmount = input * speed * Time.fixedDeltaTime;
+
+        Vector3 pos = mainLifMag.localPosition;
+
+        // 下方向へ動くときだけ事前チェック
+        if (moveAmount < 0f)
+        {
+            float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+
+            bool hit = Physics.BoxCast(
+                downCheckOrigin.position,
+                downCheckHalfExtents,
+                Vector3.down,
+                out RaycastHit hitInfo,
+                downCheckOrigin.rotation,
+                checkDistance,
+                boardLayer,
+                QueryTriggerInteraction.Ignore
+            );
+
+            if (hit)
+            {
+                moveAmount = -Mathf.Max(0f, hitInfo.distance - skinWidth);
+            }
+        }
+
+        pos.y += moveAmount;
+        pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
+        mainLifMag.localPosition = pos;
+        
+        /*if (mainLifMag == null) return;
+
         // 下方向に動かそうとしていて、接触していたら止める
         if (input < 0f && IsTouchingBoard())
         {
@@ -93,7 +132,7 @@ public class CraneUnit : MonoBehaviour
         Vector3 pos = mainLifMag.localPosition;
         pos.y += input * speed * Time.fixedDeltaTime;
         pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
-        mainLifMag.localPosition = pos;
+        mainLifMag.localPosition = pos;*/
     }
 
     public void MoveLifMagX(int index, float input)
@@ -149,6 +188,13 @@ public class CraneUnit : MonoBehaviour
 
     private bool IsTouchingBoard()
     {
+        // 吸着中なら、「保持している板が他の板に接触しているか」だけを見る
+        if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
+        {
+            return holdBoardSensor != null && holdBoardSensor.IsTouchingOtherBoard;
+        }
+
+        // 非吸着時なら、今まで通りリフマグセンサを見る
         foreach (var s in sensors)
         {
             if (s != null && s.IsTouchingBoard)
@@ -157,11 +203,20 @@ public class CraneUnit : MonoBehaviour
             }
         }
 
-        if (holdBoardSensor != null && holdBoardSensor.IsTouchingOtherBoard)
-        {
-        return true;
-        }
-
         return false;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (downCheckOrigin == null) return;
+
+        Gizmos.color = Color.cyan;
+        Gizmos.matrix = Matrix4x4.TRS(
+            downCheckOrigin.position,
+            downCheckOrigin.rotation,
+            Vector3.one
+        );
+
+        Gizmos.DrawWireCube(Vector3.zero, downCheckHalfExtents * 2f);
     }
 }

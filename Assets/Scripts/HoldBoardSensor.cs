@@ -4,63 +4,50 @@ using UnityEngine;
 
 public class HoldBoardSensor : MonoBehaviour
 {
-    public GameObject OwnerBoard { get; private set; }
-    public bool IsTouchingOtherBoard { get; private set; }
+    private GameObject ownerBoard;
+    private readonly HashSet<GameObject> touchingOtherBoards = new HashSet<GameObject>();
 
-    public void Initialize(GameObject ownerBoard)
+    public bool IsTouchingOtherBoard => touchingOtherBoards.Count > 0;
+
+    public void SetOwnerBoard(GameObject board)
     {
-        OwnerBoard = ownerBoard;
-        IsTouchingOtherBoard = false;
+        ownerBoard = board;
+        touchingOtherBoards.Clear();
     }
 
-    private void OnTriggerEnter(Collider other)
+    public void ClearOwnerBoard()
+    {
+        ownerBoard = null;
+        touchingOtherBoards.Clear();
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        CheckBoard(collision.gameObject, true);
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        CheckBoard(collision.gameObject, true);
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        CheckBoard(collision.gameObject, false);
+    }
+
+    private void CheckBoard(GameObject other, bool isTouching)
     {
         if (!other.CompareTag("Board")) return;
+        if (other == ownerBoard) return;
 
-        GameObject otherBoard = GetBoardRoot(other.gameObject);
-        if (otherBoard == null) return;
-
-        if (otherBoard != OwnerBoard)
+        if (isTouching)
         {
-            IsTouchingOtherBoard = true;
+            touchingOtherBoards.Add(other);
         }
-    }
-
-    private void OnTriggerStay(Collider other)
-    {
-        if (!other.CompareTag("Board")) return;
-
-        GameObject otherBoard = GetBoardRoot(other.gameObject);
-        if (otherBoard == null) return;
-
-        if (otherBoard != OwnerBoard)
+        else
         {
-            IsTouchingOtherBoard = true;
+            touchingOtherBoards.Remove(other);
         }
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        if (!other.CompareTag("Board")) return;
-
-        GameObject otherBoard = GetBoardRoot(other.gameObject);
-        if (otherBoard == null) return;
-
-        if (otherBoard != OwnerBoard)
-        {
-            IsTouchingOtherBoard = false;
-        }
-    }
-
-    private GameObject GetBoardRoot(GameObject obj)
-    {
-        Transform t = obj.transform;
-        while (t != null)
-        {
-            if (t.CompareTag("Board"))
-                return t.gameObject;
-            t = t.parent;
-        }
-        return null;
     }
 }

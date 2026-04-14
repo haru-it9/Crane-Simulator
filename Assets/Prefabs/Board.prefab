@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3659925682039198163}
   - component: {fileID: -4534959478058455389}
   - component: {fileID: -2079010117270834621}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Board
   m_TagString: Board
   m_Icon: {fileID: 0}
@@ -34,7 +34,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 18
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8672200026839578728
 MeshFilter:
@@ -133,7 +133,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 1
+  m_CollisionDetection: 2
 --- !u!114 &-2079010117270834621
 MonoBehaviour:
   m_ObjectHideFlags: 0

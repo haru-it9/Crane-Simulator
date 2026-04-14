@@ -4,17 +4,26 @@ using UnityEngine;
 
 public class MagnetSensor : MonoBehaviour
 {
-    public GameObject CurrentBoard { get; private set; }
-    public bool IsTouchingBoard { get; private set; }
+    private readonly HashSet<GameObject> touchingBoards = new HashSet<GameObject>();
+
+    public bool IsTouchingBoard => touchingBoards.Count > 0;
+
+    public IReadOnlyCollection<GameObject> TouchingBoards => touchingBoards;
+
+    
+    //public GameObject CurrentBoard { get; private set; }
+    //public bool IsTouchingBoard { get; private set; }
 
 
     private void OnTriggerEnter(Collider other)
     {
+        Debug.Log($"TriggerEnter: {other.name}, tag={other.tag}");
         if (other.CompareTag("Board"))
         {
-            CurrentBoard = other.gameObject;
-            IsTouchingBoard = true;
-            //Debug.Log("Boardに触れた（Enter）: " + other.name);
+            touchingBoards.Add(other.gameObject);
+            //CurrentBoard = other.gameObject;
+            //IsTouchingBoard = true;
+            Debug.Log("Boardに触れた（Enter）: " + other.name);
         }
     }
 
@@ -28,11 +37,17 @@ public class MagnetSensor : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Board") && CurrentBoard == other.gameObject)
+        if (other.CompareTag("Board")/* && CurrentBoard == other.gameObject*/)
         {
-            CurrentBoard = null;
-            IsTouchingBoard = false;
-            //Debug.Log("Boardから離れた（Exit）: " + other.name);
+            touchingBoards.Remove(other.gameObject);
+            //CurrentBoard = null;
+            //IsTouchingBoard = false;
+            Debug.Log("Boardから離れた（Exit）: " + other.name);
         }
+    }
+
+    private void OnDisable()
+    {
+        touchingBoards.Clear();
     }
 }

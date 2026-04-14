@@ -315,6 +315,12 @@ MonoBehaviour:
   minMainY: -5.31
   maxMainY: -1.56
   sensors: []
+  downCheckOrigin: {fileID: 0}
+  downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
+  boardLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  skinWidth: 0.01
 --- !u!4 &5693043
 Transform:
   m_ObjectHideFlags: 0
@@ -1179,6 +1185,12 @@ MonoBehaviour:
   minMainY: -5.31
   maxMainY: -1.56
   sensors: []
+  downCheckOrigin: {fileID: 0}
+  downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
+  boardLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  skinWidth: 0.01
 --- !u!4 &109010577
 Transform:
   m_ObjectHideFlags: 0
@@ -1473,6 +1485,12 @@ MonoBehaviour:
   minMainY: -5.31
   maxMainY: -1.56
   sensors: []
+  downCheckOrigin: {fileID: 0}
+  downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
+  boardLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  skinWidth: 0.01
 --- !u!4 &110875036
 Transform:
   m_ObjectHideFlags: 0
@@ -4608,7 +4626,6 @@ GameObject:
   - component: {fileID: 677659823}
   - component: {fileID: 677659822}
   - component: {fileID: 677659825}
-  - component: {fileID: 677659826}
   m_Layer: 0
   m_Name: LifMag(inL)
   m_TagString: Untagged
@@ -4716,33 +4733,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aecc303c0018344e8648ded61f28b60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!54 &677659826
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 677659820}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -4982,7 +4972,6 @@ GameObject:
   - component: {fileID: 796789746}
   - component: {fileID: 796789745}
   - component: {fileID: 796789744}
-  - component: {fileID: 796789747}
   m_Layer: 0
   m_Name: Mag(outR)
   m_TagString: Untagged
@@ -5076,33 +5065,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 796789742}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!54 &796789747
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 796789742}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1001 &800607494
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6177,7 +6139,6 @@ GameObject:
   - component: {fileID: 928291070}
   - component: {fileID: 928291069}
   - component: {fileID: 928291072}
-  - component: {fileID: 928291073}
   m_Layer: 0
   m_Name: LifMag(outR)
   m_TagString: Untagged
@@ -6286,33 +6247,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aecc303c0018344e8648ded61f28b60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!54 &928291073
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 928291067}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1 &930344068
 GameObject:
   m_ObjectHideFlags: 0
@@ -6957,7 +6891,6 @@ GameObject:
   - component: {fileID: 987015978}
   - component: {fileID: 987015977}
   - component: {fileID: 987015976}
-  - component: {fileID: 987015979}
   m_Layer: 0
   m_Name: Mag(outL)
   m_TagString: Untagged
@@ -7051,33 +6984,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 987015974}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!54 &987015979
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987015974}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 2
 --- !u!1 &994383518
 GameObject:
   m_ObjectHideFlags: 0
@@ -7885,6 +7791,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1046261898}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1065044025
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1065044026}
+  m_Layer: 0
+  m_Name: DownCheckOrigin
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1065044026
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1065044025}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1743662104}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1065531570
 GameObject:
   m_ObjectHideFlags: 0
@@ -10587,6 +10524,12 @@ MonoBehaviour:
   maxMainY: -1.56
   sensors:
   - {fileID: 1743662108}
+  downCheckOrigin: {fileID: 1065044026}
+  downCheckHalfExtents: {x: 0.35, y: 0.045, z: 0.35}
+  boardLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  skinWidth: 0.01
 --- !u!1 &1386883058
 GameObject:
   m_ObjectHideFlags: 0
@@ -11888,6 +11831,10 @@ MonoBehaviour:
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
   requiredMagnetCount: 1
+  holdPoint: {fileID: 0}
+  attachDistance: 0.08
+  attractForce: 15
+  maxAttractDistance: 0.15
 --- !u!1001 &1545738098
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13931,6 +13878,12 @@ MonoBehaviour:
   minMainY: -5.31
   maxMainY: -1.56
   sensors: []
+  downCheckOrigin: {fileID: 0}
+  downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
+  boardLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  skinWidth: 0.01
 --- !u!4 &1696454653
 Transform:
   m_ObjectHideFlags: 0
@@ -14047,7 +14000,6 @@ GameObject:
   - component: {fileID: 1697310444}
   - component: {fileID: 1697310443}
   - component: {fileID: 1697310446}
-  - component: {fileID: 1697310447}
   m_Layer: 0
   m_Name: LifMag(outL)
   m_TagString: Untagged
@@ -14156,33 +14108,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aecc303c0018344e8648ded61f28b60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!54 &1697310447
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1697310441}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1 &1699447025
 GameObject:
   m_ObjectHideFlags: 0
@@ -14195,7 +14120,6 @@ GameObject:
   - component: {fileID: 1699447029}
   - component: {fileID: 1699447028}
   - component: {fileID: 1699447027}
-  - component: {fileID: 1699447030}
   m_Layer: 0
   m_Name: Mag(inL)
   m_TagString: Untagged
@@ -14289,33 +14213,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1699447025}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!54 &1699447030
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1699447025}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1 &1715766238
 GameObject:
   m_ObjectHideFlags: 0
@@ -14673,7 +14570,6 @@ GameObject:
   - component: {fileID: 1743662106}
   - component: {fileID: 1743662105}
   - component: {fileID: 1743662108}
-  - component: {fileID: 1743662109}
   m_Layer: 0
   m_Name: LifMag(Center)
   m_TagString: Untagged
@@ -14694,6 +14590,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1787597405}
+  - {fileID: 1065044026}
   m_Father: {fileID: 1514171645}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -14780,33 +14677,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aecc303c0018344e8648ded61f28b60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!54 &1743662109
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1743662103}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1 &1777248084
 GameObject:
   m_ObjectHideFlags: 0
@@ -15752,7 +15622,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1846325233
 Transform:
   m_ObjectHideFlags: 0
@@ -15999,7 +15869,6 @@ GameObject:
   - component: {fileID: 1874086610}
   - component: {fileID: 1874086609}
   - component: {fileID: 1874086608}
-  - component: {fileID: 1874086611}
   m_Layer: 0
   m_Name: Mag(inR)
   m_TagString: Untagged
@@ -16093,33 +15962,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1874086606}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!54 &1874086611
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1874086606}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1 &1878055667
 GameObject:
   m_ObjectHideFlags: 0
@@ -16266,7 +16108,6 @@ GameObject:
   - component: {fileID: 1881559432}
   - component: {fileID: 1881559431}
   - component: {fileID: 1881559434}
-  - component: {fileID: 1881559435}
   m_Layer: 0
   m_Name: LifMag(inR)
   m_TagString: Untagged
@@ -16374,33 +16215,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aecc303c0018344e8648ded61f28b60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!54 &1881559435
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1881559429}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
 --- !u!1 &1884389498
 GameObject:
   m_ObjectHideFlags: 0
@@ -17135,6 +16949,12 @@ MonoBehaviour:
   minMainY: -5.31
   maxMainY: -1.56
   sensors: []
+  downCheckOrigin: {fileID: 0}
+  downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
+  boardLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  skinWidth: 0.01
 --- !u!4 &1994968995
 Transform:
   m_ObjectHideFlags: 0
