@@ -13,7 +13,9 @@ public class HoldBoardSensor : MonoBehaviour
     public void SetOwnerBoard(GameObject board)
     {
         ownerBoard = board;
-        touchingStopTargets.Clear();
+        // すでに接触中の候補を消さない
+        touchingStopTargets.Remove(ownerBoard);
+        //touchingStopTargets.Clear();
         //Debug.Log($"[HoldBoardSensor] owner設定: {board.name}");
     }
 

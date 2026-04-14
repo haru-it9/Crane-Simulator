@@ -143,19 +143,38 @@ public class LifMagSystem : MonoBehaviour
 
     private GameObject FindAdditionalCandidateBoard()
     {
-        foreach (HoldBoardSensor sensor in attachedHoldSensors)
+        HoldBoardSensor lastSensor = CurrentHoldBoardSensor;
+        if (lastSensor == null)
         {
-            if (sensor == null) continue;
-
-            foreach (GameObject board in sensor.TouchingStopTargets)
-            {
-                if (board == null) continue;
-                if (attachedBoards.Contains(board)) continue;
-
-                return board;
-            }
+            Debug.Log("lastSensor が null");
+            return null;
         }
 
+        Debug.Log($"最後のセンサ: {lastSensor.gameObject.name}");
+
+        foreach (GameObject board in lastSensor.TouchingStopTargets)
+        {
+            if (board == null) continue;
+
+            Debug.Log($"候補チェック: {board.name}");
+
+            if (!board.CompareTag("Board"))
+            {
+                Debug.Log($"除外: {board.name} は Board ではない");
+                continue;
+            }
+
+            if (attachedBoards.Contains(board))
+            {
+                Debug.Log($"除外: {board.name} はすでに保持中");
+                continue;
+            }
+
+            Debug.Log($"追加吸着候補決定: {board.name}");
+            return board;
+        }
+
+        Debug.Log("追加吸着候補なし");
         return null;
     }
 
