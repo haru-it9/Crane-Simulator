@@ -188,43 +188,11 @@ public class CraneUnit : MonoBehaviour
             {
                 moveAmount = 0f;
             }
-
-            /*float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
-
-            bool hit = Physics.BoxCast(
-                downCheckOrigin.position,
-                downCheckHalfExtents,
-                Vector3.down,
-                out RaycastHit hitInfo,
-                downCheckOrigin.rotation,
-                checkDistance,
-                boardLayer,
-                QueryTriggerInteraction.Ignore
-            );
-
-            if (hit)
-            {
-                moveAmount = -Mathf.Max(0f, hitInfo.distance - skinWidth);
-            }*/
         }
 
         pos.y += moveAmount;
         pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
         mainLifMag.localPosition = pos;
-        
-        /*if (mainLifMag == null) return;
-
-        // 下方向に動かそうとしていて、接触していたら止める
-        if (input < 0f && IsTouchingBoard())
-        {
-            input = 0f;
-        }
-
-        float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
-        Vector3 pos = mainLifMag.localPosition;
-        pos.y += input * speed * Time.fixedDeltaTime;
-        pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
-        mainLifMag.localPosition = pos;*/
     }
 
     public void MoveLifMagX(int index, float input)
@@ -277,26 +245,6 @@ public class CraneUnit : MonoBehaviour
         mainLifMagYSpeedIndex = (mainLifMagYSpeedIndex + 1) % mainLifMagYSpeeds.Length;
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
     }
-
-    /*private bool IsTouchingBoard()
-    {
-        // 吸着中なら、「保持している板が他の板に接触しているか」だけを見る
-        if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
-        {
-            return holdBoardSensor != null && holdBoardSensor.IsTouchingOtherBoard;
-        }
-
-        // 非吸着時なら、今まで通りリフマグセンサを見る
-        foreach (var s in sensors)
-        {
-            if (s != null && s.IsTouchingBoard)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }*/
 
     private void OnDrawGizmosSelected()
     {
