@@ -10,7 +10,6 @@ public class LifMagSystem : MonoBehaviour
     [Header("入力")]
     [SerializeField] private KeyCode attachKey = KeyCode.E;
     [SerializeField] private KeyCode detachKey = KeyCode.R;
-    [SerializeField] private KeyCode attachAdditionalKey = KeyCode.T;
     [SerializeField] private string joyStick2RedButton = "JoyStick2RedButton";
     [SerializeField] private string joyStick2BlackButton = "JoyStick2BlackButton";
 
@@ -33,21 +32,19 @@ public class LifMagSystem : MonoBehaviour
     private readonly List<Rigidbody> attachedRigidbodies = new List<Rigidbody>();
     private readonly List<HoldBoardSensor> attachedHoldSensors = new List<HoldBoardSensor>();
 
+    [SerializeField] private float attachCooldown = 0.2f;
+    private float lastAttachTime = -999f;
+
     private void Update()
     {
         if (Input.GetKeyDown(attachKey) || Input.GetButtonDown(joyStick2RedButton))
         {
-            TryAttach();
+            TryAttachUnified();
         }
 
         if (Input.GetKeyDown(detachKey) || Input.GetButtonDown(joyStick2BlackButton))
         {
             DetachAll();
-        }
-
-        if (Input.GetKeyDown(attachAdditionalKey) || Input.GetButtonDown(joyStick2RedButton))
-        {
-            TryAttachAdditionalBoard();
         }
     }
 
@@ -56,12 +53,36 @@ public class LifMagSystem : MonoBehaviour
         return attachedBoards.Contains(board);
     }
 
-    private void TryAttach()
+    private void TryAttachUnified()
+    {
+        if (Time.time - lastAttachTime < attachCooldown)
+        {
+            return;
+        }
+
+        bool success = false;
+
+        if (!HasAttachedBoard)
+        {
+            success = TryAttach(); // ← bool返すように変更
+        }
+        else
+        {
+            success = TryAttachAdditionalBoard(); // ← bool返すように変更
+        }
+
+        if (success)
+        {
+            lastAttachTime = Time.time;
+        }
+    }
+
+    private bool TryAttach()
     {
         if (HasAttachedBoard)
         {
             Debug.Log("すでに板を保持中");
-            return;
+            return false;
         }
 
         GameObject targetBoard = GetBestCandidateBoard(out int count);
@@ -71,16 +92,17 @@ public class LifMagSystem : MonoBehaviour
         if (targetBoard == null)
         {
             Debug.Log("候補板なし");
-            return;
+            return false;
         }
 
         if (count < requiredMagnetCount)
         {
             Debug.Log($"接触数不足: {count} / 必要数 {requiredMagnetCount}");
-            return;
+            return false;
         }
 
         AttachBoardInternal(targetBoard);
+        return true;
     }
 
     private void DetachAll()
@@ -121,12 +143,12 @@ public class LifMagSystem : MonoBehaviour
         Debug.Log("全板を解除しました");
     }
 
-    private void TryAttachAdditionalBoard()
+    private bool TryAttachAdditionalBoard()
     {
         if (!HasAttachedBoard)
         {
             Debug.Log("まだ板を保持していないため、追加吸着できません");
-            return;
+            return false;
         }
 
         GameObject candidate = FindAdditionalCandidateBoard();
@@ -134,47 +156,56 @@ public class LifMagSystem : MonoBehaviour
         if (candidate == null)
         {
             Debug.Log("追加吸着候補なし");
-            return;
+            return false;
         }
 
         AttachBoardInternal(candidate);
         Debug.Log($"追加吸着成功: {candidate.name}");
+        return true;
     }
 
     private GameObject FindAdditionalCandidateBoard()
     {
-        HoldBoardSensor lastSensor = CurrentHoldBoardSensor;
-        if (lastSensor == null)
+        GameObject lastBoard = LastAttachedBoard;
+        if (lastBoard == null) return null;
+
+        Collider col = lastBoard.GetComponent<Collider>();
+        if (col == null) return null;
+
+        Bounds b = col.bounds;
+
+        // ★ここが重要（下側）
+        Vector3 origin = new Vector3(
+            b.center.x,
+            b.min.y + 0.05f,
+            b.center.z
+        );
+
+        Vector3 halfExtents = new Vector3(
+            b.extents.x * 0.95f,
+            0.1f,
+            b.extents.z * 0.95f
+        );
+
+        Collider[] hits = Physics.OverlapBox(
+            origin,
+            halfExtents,
+            lastBoard.transform.rotation
+        );
+
+        foreach (Collider hit in hits)
         {
-            Debug.Log("lastSensor が null");
-            return null;
+            GameObject obj = hit.gameObject;
+
+            if (obj == lastBoard) continue;
+            if (!obj.CompareTag("Board")) continue;
+            if (attachedBoards.Contains(obj)) continue;
+
+            Debug.Log($"追加吸着候補(再接触対応): {obj.name}");
+            return obj;
         }
 
-        Debug.Log($"最後のセンサ: {lastSensor.gameObject.name}");
-
-        foreach (GameObject board in lastSensor.TouchingStopTargets)
-        {
-            if (board == null) continue;
-
-            Debug.Log($"候補チェック: {board.name}");
-
-            if (!board.CompareTag("Board"))
-            {
-                Debug.Log($"除外: {board.name} は Board ではない");
-                continue;
-            }
-
-            if (attachedBoards.Contains(board))
-            {
-                Debug.Log($"除外: {board.name} はすでに保持中");
-                continue;
-            }
-
-            Debug.Log($"追加吸着候補決定: {board.name}");
-            return board;
-        }
-
-        Debug.Log("追加吸着候補なし");
+        Debug.Log("追加吸着候補なし（再接触）");
         return null;
     }
 
