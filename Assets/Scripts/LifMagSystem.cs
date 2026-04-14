@@ -10,6 +10,7 @@ public class LifMagSystem : MonoBehaviour
     [Header("入力")]
     [SerializeField] private KeyCode attachKey = KeyCode.E;
     [SerializeField] private KeyCode detachKey = KeyCode.R;
+    [SerializeField] private KeyCode attachAdditionalKey = KeyCode.T;
     [SerializeField] private string joyStick2RedButton = "JoyStick2RedButton";
     [SerializeField] private string joyStick2BlackButton = "JoyStick2BlackButton";
 
@@ -19,19 +20,18 @@ public class LifMagSystem : MonoBehaviour
     [Header("保持位置")]
     [SerializeField] private Transform holdPoint;
 
-    [Header("吸着補助")]
-    [SerializeField] private float attachDistance = 0.08f;
-    [SerializeField] private float attractForce = 15f;
-    [SerializeField] private float maxAttractDistance = 0.15f;
+    // 互換用
+    public bool HasAttachedBoard => attachedBoards.Count > 0;
+    public GameObject AttachedBoard => attachedBoards.Count > 0 ? attachedBoards[0] : null;
 
-    private HoldBoardSensor currentHoldBoardSensor;
-    public HoldBoardSensor CurrentHoldBoardSensor => currentHoldBoardSensor;
+    // CraneUnit からは「最後に保持した板」のセンサを見る
+    public HoldBoardSensor CurrentHoldBoardSensor => attachedHoldSensors.Count > 0 ? attachedHoldSensors[attachedHoldSensors.Count - 1] : null;
+    public GameObject LastAttachedBoard => attachedBoards.Count > 0 ? attachedBoards[attachedBoards.Count - 1] : null;
 
-    private GameObject attachedBoard;
-    private Rigidbody attachedRb;
-    private bool isHolding;
-    public bool HasAttachedBoard => attachedBoard != null;
-    public GameObject AttachedBoard => attachedBoard;
+    // 内部管理
+    private readonly List<GameObject> attachedBoards = new List<GameObject>();
+    private readonly List<Rigidbody> attachedRigidbodies = new List<Rigidbody>();
+    private readonly List<HoldBoardSensor> attachedHoldSensors = new List<HoldBoardSensor>();
 
     private void Update()
     {
@@ -42,26 +42,23 @@ public class LifMagSystem : MonoBehaviour
 
         if (Input.GetKeyDown(detachKey) || Input.GetButtonDown(joyStick2BlackButton))
         {
-            Detach();
+            DetachAll();
         }
 
-        /*if (attachedBoard != null)
+        if (Input.GetKeyDown(attachAdditionalKey) || Input.GetButtonDown(joyStick2RedButton))
         {
-            FollowAttachedBoard();
-        }*/
+            TryAttachAdditionalBoard();
+        }
     }
 
-    private void FixedUpdate()
+    public bool IsAttachedBoard(GameObject board)
     {
-        if (attachedBoard != null && isHolding)
-        {
-            FollowAttachedBoard();
-        }
+        return attachedBoards.Contains(board);
     }
 
     private void TryAttach()
     {
-        if (attachedBoard != null) 
+        if (HasAttachedBoard)
         {
             Debug.Log("すでに板を保持中");
             return;
@@ -83,112 +80,121 @@ public class LifMagSystem : MonoBehaviour
             return;
         }
 
-        attachedBoard = targetBoard;
-        attachedRb = attachedBoard.GetComponent<Rigidbody>();
-        currentHoldBoardSensor = attachedBoard.GetComponent<HoldBoardSensor>();
+        AttachBoardInternal(targetBoard);
+    }
 
-        if (attachedRb != null)
+    private void DetachAll()
+    {
+        if (attachedBoards.Count == 0) return;
+
+        foreach (GameObject board in attachedBoards)
         {
-            attachedRb.isKinematic = true;
-            attachedRb.useGravity = false;
-            attachedRb.velocity = Vector3.zero;
-            attachedRb.angularVelocity = Vector3.zero;
+            if (board != null)
+            {
+                board.transform.SetParent(null, true);
+            }
         }
 
-        attachedBoard.transform.SetParent(transform, true);
-
-        Debug.Log($"吸着成功: {attachedBoard.name}");
-
-        if (currentHoldBoardSensor != null)
+        foreach (Rigidbody rb in attachedRigidbodies)
         {
-            currentHoldBoardSensor.SetOwnerBoard(attachedBoard);
-        }
-        else
-        {
-            Debug.LogWarning("吸着した板に HoldBoardSensor が付いていません");
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.useGravity = true;
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
         }
 
-        /*Collider col = targetBoard.GetComponent<Collider>();
+        foreach (HoldBoardSensor sensor in attachedHoldSensors)
+        {
+            if (sensor != null)
+            {
+                sensor.ClearOwnerBoard();
+            }
+        }
 
-        if (rb == null || col == null || holdPoint == null) return;*/
+        attachedBoards.Clear();
+        attachedRigidbodies.Clear();
+        attachedHoldSensors.Clear();
 
-        /*if (rb != null)
+        Debug.Log("全板を解除しました");
+    }
+
+    private void TryAttachAdditionalBoard()
+    {
+        if (!HasAttachedBoard)
+        {
+            Debug.Log("まだ板を保持していないため、追加吸着できません");
+            return;
+        }
+
+        GameObject candidate = FindAdditionalCandidateBoard();
+
+        if (candidate == null)
+        {
+            Debug.Log("追加吸着候補なし");
+            return;
+        }
+
+        AttachBoardInternal(candidate);
+        Debug.Log($"追加吸着成功: {candidate.name}");
+    }
+
+    private GameObject FindAdditionalCandidateBoard()
+    {
+        foreach (HoldBoardSensor sensor in attachedHoldSensors)
+        {
+            if (sensor == null) continue;
+
+            foreach (GameObject board in sensor.TouchingStopTargets)
+            {
+                if (board == null) continue;
+                if (attachedBoards.Contains(board)) continue;
+
+                return board;
+            }
+        }
+
+        return null;
+    }
+
+    private void AttachBoardInternal(GameObject board)
+    {
+        if (board == null) return;
+        if (attachedBoards.Contains(board)) return;
+
+        Rigidbody rb = board.GetComponent<Rigidbody>();
+        HoldBoardSensor sensor = board.GetComponent<HoldBoardSensor>();
+
+        if (rb != null)
         {
             rb.isKinematic = true;
             rb.useGravity = false;
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-        }*/
-
-        /*Vector3 closest = col.ClosestPoint(holdPoint.position);
-        float distance = Vector3.Distance(holdPoint.position, closest);
-
-        // かなり近いならそのまま吸着成立
-        if (distance <= attachDistance)
-        {
-            AttachBoard(targetBoard, rb);
-            return;
         }
 
-        // 少し離れているが近距離なら軽く引き寄せる
-        if (distance <= maxAttractDistance)
-        {
-            Vector3 dir = (holdPoint.position - rb.worldCenterOfMass).normalized;
-            rb.AddForce(dir * attractForce, ForceMode.Acceleration);
+        board.transform.SetParent(transform, true);
 
-            // 1回の入力で即吸着にしたいならここはreturnでOK
-            // 押し続け吸着方式にしたいなら、Input.GetKey系と組み合わせて毎FixedUpdateで引力をかける
-        }*/
+        attachedBoards.Add(board);
 
-        //attachedBoard.transform.SetParent(transform, true);
-        //FollowAttachedBoard();
-    }
-
-    private void AttachBoard(GameObject board, Rigidbody rb)
-    {
-        attachedBoard = board;
-        attachedRb = rb;
-        isHolding = true;
-
-        attachedRb.velocity = Vector3.zero;
-        attachedRb.angularVelocity = Vector3.zero;
-        attachedRb.useGravity = false;
-        attachedRb.isKinematic = true;
-    }
-
-    private void Detach()
-    {
-        if (attachedBoard == null) return;
-
-        attachedBoard.transform.SetParent(null, true);
-
-        if (attachedRb != null)
-        {
-            attachedRb.isKinematic = false;
-            attachedRb.useGravity = true;
-            attachedRb.velocity = Vector3.zero;
-            attachedRb.angularVelocity = Vector3.zero;
-        }
-
-        attachedBoard = null;
-        attachedRb = null;
-        isHolding = false;
-
-        if (currentHoldBoardSensor != null)
-        {
-            currentHoldBoardSensor.ClearOwnerBoard();
-        }
-
-        /*Rigidbody rb = attachedBoard.GetComponent<Rigidbody>();
         if (rb != null)
         {
-            rb.isKinematic = false;
-            rb.useGravity = true;
+            attachedRigidbodies.Add(rb);
         }
 
-        attachedBoard = null;*/
+        if (sensor != null)
+        {
+            sensor.SetOwnerBoard(board);
+            attachedHoldSensors.Add(sensor);
+        }
+        else
+        {
+            Debug.LogWarning($"板 {board.name} に HoldBoardSensor が付いていません");
+        }
 
-        currentHoldBoardSensor = null;
+        Debug.Log($"吸着成功: {board.name}, 保持枚数={attachedBoards.Count}");
     }
 
     private GameObject GetBestCandidateBoard(out int bestCount)
@@ -204,6 +210,7 @@ public class LifMagSystem : MonoBehaviour
             foreach (GameObject board in sensor.TouchingBoards)
             {
                 if (board == null) continue;
+                if (attachedBoards.Contains(board)) continue;
 
                 if (!boardCounts.ContainsKey(board))
                 {
@@ -219,69 +226,7 @@ public class LifMagSystem : MonoBehaviour
                 }
             }
         }
-        /*Dictionary<GameObject, int> boardCounts = new Dictionary<GameObject, int>();
-        GameObject bestBoard = null;
-        bestCount = 0;
-
-        foreach (MagnetSensor sensor in magnetSensors)
-        {
-            if (sensor == null) continue;
-
-            GameObject board = sensor.CurrentBoard;
-            if (board == null) continue;
-
-            if (!boardCounts.ContainsKey(board))
-            {
-                boardCounts[board] = 0;
-            }
-
-            boardCounts[board]++;
-
-            if (boardCounts[board] > bestCount)
-            {
-                bestCount = boardCounts[board];
-                bestBoard = board;
-            }
-        }*/
 
         return bestBoard;
-    }
-
-    private void FollowAttachedBoard()
-    {
-        if (attachedBoard == null || attachedRb == null || holdPoint == null) return;
-
-        attachedRb.MovePosition(holdPoint.position);
-        attachedRb.MoveRotation(holdPoint.rotation);
-        
-        /*if (attachedBoard == null) return;
-
-        Vector3 sum = Vector3.zero;
-        int count = 0;
-
-        foreach (MagnetSensor sensor in magnetSensors)
-        {
-            if (sensor == null) continue;
-
-            if (sensor.CurrentBoard == attachedBoard)
-            {
-                sum += sensor.transform.position;
-                count++;
-            }
-        }
-
-        if (count == 0) return;
-
-        Vector3 magnetCenter = sum / count;
-
-        Collider boardCol = attachedBoard.GetComponent<Collider>();
-        float halfHeight = 0f;
-
-        if (boardCol != null)
-        {
-            halfHeight = boardCol.bounds.size.y / 2f;
-        }
-
-        attachedBoard.transform.position = magnetCenter - new Vector3(0f, halfHeight, 0f);*/
     }
 }

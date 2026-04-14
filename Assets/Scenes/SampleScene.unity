@@ -10525,7 +10525,7 @@ MonoBehaviour:
   maxMainX: 0.368
   minMainY: -5.31
   maxMainY: -1.56
-  lifMagSystem: {fileID: 0}
+  lifMagSystem: {fileID: 1514171650}
   sensors:
   - {fileID: 1743662108}
   downCheckOrigin: {fileID: 1065044026}
@@ -11832,13 +11832,12 @@ MonoBehaviour:
   - {fileID: 928291072}
   attachKey: 101
   detachKey: 114
+  attachAdditionalKey: 116
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
   requiredMagnetCount: 1
   holdPoint: {fileID: 0}
-  attachDistance: 0.08
-  attractForce: 15
-  maxAttractDistance: 0.15
+  currentHoldBoardSensor: {fileID: 0}
 --- !u!1001 &1545738098
 PrefabInstance:
   m_ObjectHideFlags: 0

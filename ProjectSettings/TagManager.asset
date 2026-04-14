@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 2
   tags:
   - Board
+  - BoardStage
   layers:
   - Default
   - TransparentFX
@@ -12,7 +13,7 @@ TagManager:
   - Board
   - Water
   - UI
-  - 
+  - BoardStage
   - 
   - 
   - 

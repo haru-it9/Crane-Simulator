@@ -101,13 +101,62 @@ public class CraneUnit : MonoBehaviour
             // 吸着中なら、保持板が他板に接触しているかを見る
             if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
             {
-                HoldBoardSensor currentSensor = lifMagSystem.CurrentHoldBoardSensor;
                 Debug.Log("吸着中判定ルート");
 
-                if (currentSensor != null && currentSensor.IsTouchingOtherBoard)
+                GameObject lastBoard = lifMagSystem.LastAttachedBoard;
+
+                if (lastBoard != null)
                 {
-                    shouldStop = true;
-                    Debug.Log("吸着中板が他の板に接触 → 下方向停止");
+                    Collider boardCol = lastBoard.GetComponent<Collider>();
+
+                    if (boardCol != null)
+                    {
+                        float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+                        Bounds b = boardCol.bounds;
+
+                        Vector3 origin = new Vector3(
+                            b.center.x,
+                            b.min.y + skinWidth,
+                            b.center.z
+                        );
+
+                        Vector3 halfExtents = new Vector3(
+                            b.extents.x * 0.95f,
+                            0.01f,
+                            b.extents.z * 0.95f
+                        );
+
+                        RaycastHit[] hits = Physics.BoxCastAll(
+                            origin,
+                            halfExtents,
+                            Vector3.down,
+                            lastBoard.transform.rotation,
+                            checkDistance,
+                            boardLayer,
+                            QueryTriggerInteraction.Ignore
+                        );
+
+                        foreach (RaycastHit hit in hits)
+                        {
+                            if (hit.collider == null) continue;
+
+                            GameObject hitObj = hit.collider.gameObject;
+
+                            // 自分が保持している板は無視
+                            if (lifMagSystem.IsAttachedBoard(hitObj))
+                            {
+                                continue;
+                            }
+
+                            // Board または BoardStage なら停止
+                            if (hitObj.CompareTag("Board") || hitObj.CompareTag("BoardStage"))
+                            {
+                                shouldStop = true;
+                                Debug.Log($"吸着中：{lastBoard.name} の下で {hitObj.name} を検出 → 下方向停止");
+                                break;
+                            }
+                        }
+                    }
                 }
             }
             // 非吸着時なら、従来どおり下方向のBoxCastで見る

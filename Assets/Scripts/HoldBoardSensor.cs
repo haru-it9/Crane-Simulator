@@ -5,55 +5,60 @@ using UnityEngine;
 public class HoldBoardSensor : MonoBehaviour
 {
     private GameObject ownerBoard;
-    private readonly HashSet<GameObject> touchingOtherBoards = new HashSet<GameObject>();
+    private readonly HashSet<GameObject> touchingStopTargets = new HashSet<GameObject>();
 
-    public bool IsTouchingOtherBoard => touchingOtherBoards.Count > 0;
+    public bool IsTouchingStopTarget => touchingStopTargets.Count > 0;
+    public IReadOnlyCollection<GameObject> TouchingStopTargets => touchingStopTargets;
 
     public void SetOwnerBoard(GameObject board)
     {
         ownerBoard = board;
-        touchingOtherBoards.Clear();
-        Debug.Log($"[HoldBoardSensor] owner設定: {board.name}");
+        touchingStopTargets.Clear();
+        //Debug.Log($"[HoldBoardSensor] owner設定: {board.name}");
     }
 
     public void ClearOwnerBoard()
     {
-        Debug.Log("[HoldBoardSensor] owner解除");
+        //Debug.Log("[HoldBoardSensor] owner解除");
         ownerBoard = null;
-        touchingOtherBoards.Clear();
+        touchingStopTargets.Clear();
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        Debug.Log($"[HoldBoardSensor] Enter: {gameObject.name} <-> {collision.gameObject.name}");
-        CheckBoard(collision.gameObject, true);
+        Debug.Log($"[HoldBoardSensor] Enter: name={collision.gameObject.name}, tag={collision.gameObject.tag}");
+        CheckStopTarget(collision.gameObject, true);
     }
 
     private void OnCollisionStay(Collision collision)
     {
-        CheckBoard(collision.gameObject, true);
+        Debug.Log($"[HoldBoardSensor] Stay: name={collision.gameObject.name}, tag={collision.gameObject.tag}");
+        CheckStopTarget(collision.gameObject, true);
     }
 
     private void OnCollisionExit(Collision collision)
     {
-        Debug.Log($"[HoldBoardSensor] Exit: {gameObject.name} <-> {collision.gameObject.name}");
-        CheckBoard(collision.gameObject, false);
+        Debug.Log($"[HoldBoardSensor] Exit: name={collision.gameObject.name}, tag={collision.gameObject.tag}");
+        CheckStopTarget(collision.gameObject, false);
     }
 
-    private void CheckBoard(GameObject other, bool isTouching)
+    private void CheckStopTarget(GameObject other, bool isTouching)
     {
-        if (!other.CompareTag("Board")) return;
+        bool isBoard = other.CompareTag("Board");
+        bool isBoardStage = other.CompareTag("BoardStage");
+
+        if (!isBoard && !isBoardStage) return;
         if (other == ownerBoard) return;
 
         if (isTouching)
         {
-            touchingOtherBoards.Add(other);
-            Debug.Log($"[HoldBoardSensor] 他板接触追加: {other.name}, count={touchingOtherBoards.Count}");
+            touchingStopTargets.Add(other);
+            //Debug.Log($"[HoldBoardSensor] 他板接触追加: {other.name}, count={touchingStopTargets.Count}");
         }
         else
         {
-            touchingOtherBoards.Remove(other);
-            Debug.Log($"[HoldBoardSensor] 他板接触解除: {other.name}, count={touchingOtherBoards.Count}");
+            touchingStopTargets.Remove(other);
+            //Debug.Log($"[HoldBoardSensor] 他板接触解除: {other.name}, count={touchingStopTargets.Count}");
         }
     }
 }
