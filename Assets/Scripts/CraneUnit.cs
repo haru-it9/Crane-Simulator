@@ -55,7 +55,6 @@ public class CraneUnit : MonoBehaviour
     [Header("Board Contact Check")]
     [SerializeField] private LifMagSystem lifMagSystem;
     [SerializeField] private MagnetSensor[] sensors;
-    [SerializeField] private HoldBoardSensor holdBoardSensor;
 
     [Header("Down Block Check")]
     [SerializeField] private Transform downCheckOrigin;
@@ -97,7 +96,51 @@ public class CraneUnit : MonoBehaviour
         // 下方向へ動くときだけ事前チェック
         if (moveAmount < 0f)
         {
-            float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+            bool shouldStop = false;
+
+            // 吸着中なら、保持板が他板に接触しているかを見る
+            if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
+            {
+                HoldBoardSensor currentSensor = lifMagSystem.CurrentHoldBoardSensor;
+                Debug.Log("吸着中判定ルート");
+
+                if (currentSensor != null && currentSensor.IsTouchingOtherBoard)
+                {
+                    shouldStop = true;
+                    Debug.Log("吸着中板が他の板に接触 → 下方向停止");
+                }
+            }
+            // 非吸着時なら、従来どおり下方向のBoxCastで見る
+            else
+            {
+                Debug.Log("非吸着BoxCastルート");
+                
+                float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+
+                bool hit = Physics.BoxCast(
+                    downCheckOrigin.position,
+                    downCheckHalfExtents,
+                    Vector3.down,
+                    out RaycastHit hitInfo,
+                    downCheckOrigin.rotation,
+                    checkDistance,
+                    boardLayer,
+                    QueryTriggerInteraction.Ignore
+                );
+
+                if (hit)
+                {
+                    shouldStop = true;
+                    Debug.Log("非吸着時：リフマグが板に近づいたため停止");
+                }
+            }
+
+            if (shouldStop)
+            {
+                moveAmount = 0f;
+            }
+
+            /*float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
 
             bool hit = Physics.BoxCast(
                 downCheckOrigin.position,
@@ -113,7 +156,7 @@ public class CraneUnit : MonoBehaviour
             if (hit)
             {
                 moveAmount = -Mathf.Max(0f, hitInfo.distance - skinWidth);
-            }
+            }*/
         }
 
         pos.y += moveAmount;
@@ -186,7 +229,7 @@ public class CraneUnit : MonoBehaviour
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
     }
 
-    private bool IsTouchingBoard()
+    /*private bool IsTouchingBoard()
     {
         // 吸着中なら、「保持している板が他の板に接触しているか」だけを見る
         if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
@@ -204,7 +247,7 @@ public class CraneUnit : MonoBehaviour
         }
 
         return false;
-    }
+    }*/
 
     private void OnDrawGizmosSelected()
     {

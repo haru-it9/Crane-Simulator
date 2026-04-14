@@ -13,16 +13,19 @@ public class HoldBoardSensor : MonoBehaviour
     {
         ownerBoard = board;
         touchingOtherBoards.Clear();
+        Debug.Log($"[HoldBoardSensor] owner設定: {board.name}");
     }
 
     public void ClearOwnerBoard()
     {
+        Debug.Log("[HoldBoardSensor] owner解除");
         ownerBoard = null;
         touchingOtherBoards.Clear();
     }
 
     private void OnCollisionEnter(Collision collision)
     {
+        Debug.Log($"[HoldBoardSensor] Enter: {gameObject.name} <-> {collision.gameObject.name}");
         CheckBoard(collision.gameObject, true);
     }
 
@@ -33,6 +36,7 @@ public class HoldBoardSensor : MonoBehaviour
 
     private void OnCollisionExit(Collision collision)
     {
+        Debug.Log($"[HoldBoardSensor] Exit: {gameObject.name} <-> {collision.gameObject.name}");
         CheckBoard(collision.gameObject, false);
     }
 
@@ -44,10 +48,12 @@ public class HoldBoardSensor : MonoBehaviour
         if (isTouching)
         {
             touchingOtherBoards.Add(other);
+            Debug.Log($"[HoldBoardSensor] 他板接触追加: {other.name}, count={touchingOtherBoards.Count}");
         }
         else
         {
             touchingOtherBoards.Remove(other);
+            Debug.Log($"[HoldBoardSensor] 他板接触解除: {other.name}, count={touchingOtherBoards.Count}");
         }
     }
 }

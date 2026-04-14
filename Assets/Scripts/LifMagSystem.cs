@@ -24,7 +24,8 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float attractForce = 15f;
     [SerializeField] private float maxAttractDistance = 0.15f;
 
-    [SerializeField] private HoldBoardSensor holdBoardSensor;
+    private HoldBoardSensor currentHoldBoardSensor;
+    public HoldBoardSensor CurrentHoldBoardSensor => currentHoldBoardSensor;
 
     private GameObject attachedBoard;
     private Rigidbody attachedRb;
@@ -84,6 +85,7 @@ public class LifMagSystem : MonoBehaviour
 
         attachedBoard = targetBoard;
         attachedRb = attachedBoard.GetComponent<Rigidbody>();
+        currentHoldBoardSensor = attachedBoard.GetComponent<HoldBoardSensor>();
 
         if (attachedRb != null)
         {
@@ -97,9 +99,13 @@ public class LifMagSystem : MonoBehaviour
 
         Debug.Log($"吸着成功: {attachedBoard.name}");
 
-        if (holdBoardSensor != null)
+        if (currentHoldBoardSensor != null)
         {
-            holdBoardSensor.SetOwnerBoard(attachedBoard);
+            currentHoldBoardSensor.SetOwnerBoard(attachedBoard);
+        }
+        else
+        {
+            Debug.LogWarning("吸着した板に HoldBoardSensor が付いていません");
         }
 
         /*Collider col = targetBoard.GetComponent<Collider>();
@@ -168,11 +174,11 @@ public class LifMagSystem : MonoBehaviour
         attachedRb = null;
         isHolding = false;
 
-        if (holdBoardSensor != null)
+        if (currentHoldBoardSensor != null)
         {
-            holdBoardSensor.ClearOwnerBoard();
+            currentHoldBoardSensor.ClearOwnerBoard();
         }
-        
+
         /*Rigidbody rb = attachedBoard.GetComponent<Rigidbody>();
         if (rb != null)
         {
@@ -181,6 +187,8 @@ public class LifMagSystem : MonoBehaviour
         }
 
         attachedBoard = null;*/
+
+        currentHoldBoardSensor = null;
     }
 
     private GameObject GetBestCandidateBoard(out int bestCount)

@@ -316,7 +316,6 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
-  holdBoardSensor: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -1188,7 +1187,6 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
-  holdBoardSensor: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -1490,7 +1488,6 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
-  holdBoardSensor: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -10531,9 +10528,8 @@ MonoBehaviour:
   lifMagSystem: {fileID: 0}
   sensors:
   - {fileID: 1743662108}
-  holdBoardSensor: {fileID: 0}
   downCheckOrigin: {fileID: 1065044026}
-  downCheckHalfExtents: {x: 0.35, y: 0.035, z: 0.35}
+  downCheckHalfExtents: {x: 0.35, y: 0.03, z: 0.35}
   boardLayer:
     serializedVersion: 2
     m_Bits: 8
@@ -11843,7 +11839,6 @@ MonoBehaviour:
   attachDistance: 0.08
   attractForce: 15
   maxAttractDistance: 0.15
-  holdBoardSensor: {fileID: 0}
 --- !u!1001 &1545738098
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -13888,7 +13883,6 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
-  holdBoardSensor: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -16961,7 +16955,6 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
-  holdBoardSensor: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
