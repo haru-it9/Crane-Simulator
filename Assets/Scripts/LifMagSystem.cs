@@ -35,6 +35,20 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float attachCooldown = 0.2f;
     private float lastAttachTime = -999f;
 
+
+    ///////////////////////////////////////////////////////////////////
+    [Header("Debug OverlapBox Visualization")]
+    [SerializeField] private bool showDebugOverlapBox = true;
+
+    private bool debugHasOverlapBox;
+    private Vector3 debugOverlapOrigin;
+    private Vector3 debugOverlapHalfExtents;
+    private Quaternion debugOverlapRotation = Quaternion.identity;
+
+    private readonly List<Collider> debugOverlapHits = new List<Collider>();
+    private GameObject debugSelectedCandidate;
+    ///////////////////////////////////////////////////////////////////
+
     private void Update()
     {
         if (Input.GetKeyDown(attachKey) || Input.GetButtonDown(joyStick2RedButton))
@@ -182,10 +196,22 @@ public class LifMagSystem : MonoBehaviour
         );
 
         Vector3 halfExtents = new Vector3(
-            b.extents.x * 0.95f,
-            0.1f,
-            b.extents.z * 0.95f
+            /*b.extents.x * 0.95f*/0.4f,
+            0.05f + 0.001f + 0.001f,
+            /*b.extents.z * 0.95f*/0.4f
         );
+
+        ///////////////////////////////////////////////////
+        Quaternion rotation = lastBoard.transform.rotation;
+
+        // デバッグ情報を保存
+        debugHasOverlapBox = true;
+        debugOverlapOrigin = origin;
+        debugOverlapHalfExtents = halfExtents;
+        debugOverlapRotation = rotation;
+        debugOverlapHits.Clear();
+        debugSelectedCandidate = null;
+        //////////////////////////////////////////////////
 
         Collider[] hits = Physics.OverlapBox(
             origin,
@@ -195,12 +221,16 @@ public class LifMagSystem : MonoBehaviour
 
         foreach (Collider hit in hits)
         {
+            if (hit == null) continue;////////
+            debugOverlapHits.Add(hit);/////////
+
             GameObject obj = hit.gameObject;
 
             if (obj == lastBoard) continue;
             if (!obj.CompareTag("Board")) continue;
             if (attachedBoards.Contains(obj)) continue;
 
+            debugSelectedCandidate = obj;/////////
             Debug.Log($"追加吸着候補(再接触対応): {obj.name}");
             return obj;
         }
@@ -279,4 +309,41 @@ public class LifMagSystem : MonoBehaviour
 
         return bestBoard;
     }
+
+    /*private void OnDrawGizmos()
+    {
+        if (!showDebugOverlapBox) return;
+        if (!Application.isPlaying) return;
+        if (!debugHasOverlapBox) return;
+
+        Matrix4x4 oldMatrix = Gizmos.matrix;
+
+        // OverlapBox本体
+        Gizmos.color = Color.green;
+        Gizmos.matrix = Matrix4x4.TRS(debugOverlapOrigin, debugOverlapRotation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, debugOverlapHalfExtents * 2f);
+
+        Gizmos.matrix = Matrix4x4.identity;
+
+        // hitしたColliderを青で表示
+        Gizmos.color = Color.blue;
+        foreach (Collider hit in debugOverlapHits)
+        {
+            if (hit == null) continue;
+            Gizmos.DrawSphere(hit.bounds.center, 0.015f);
+        }
+
+        // 最終候補を赤で表示
+        if (debugSelectedCandidate != null)
+        {
+            Gizmos.color = Color.red;
+            Collider selectedCol = debugSelectedCandidate.GetComponent<Collider>();
+            if (selectedCol != null)
+            {
+                Gizmos.DrawSphere(selectedCol.bounds.center, 0.025f);
+            }
+        }
+
+        Gizmos.matrix = oldMatrix;
+    }*/
 }

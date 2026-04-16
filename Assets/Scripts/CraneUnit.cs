@@ -62,6 +62,22 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private LayerMask boardLayer;
     [SerializeField] private float skinWidth = 0.01f;
 
+    ///////////////////////////////////////////////
+    [Header("Debug BoxCast Visualization")]
+    [SerializeField] private bool showDebugBoxCast = true;
+
+    private bool debugHasBoxCast;
+    private bool debugBoxCastHit;
+    private Vector3 debugOrigin;
+    private Vector3 debugHalfExtents;
+    private Quaternion debugRotation = Quaternion.identity;
+    private float debugCheckDistance;
+    private float debugInput;
+    private float debugMoveAmount;
+    private Vector3 debugDirection = Vector3.down;
+    ///////////////////////////////////////////////
+
+
     public void MoveMainCraneZ(float input)
     {
         if (mainCrane == null) return;
@@ -93,6 +109,12 @@ public class CraneUnit : MonoBehaviour
 
         Vector3 pos = mainLifMag.localPosition;
 
+        // 毎回いったん初期化
+        debugHasBoxCast = false;
+        debugBoxCastHit = false;
+        debugInput = input;
+        debugMoveAmount = moveAmount;
+
         // 下方向へ動くときだけ事前チェック
         if (moveAmount < 0f)
         {
@@ -102,7 +124,6 @@ public class CraneUnit : MonoBehaviour
             if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
             {
                 Debug.Log("吸着中判定ルート");
-
                 GameObject lastBoard = lifMagSystem.LastAttachedBoard;
 
                 if (lastBoard != null)
@@ -111,7 +132,7 @@ public class CraneUnit : MonoBehaviour
 
                     if (boardCol != null)
                     {
-                        float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+                        float checkDistance = 0.001f/*Mathf.Abs(moveAmount)*/;
                         Bounds b = boardCol.bounds;
 
                         Vector3 origin = new Vector3(
@@ -122,9 +143,21 @@ public class CraneUnit : MonoBehaviour
 
                         Vector3 halfExtents = new Vector3(
                             b.extents.x * 0.95f,
-                            0.01f,
+                            skinWidth,
                             b.extents.z * 0.95f
                         );
+
+                        ////////////////////////////////////////////////
+                        Quaternion rotation = lastBoard.transform.rotation;
+
+                        // 実際に使った値を保存
+                        debugHasBoxCast = true;
+                        debugOrigin = origin;
+                        debugHalfExtents = halfExtents;
+                        debugRotation = rotation;
+                        debugCheckDistance = checkDistance;
+                        debugDirection = Vector3.down;
+                        /////////////////////////////////////////////////////
 
                         RaycastHit[] hits = Physics.BoxCastAll(
                             origin,
@@ -152,6 +185,9 @@ public class CraneUnit : MonoBehaviour
                             if (hitObj.CompareTag("Board") || hitObj.CompareTag("BoardStage"))
                             {
                                 shouldStop = true;
+                                ///////////////////////////////////////////////
+                                debugBoxCastHit = true;
+                                ///////////////////////////////////////////////////
                                 Debug.Log($"吸着中：{lastBoard.name} の下で {hitObj.name} を検出 → 下方向停止");
                                 break;
                             }
@@ -165,6 +201,16 @@ public class CraneUnit : MonoBehaviour
                 Debug.Log("非吸着BoxCastルート");
                 
                 float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+
+                ////////////////////////////////////////////////
+                // 実際に使った値を保存
+                debugHasBoxCast = true;
+                debugOrigin = downCheckOrigin.position;
+                debugHalfExtents = downCheckHalfExtents;
+                debugRotation = downCheckOrigin.rotation;
+                debugCheckDistance = checkDistance;
+                debugDirection = Vector3.down;
+                ////////////////////////////////////////////////////
 
                 bool hit = Physics.BoxCast(
                     downCheckOrigin.position,
@@ -180,6 +226,7 @@ public class CraneUnit : MonoBehaviour
                 if (hit)
                 {
                     shouldStop = true;
+                    debugBoxCastHit = true;///////////////////////////////////////////////
                     Debug.Log("非吸着時：リフマグが板に近づいたため停止");
                 }
             }
@@ -246,17 +293,31 @@ public class CraneUnit : MonoBehaviour
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
     }
 
-    private void OnDrawGizmosSelected()
+    private void OnDrawGizmos()
     {
-        if (downCheckOrigin == null) return;
+        if (!showDebugBoxCast) return;
+        if (!Application.isPlaying) return;
+        if (!debugHasBoxCast) return;
 
-        Gizmos.color = Color.cyan;
-        Gizmos.matrix = Matrix4x4.TRS(
-            downCheckOrigin.position,
-            downCheckOrigin.rotation,
-            Vector3.one
-        );
+        Vector3 endPos = debugOrigin + debugDirection * debugCheckDistance;
 
-        Gizmos.DrawWireCube(Vector3.zero, downCheckHalfExtents * 2f);
+        Matrix4x4 oldMatrix = Gizmos.matrix;
+
+        // 開始位置
+        Gizmos.color = debugBoxCastHit ? new Color(1f, 0.5f, 0f) : Color.green;
+        Gizmos.matrix = Matrix4x4.TRS(debugOrigin, debugRotation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, debugHalfExtents * 2f);
+
+        // 終了位置
+        Gizmos.color = debugBoxCastHit ? Color.red : Color.cyan;
+        Gizmos.matrix = Matrix4x4.TRS(endPos, debugRotation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, debugHalfExtents * 2f);
+
+        // 移動線
+        Gizmos.matrix = Matrix4x4.identity;
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawLine(debugOrigin, endPos);
+
+        Gizmos.matrix = oldMatrix;
     }
 }
