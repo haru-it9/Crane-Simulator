@@ -11832,12 +11832,11 @@ MonoBehaviour:
   - {fileID: 928291072}
   attachKey: 101
   detachKey: 114
-  attachAdditionalKey: 116
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
   requiredMagnetCount: 1
   holdPoint: {fileID: 0}
-  currentHoldBoardSensor: {fileID: 0}
+  attachCooldown: 0.2
 --- !u!1001 &1545738098
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12737,7 +12736,7 @@ MonoBehaviour:
   - {x: 4, y: 6.1, z: -10}
   boardsPerPoint: 3
   boardRandomXRange: {x: 1.5, y: 7.35}
-  boardRandomYRange: {x: 0.00225, y: 0.0675}
+  boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
@@ -15626,7 +15625,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1846325233
 Transform:
   m_ObjectHideFlags: 0
