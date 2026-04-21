@@ -103,12 +103,6 @@ public class CraneUnit : MonoBehaviour
     {
         if (mainLifMag == null) return;
 
-        // 下入力を離したらロック解除
-        if (input >= 0f)
-        {
-            isDownwardLocked = false;
-        }
-
         float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
         float moveAmount = input * speed * Time.fixedDeltaTime;
 
