@@ -62,7 +62,6 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private LayerMask boardLayer;
     [SerializeField] private float skinWidth = 0.01f;
 
-    ///////////////////////////////////////////////
     [Header("Debug BoxCast Visualization")]
     [SerializeField] private bool showDebugBoxCast = true;
 
@@ -75,7 +74,6 @@ public class CraneUnit : MonoBehaviour
     private float debugInput;
     private float debugMoveAmount;
     private Vector3 debugDirection = Vector3.down;
-    ///////////////////////////////////////////////
 
 
     public void MoveMainCraneZ(float input)
@@ -147,7 +145,6 @@ public class CraneUnit : MonoBehaviour
                             b.extents.z * 0.95f
                         );
 
-                        ////////////////////////////////////////////////
                         Quaternion rotation = lastBoard.transform.rotation;
 
                         // 実際に使った値を保存
@@ -157,7 +154,6 @@ public class CraneUnit : MonoBehaviour
                         debugRotation = rotation;
                         debugCheckDistance = checkDistance;
                         debugDirection = Vector3.down;
-                        /////////////////////////////////////////////////////
 
                         RaycastHit[] hits = Physics.BoxCastAll(
                             origin,
@@ -185,9 +181,7 @@ public class CraneUnit : MonoBehaviour
                             if (hitObj.CompareTag("Board") || hitObj.CompareTag("BoardStage"))
                             {
                                 shouldStop = true;
-                                ///////////////////////////////////////////////
                                 debugBoxCastHit = true;
-                                ///////////////////////////////////////////////////
                                 Debug.Log($"吸着中：{lastBoard.name} の下で {hitObj.name} を検出 → 下方向停止");
                                 break;
                             }
@@ -202,7 +196,6 @@ public class CraneUnit : MonoBehaviour
                 
                 float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
 
-                ////////////////////////////////////////////////
                 // 実際に使った値を保存
                 debugHasBoxCast = true;
                 debugOrigin = downCheckOrigin.position;
@@ -210,7 +203,6 @@ public class CraneUnit : MonoBehaviour
                 debugRotation = downCheckOrigin.rotation;
                 debugCheckDistance = checkDistance;
                 debugDirection = Vector3.down;
-                ////////////////////////////////////////////////////
 
                 bool hit = Physics.BoxCast(
                     downCheckOrigin.position,
@@ -226,7 +218,7 @@ public class CraneUnit : MonoBehaviour
                 if (hit)
                 {
                     shouldStop = true;
-                    debugBoxCastHit = true;///////////////////////////////////////////////
+                    debugBoxCastHit = true;
                     Debug.Log("非吸着時：リフマグが板に近づいたため停止");
                 }
             }

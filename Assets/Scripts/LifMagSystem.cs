@@ -12,17 +12,39 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private KeyCode detachKey = KeyCode.R;
     [SerializeField] private string joyStick2RedButton = "JoyStick2RedButton";
     [SerializeField] private string joyStick2BlackButton = "JoyStick2BlackButton";
+    [SerializeField] private string joyStick2Slider = "JoyStick2Slider";
 
     [Header("吸着に必要な最小接触数")]
     [SerializeField] private int requiredMagnetCount = 1;
 
-    [Header("保持位置")]
-    [SerializeField] private Transform holdPoint;
+    [Header("スライダー累積吸着")]
+    [SerializeField] private bool useSliderAccumAttach = true;
+    [SerializeField] private float sliderSampleInterval = 0.1f;   // 0.1秒ごと
+    [SerializeField] private float sliderAttachThreshold = 2.0f;  // この値ごとに1枚吸着
+    [SerializeField] private bool useAbsoluteSliderValue = false;  // 絶対値で積算するか
 
-    // 互換用
+    private bool isAttachAccumulating = false;
+    private float sliderAccumulatedValue = 0f;
+    private float sliderSampleTimer = 0f;
+
+    [Header("板サイズ連動しきい値")]
+    [SerializeField] private bool useBoardSizeThreshold = true;
+
+    // 基準となる板サイズ（例: 0.8m × 0.8m × 0.02m の板ならこんな感じ）
+    [SerializeField] private Vector3 referenceBoardSize = new Vector3(4.425f, 0.045f, 1.075f);
+
+    // 倍率の下限・上限
+    [SerializeField] private float minThresholdMultiplier = 0.125f;
+    [SerializeField] private float maxThresholdMultiplier = 8.0f;
+
+    [Header("接触数連動しきい値")]
+    [SerializeField] private bool useMagnetContactThreshold = true;
+    [SerializeField] private int referenceMagnetContactCount = 5;   // 基準は5個接触
+    [SerializeField] private float maxContactMultiplier = 5.0f;     // 接触数が少ないときの上限
+
+    // 互換用 // 外部スクリプトから参照用
     public bool HasAttachedBoard => attachedBoards.Count > 0;
     public GameObject AttachedBoard => attachedBoards.Count > 0 ? attachedBoards[0] : null;
-
     // CraneUnit からは「最後に保持した板」のセンサを見る
     public HoldBoardSensor CurrentHoldBoardSensor => attachedHoldSensors.Count > 0 ? attachedHoldSensors[attachedHoldSensors.Count - 1] : null;
     public GameObject LastAttachedBoard => attachedBoards.Count > 0 ? attachedBoards[attachedBoards.Count - 1] : null;
@@ -32,46 +54,36 @@ public class LifMagSystem : MonoBehaviour
     private readonly List<Rigidbody> attachedRigidbodies = new List<Rigidbody>();
     private readonly List<HoldBoardSensor> attachedHoldSensors = new List<HoldBoardSensor>();
 
+    [Header("吸着間クールタイム")]
     [SerializeField] private float attachCooldown = 0.2f;
     private float lastAttachTime = -999f;
 
-
-    ///////////////////////////////////////////////////////////////////
-    [Header("Debug OverlapBox Visualization")]
+    [Header("Debug OverlapBox Visualization")] // デバッグ用
     [SerializeField] private bool showDebugOverlapBox = true;
-
     private bool debugHasOverlapBox;
     private Vector3 debugOverlapOrigin;
     private Vector3 debugOverlapHalfExtents;
     private Quaternion debugOverlapRotation = Quaternion.identity;
-
     private readonly List<Collider> debugOverlapHits = new List<Collider>();
     private GameObject debugSelectedCandidate;
-    ///////////////////////////////////////////////////////////////////
+
 
     private void Update()
     {
-        if (Input.GetKeyDown(attachKey) || Input.GetButtonDown(joyStick2RedButton))
-        {
-            TryAttachUnified();
-        }
-
-        if (Input.GetKeyDown(detachKey) || Input.GetButtonDown(joyStick2BlackButton))
-        {
-            DetachAll();
-        }
+        HandleAttachInput();
+        HandleDetachInput();
     }
 
-    public bool IsAttachedBoard(GameObject board)
+    public bool IsAttachedBoard(GameObject board) // 指定した板が現在吸着中かどうかを返す
     {
         return attachedBoards.Contains(board);
     }
 
-    private void TryAttachUnified()
+    private bool TryAttachUnified() // 初回吸着か追加吸着かを判断して、吸着処理を一本化する
     {
         if (Time.time - lastAttachTime < attachCooldown)
         {
-            return;
+            return false;
         }
 
         bool success = false;
@@ -89,9 +101,11 @@ public class LifMagSystem : MonoBehaviour
         {
             lastAttachTime = Time.time;
         }
+
+        return success;
     }
 
-    private bool TryAttach()
+    private bool TryAttach() // 最初の1枚を吸着する
     {
         if (HasAttachedBoard)
         {
@@ -119,7 +133,187 @@ public class LifMagSystem : MonoBehaviour
         return true;
     }
 
-    private void DetachAll()
+    private void HandleAttachInput() // 赤ボタン入力を処理し、累積値に応じて吸着を試みる
+    {
+        bool attachDown = Input.GetKeyDown(attachKey) || Input.GetButtonDown(joyStick2RedButton);
+        bool attachHeld = Input.GetKey(attachKey) || Input.GetButton(joyStick2RedButton);
+        bool attachUp   = Input.GetKeyUp(attachKey) || Input.GetButtonUp(joyStick2RedButton);
+
+        if (!useSliderAccumAttach)
+        {
+            if (attachDown)
+            {
+                TryAttachUnified();
+            }
+            return;
+        }
+
+        // 押した瞬間に積算開始
+        if (attachDown)
+        {
+            isAttachAccumulating = true;
+            sliderAccumulatedValue = 0f;
+            sliderSampleTimer = 0f;
+            Debug.Log("赤ボタン押下：スライダー累積開始");
+        }
+
+        // 押している間だけ0.1秒ごとに積算
+        if (isAttachAccumulating && attachHeld)
+        {
+            sliderSampleTimer += Time.deltaTime;
+
+            while (sliderSampleTimer >= sliderSampleInterval)
+            {
+                sliderSampleTimer -= sliderSampleInterval;
+
+                float sliderValue = Input.GetAxis(joyStick2Slider);
+                float sampleValue = useAbsoluteSliderValue ? Mathf.Abs(sliderValue) : sliderValue;
+
+                sliderAccumulatedValue += sampleValue + 1f;
+
+                Debug.Log($"[SliderAccum] sample={sampleValue:F3}, total={sliderAccumulatedValue:F3}");
+
+                // しきい値を超えた回数分だけ吸着を試みる
+                while (true)
+                {
+                    float currentThreshold = GetCurrentAttachThreshold();
+
+                    if (sliderAccumulatedValue < currentThreshold)
+                    {
+                        break;
+                    }
+
+                    bool success = TryAttachUnified();
+
+                    if (success)
+                    {
+                        sliderAccumulatedValue -= currentThreshold;
+                        Debug.Log($"しきい値到達 -> 吸着成功, consumed={currentThreshold:F3}, remaining={sliderAccumulatedValue:F3}");
+                    }
+                    else
+                    {
+                        Debug.Log("しきい値到達したが吸着失敗");
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 離したら終了・リセット
+        if (attachUp)
+        {
+            isAttachAccumulating = false;
+            sliderAccumulatedValue = 0f;
+            sliderSampleTimer = 0f;
+            Debug.Log("赤ボタン解除：スライダー累積リセット");
+        }
+    }
+
+    private float GetCurrentAttachThreshold() // 今回の吸着に必要な累積値を、板体積と接触マグネット数から計算する
+    {
+        GameObject candidate = GetCurrentCandidateBoard();
+        if (candidate == null)
+        {
+            return sliderAttachThreshold;
+        }
+
+        Collider col = candidate.GetComponent<Collider>();
+        if (col == null)
+        {
+            return sliderAttachThreshold;
+        }
+
+        Bounds b = col.bounds;
+        Vector3 size = b.size;
+
+        // -----------------------------
+        // 1. 体積ベース倍率
+        // -----------------------------
+        float volumeMultiplier = 1f;
+
+        if (useBoardSizeThreshold)
+        {
+            float referenceVolume = referenceBoardSize.x * referenceBoardSize.y * referenceBoardSize.z;
+            float candidateVolume = size.x * size.y * size.z;
+
+            if (referenceVolume > 0.0001f)
+            {
+                volumeMultiplier = candidateVolume / referenceVolume;
+                volumeMultiplier = Mathf.Clamp(volumeMultiplier, minThresholdMultiplier, maxThresholdMultiplier);
+            }
+        }
+
+        // -----------------------------
+        // 2. 接触数ベース倍率
+        // 基準: 5個接触なら1.0
+        // 少ないほど大きくする
+        // -----------------------------
+        float contactMultiplier = 1f;
+        int touchingCount = GetTouchingMagnetCount(candidate);
+
+        if (useMagnetContactThreshold)
+        {
+            if (touchingCount <= 0)
+            {
+                contactMultiplier = maxContactMultiplier;
+            }
+            else
+            {
+                contactMultiplier = (float)referenceMagnetContactCount / touchingCount;
+                contactMultiplier = Mathf.Clamp(contactMultiplier, 1f, maxContactMultiplier);
+            }
+        }
+
+        float threshold = sliderAttachThreshold * volumeMultiplier * contactMultiplier;
+
+        Debug.Log(
+            $"候補板={candidate.name}, " +
+            $"size={size}, " +
+            $"touchingCount={touchingCount}, " +
+            $"volumeMul={volumeMultiplier:F3}, " +
+            $"contactMul={contactMultiplier:F3}, " +
+            $"threshold={threshold:F3}"
+        );
+
+        return threshold;
+    }
+
+    private GameObject GetCurrentCandidateBoard() // 現在の吸着候補板を返す（初回吸着か追加吸着かで分岐）
+    {
+        if (!HasAttachedBoard)
+        {
+            return GetBestCandidateBoard(out _);
+        }
+        else
+        {
+            return FindAdditionalCandidateBoard();
+        }
+    }
+
+    private int GetTouchingMagnetCount(GameObject targetBoard) // 対象板に触れているマグネットセンサ数を数える
+    {
+        if (targetBoard == null) return 0;
+
+        int count = 0;
+
+        foreach (MagnetSensor sensor in magnetSensors)
+        {
+            if (sensor == null) continue;
+
+            foreach (GameObject board in sensor.TouchingBoards)
+            {
+                if (board == targetBoard)
+                {
+                    count++;
+                    break; // 同じsensor内で重複カウントしない
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private void DetachAll() // すべての板を吸着解除する
     {
         if (attachedBoards.Count == 0) return;
 
@@ -157,7 +351,20 @@ public class LifMagSystem : MonoBehaviour
         Debug.Log("全板を解除しました");
     }
 
-    private bool TryAttachAdditionalBoard()
+    private void HandleDetachInput() // 黒ボタン入力を処理し、全板解除する
+    {
+        if (Input.GetKeyDown(detachKey) || Input.GetButtonDown(joyStick2BlackButton))
+        {
+            DetachAll();
+
+            // 念のため積算状態もリセット
+            isAttachAccumulating = false;
+            sliderAccumulatedValue = 0f;
+            sliderSampleTimer = 0f;
+        }
+    }
+
+    private bool TryAttachAdditionalBoard() // すでに保持している板の下にある追加候補板を吸着する
     {
         if (!HasAttachedBoard)
         {
@@ -178,7 +385,7 @@ public class LifMagSystem : MonoBehaviour
         return true;
     }
 
-    private GameObject FindAdditionalCandidateBoard()
+    private GameObject FindAdditionalCandidateBoard() // 最後に吸着した板の下にある追加候補板をOverlapBoxで探す
     {
         GameObject lastBoard = LastAttachedBoard;
         if (lastBoard == null) return null;
@@ -201,7 +408,6 @@ public class LifMagSystem : MonoBehaviour
             /*b.extents.z * 0.95f*/0.4f
         );
 
-        ///////////////////////////////////////////////////
         Quaternion rotation = lastBoard.transform.rotation;
 
         // デバッグ情報を保存
@@ -211,7 +417,6 @@ public class LifMagSystem : MonoBehaviour
         debugOverlapRotation = rotation;
         debugOverlapHits.Clear();
         debugSelectedCandidate = null;
-        //////////////////////////////////////////////////
 
         Collider[] hits = Physics.OverlapBox(
             origin,
@@ -221,8 +426,8 @@ public class LifMagSystem : MonoBehaviour
 
         foreach (Collider hit in hits)
         {
-            if (hit == null) continue;////////
-            debugOverlapHits.Add(hit);/////////
+            if (hit == null) continue;
+            debugOverlapHits.Add(hit);
 
             GameObject obj = hit.gameObject;
 
@@ -230,7 +435,7 @@ public class LifMagSystem : MonoBehaviour
             if (!obj.CompareTag("Board")) continue;
             if (attachedBoards.Contains(obj)) continue;
 
-            debugSelectedCandidate = obj;/////////
+            debugSelectedCandidate = obj;
             Debug.Log($"追加吸着候補(再接触対応): {obj.name}");
             return obj;
         }
@@ -239,7 +444,7 @@ public class LifMagSystem : MonoBehaviour
         return null;
     }
 
-    private void AttachBoardInternal(GameObject board)
+    private void AttachBoardInternal(GameObject board) // 実際に板を吸着状態にする（親子付け、物理停止、センサ登録）
     {
         if (board == null) return;
         if (attachedBoards.Contains(board)) return;
@@ -277,7 +482,7 @@ public class LifMagSystem : MonoBehaviour
         Debug.Log($"吸着成功: {board.name}, 保持枚数={attachedBoards.Count}");
     }
 
-    private GameObject GetBestCandidateBoard(out int bestCount)
+    private GameObject GetBestCandidateBoard(out int bestCount) // 初回吸着用に、最も多くのマグネットが触れている板を候補として返す
     {
         Dictionary<GameObject, int> boardCounts = new Dictionary<GameObject, int>();
         GameObject bestBoard = null;
@@ -310,7 +515,7 @@ public class LifMagSystem : MonoBehaviour
         return bestBoard;
     }
 
-    /*private void OnDrawGizmos()
+    private void OnDrawGizmos() // 毎フレームの入力監視、デバッグ描画
     {
         if (!showDebugOverlapBox) return;
         if (!Application.isPlaying) return;
@@ -345,5 +550,5 @@ public class LifMagSystem : MonoBehaviour
         }
 
         Gizmos.matrix = oldMatrix;
-    }*/
+    }
 }

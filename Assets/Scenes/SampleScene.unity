@@ -322,6 +322,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  showDebugBoxCast: 1
 --- !u!4 &5693043
 Transform:
   m_ObjectHideFlags: 0
@@ -1193,6 +1194,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  showDebugBoxCast: 1
 --- !u!4 &109010577
 Transform:
   m_ObjectHideFlags: 0
@@ -1494,6 +1496,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  showDebugBoxCast: 1
 --- !u!4 &110875036
 Transform:
   m_ObjectHideFlags: 0
@@ -10347,7 +10350,6 @@ GameObject:
   - component: {fileID: 1378636663}
   - component: {fileID: 1378636662}
   - component: {fileID: 1378636661}
-  - component: {fileID: 1378636665}
   - component: {fileID: 1378636666}
   m_Layer: 0
   m_Name: MainCrane1
@@ -10447,21 +10449,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1378636665
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1378636660}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5a6ac07daa1a77449ac914709cc121fe, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  currentZSpeedIndex: 0
-  minZ: -10
-  maxZ: 10
 --- !u!114 &1378636666
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10534,6 +10521,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   skinWidth: 0.01
+  showDebugBoxCast: 0
 --- !u!1 &1386883058
 GameObject:
   m_ObjectHideFlags: 0
@@ -11834,9 +11822,21 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
+  joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  holdPoint: {fileID: 0}
+  useSliderAccumAttach: 1
+  sliderSampleInterval: 0.3
+  sliderAttachThreshold: 10
+  useAbsoluteSliderValue: 0
+  useBoardSizeThreshold: 1
+  referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
+  minThresholdMultiplier: 0.125
+  maxThresholdMultiplier: 8
+  useMagnetContactThreshold: 0
+  referenceMagnetContactCount: 5
+  maxContactMultiplier: 5
   attachCooldown: 0.2
+  showDebugOverlapBox: 0
 --- !u!1001 &1545738098
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12253,7 +12253,8 @@ MonoBehaviour:
   axis2: JoyStick2Vertical
   axis3: JoyStick3Horizontal
   axis4: JoyStick3Vertical
-  logThreshold: 0.01
+  axis5: JoyStick2Slider
+  logThreshold: 0.1
 --- !u!1 &1614627530
 GameObject:
   m_ObjectHideFlags: 0
@@ -13887,6 +13888,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  showDebugBoxCast: 1
 --- !u!4 &1696454653
 Transform:
   m_ObjectHideFlags: 0
@@ -16959,6 +16961,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  showDebugBoxCast: 1
 --- !u!4 &1994968995
 Transform:
   m_ObjectHideFlags: 0
