@@ -8,6 +8,7 @@ public class CraneUnit : MonoBehaviour
     public class LifMagSetting
     {
         public Transform target;
+        public Transform downCheckOrigin;
         public float minX;
         public float maxX;
         public bool movable = true;
@@ -102,6 +103,12 @@ public class CraneUnit : MonoBehaviour
     {
         if (mainLifMag == null) return;
 
+        // 下入力を離したらロック解除
+        if (input >= 0f)
+        {
+            isDownwardLocked = false;
+        }
+
         float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
         float moveAmount = input * speed * Time.fixedDeltaTime;
 
@@ -130,7 +137,7 @@ public class CraneUnit : MonoBehaviour
 
                     if (boardCol != null)
                     {
-                        float checkDistance = 0.001f/*Mathf.Abs(moveAmount)*/;
+                        float checkDistance = 0.001f/*Mathf.Abs(moveAmount)*/;//0.001f
                         Bounds b = boardCol.bounds;
 
                         Vector3 origin = new Vector3(
@@ -195,31 +202,41 @@ public class CraneUnit : MonoBehaviour
                 Debug.Log("非吸着BoxCastルート");
                 
                 float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+                shouldStop = false;
 
-                // 実際に使った値を保存
-                debugHasBoxCast = true;
-                debugOrigin = downCheckOrigin.position;
-                debugHalfExtents = downCheckHalfExtents;
-                debugRotation = downCheckOrigin.rotation;
-                debugCheckDistance = checkDistance;
-                debugDirection = Vector3.down;
-
-                bool hit = Physics.BoxCast(
-                    downCheckOrigin.position,
-                    downCheckHalfExtents,
-                    Vector3.down,
-                    out RaycastHit hitInfo,
-                    downCheckOrigin.rotation,
-                    checkDistance,
-                    boardLayer,
-                    QueryTriggerInteraction.Ignore
-                );
-
-                if (hit)
+                for (int i = 0; i < lifMags.Length; i++)
                 {
-                    shouldStop = true;
-                    debugBoxCastHit = true;
-                    Debug.Log("非吸着時：リフマグが板に近づいたため停止");
+                    if (lifMags[i] == null) continue;
+                    if (lifMags[i].downCheckOrigin == null) continue;
+
+                    Transform origin = lifMags[i].downCheckOrigin;
+
+                    // デバッグ表示用に最後に見たものを保存
+                    debugHasBoxCast = true;
+                    debugOrigin = origin.position;
+                    debugHalfExtents = downCheckHalfExtents;
+                    debugRotation = origin.rotation;
+                    debugCheckDistance = checkDistance;
+                    debugDirection = Vector3.down;
+
+                    bool hit = Physics.BoxCast(
+                        origin.position,
+                        downCheckHalfExtents,
+                        Vector3.down,
+                        out RaycastHit hitInfo,
+                        origin.rotation,
+                        checkDistance,
+                        boardLayer,
+                        QueryTriggerInteraction.Ignore
+                    );
+
+                    if (hit)
+                    {
+                        shouldStop = true;
+                        debugBoxCastHit = true;
+                        Debug.Log($"非吸着時：lif{i} が {hitInfo.collider.name} を検出 → 下方向停止");
+                        break;
+                    }
                 }
             }
 
@@ -232,6 +249,28 @@ public class CraneUnit : MonoBehaviour
         pos.y += moveAmount;
         pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
         mainLifMag.localPosition = pos;
+    }
+
+    private bool CheckLifMagDownBlocked(Transform origin, out RaycastHit hitInfo)
+    {
+        hitInfo = default;
+
+        if (origin == null) return false;
+
+        float checkDistance = 0.001f; // まずは見やすい固定値でOK
+
+        bool hit = Physics.BoxCast(
+            origin.position,
+            downCheckHalfExtents,
+            Vector3.down,
+            out hitInfo,
+            origin.rotation,
+            checkDistance,
+            boardLayer,
+            QueryTriggerInteraction.Ignore
+        );
+
+        return hit;
     }
 
     public void MoveLifMagX(int index, float input)

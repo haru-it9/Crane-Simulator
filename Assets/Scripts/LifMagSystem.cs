@@ -58,6 +58,11 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float attachCooldown = 0.2f;
     private float lastAttachTime = -999f;
 
+    [Header("接触数デバッグ")]
+    [SerializeField] private bool showMagnetContactDebugLog = true;
+    [SerializeField] private float magnetContactDebugInterval = 0.2f;
+    private float magnetContactDebugTimer = 0f;
+
     [Header("Debug OverlapBox Visualization")] // デバッグ用
     [SerializeField] private bool showDebugOverlapBox = true;
     private bool debugHasOverlapBox;
@@ -72,6 +77,7 @@ public class LifMagSystem : MonoBehaviour
     {
         HandleAttachInput();
         HandleDetachInput();
+        DebugCurrentCandidateMagnetDetails();
     }
 
     public bool IsAttachedBoard(GameObject board) // 指定した板が現在吸着中かどうかを返す
@@ -311,6 +317,48 @@ public class LifMagSystem : MonoBehaviour
         }
 
         return count;
+    }
+
+    private void DebugCurrentCandidateMagnetDetails()
+    {
+        if (!showMagnetContactDebugLog) return;
+
+        magnetContactDebugTimer += Time.deltaTime;
+        if (magnetContactDebugTimer < magnetContactDebugInterval) return;
+
+        magnetContactDebugTimer = 0f;
+
+        GameObject candidate = GetCurrentCandidateBoard();
+        if (candidate == null)
+        {
+            Debug.Log("[MagnetDebug] 候補板なし");
+            return;
+        }
+
+        int count = 0;
+        List<string> touchingSensorNames = new List<string>();
+
+        for (int i = 0; i < magnetSensors.Length; i++)
+        {
+            MagnetSensor sensor = magnetSensors[i];
+            if (sensor == null) continue;
+
+            foreach (GameObject board in sensor.TouchingBoards)
+            {
+                if (board == candidate)
+                {
+                    count++;
+                    touchingSensorNames.Add($"Sensor[{i}]");
+                    break;
+                }
+            }
+        }
+
+        string sensorList = touchingSensorNames.Count > 0
+            ? string.Join(", ", touchingSensorNames)
+            : "なし";
+
+        Debug.Log($"[MagnetDebug] 候補板: {candidate.name}, 接触数: {count}, 接触センサ: {sensorList}");
     }
 
     private void DetachAll() // すべての板を吸着解除する
