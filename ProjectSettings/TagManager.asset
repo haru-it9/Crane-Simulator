@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Board
   - BoardStage
+  - Ball
+  - Pokemon
+  - Terrain
   layers:
   - Default
   - TransparentFX
