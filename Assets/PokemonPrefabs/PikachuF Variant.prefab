@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &3837826877449551809
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_RootOrder
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1.13803
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.8970413
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 19.523788
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.17100999
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.03015367
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.96984637
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.17101005
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      propertyPath: m_Name
+      value: PikachuF Variant
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5240959499529847307}
+  m_SourcePrefab: {fileID: 100100000, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+--- !u!1 &4144396772076061328 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: ede6a893863b3404e84561ef5163ee61, type: 3}
+  m_PrefabInstance: {fileID: 3837826877449551809}
+  m_PrefabAsset: {fileID: 0}
+--- !u!136 &5240959499529847307
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4144396772076061328}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.3
+  m_Height: 1.3
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.5, z: 0.05}

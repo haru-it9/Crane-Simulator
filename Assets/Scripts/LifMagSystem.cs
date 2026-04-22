@@ -49,6 +49,8 @@ public class LifMagSystem : MonoBehaviour
     public HoldBoardSensor CurrentHoldBoardSensor => attachedHoldSensors.Count > 0 ? attachedHoldSensors[attachedHoldSensors.Count - 1] : null;
     public GameObject LastAttachedBoard => attachedBoards.Count > 0 ? attachedBoards[attachedBoards.Count - 1] : null;
 
+    public IReadOnlyList<GameObject> AttachedBoards => attachedBoards;
+
     // 内部管理
     private readonly List<GameObject> attachedBoards = new List<GameObject>();
     private readonly List<Rigidbody> attachedRigidbodies = new List<Rigidbody>();
@@ -77,7 +79,7 @@ public class LifMagSystem : MonoBehaviour
     {
         HandleAttachInput();
         HandleDetachInput();
-        DebugCurrentCandidateMagnetDetails();
+        //DebugCurrentCandidateMagnetDetails();
     }
 
     public bool IsAttachedBoard(GameObject board) // 指定した板が現在吸着中かどうかを返す
