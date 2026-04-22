@@ -63,6 +63,9 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private LayerMask boardLayer;
     [SerializeField] private float skinWidth = 0.01f;
 
+    [Header("Placement Wall Check")]
+    [SerializeField] private LayerMask downStopLayer;
+
     [Header("Debug BoxCast Visualization")]
     [SerializeField] private bool showDebugBoxCast = true;
 
@@ -265,6 +268,77 @@ public class CraneUnit : MonoBehaviour
         );
 
         return hit;
+    }
+
+    private bool CheckAttachedBoardsDownBlocked(float moveAmount)
+    {
+        if (lifMagSystem == null) return false;
+        if (!lifMagSystem.HasAttachedBoard) return false;
+
+        float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
+
+        foreach (GameObject board in lifMagSystem.AttachedBoards)
+        {
+            if (board == null) continue;
+
+            Collider boardCol = board.GetComponent<Collider>();
+            if (boardCol == null) continue;
+
+            Bounds b = boardCol.bounds;
+
+            Vector3 origin = new Vector3(
+                b.center.x,
+                b.center.y,
+                b.center.z
+            );
+
+            Vector3 halfExtents = new Vector3(
+                b.extents.x * 0.95f,
+                b.extents.y * 0.95f,
+                b.extents.z * 0.95f
+            );
+
+            Quaternion rotation = board.transform.rotation;
+
+            // デバッグ表示用（最後に見た板の情報を保存）
+            debugHasBoxCast = true;
+            debugOrigin = origin;
+            debugHalfExtents = halfExtents;
+            debugRotation = rotation;
+            debugCheckDistance = checkDistance;
+            debugDirection = Vector3.down;
+            debugBoxCastHit = false;
+
+            RaycastHit[] hits = Physics.BoxCastAll(
+                origin,
+                halfExtents,
+                Vector3.down,
+                rotation,
+                checkDistance,
+                downStopLayer,
+                QueryTriggerInteraction.Ignore
+            );
+
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider == null) continue;
+
+                GameObject hitObj = hit.collider.gameObject;
+
+                // 自分が保持している板は無視
+                if (lifMagSystem.IsAttachedBoard(hitObj))
+                {
+                    continue;
+                }
+
+                // 壁・板・ステージのどれかに当たれば停止
+                debugBoxCastHit = true;
+                Debug.Log($"下降停止: 保持板 {board.name} が {hitObj.name} に接触予定");
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void MoveLifMagX(int index, float input)
