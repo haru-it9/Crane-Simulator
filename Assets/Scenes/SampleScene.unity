@@ -327,6 +327,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  descentLockedByWarningArea: 0
+  unlockYHeight: -2
+  downStopLayer:
+    serializedVersion: 2
+    m_Bits: 0
   showDebugBoxCast: 1
 --- !u!4 &5693043
 Transform:
@@ -1235,6 +1240,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  descentLockedByWarningArea: 0
+  unlockYHeight: -2
+  downStopLayer:
+    serializedVersion: 2
+    m_Bits: 0
   showDebugBoxCast: 1
 --- !u!4 &109010577
 Transform:
@@ -1542,6 +1552,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  descentLockedByWarningArea: 0
+  unlockYHeight: -2
+  downStopLayer:
+    serializedVersion: 2
+    m_Bits: 0
   showDebugBoxCast: 1
 --- !u!4 &110875036
 Transform:
@@ -4923,7 +4938,8 @@ GameObject:
   m_Component:
   - component: {fileID: 684540424}
   - component: {fileID: 684540425}
-  m_Layer: 7
+  - component: {fileID: 684540426}
+  m_Layer: 0
   m_Name: Wall(near)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4960,12 +4976,25 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 2}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &684540426
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684540423}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5c80e2299d7a62448e849b65c9baa1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneUnit: {fileID: 1378636666}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -5203,7 +5232,8 @@ GameObject:
   m_Component:
   - component: {fileID: 738749953}
   - component: {fileID: 738749954}
-  m_Layer: 7
+  - component: {fileID: 738749955}
+  m_Layer: 0
   m_Name: Wall(left)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5240,12 +5270,25 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 10, y: 1, z: 0.5}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &738749955
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 738749952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5c80e2299d7a62448e849b65c9baa1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneUnit: {fileID: 1378636666}
 --- !u!1 &796789742
 GameObject:
   m_ObjectHideFlags: 0
@@ -8364,6 +8407,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: BoardStage
       objectReference: {fileID: 0}
+    - target: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+      propertyPath: m_Layer
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+      propertyPath: m_TagString
+      value: Board
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -11270,6 +11321,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   skinWidth: 0.01
+  descentLockedByWarningArea: 0
+  unlockYHeight: -2
+  downStopLayer:
+    serializedVersion: 2
+    m_Bits: 128
   showDebugBoxCast: 0
 --- !u!1 &1386883058
 GameObject:
@@ -11830,7 +11886,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1461305738}
   - component: {fileID: 1461305739}
-  m_Layer: 7
+  - component: {fileID: 1461305740}
+  m_Layer: 0
   m_Name: Wall(right)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -11867,12 +11924,25 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 10, y: 1, z: 0.5}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1461305740
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1461305737}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5c80e2299d7a62448e849b65c9baa1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneUnit: {fileID: 1378636666}
 --- !u!1 &1467805104
 GameObject:
   m_ObjectHideFlags: 0
@@ -12215,7 +12285,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1492893417}
   - component: {fileID: 1492893418}
-  m_Layer: 7
+  - component: {fileID: 1492893419}
+  m_Layer: 0
   m_Name: Wall(far)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -12252,12 +12323,25 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 2}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1492893419
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1492893416}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5c80e2299d7a62448e849b65c9baa1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneUnit: {fileID: 1378636666}
 --- !u!1 &1510704671
 GameObject:
   m_ObjectHideFlags: 0
@@ -14816,6 +14900,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  descentLockedByWarningArea: 0
+  unlockYHeight: -2
+  downStopLayer:
+    serializedVersion: 2
+    m_Bits: 0
   showDebugBoxCast: 1
 --- !u!4 &1696454653
 Transform:
@@ -17970,6 +18059,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   skinWidth: 0.01
+  descentLockedByWarningArea: 0
+  unlockYHeight: -2
+  downStopLayer:
+    serializedVersion: 2
+    m_Bits: 0
   showDebugBoxCast: 1
 --- !u!4 &1994968995
 Transform:

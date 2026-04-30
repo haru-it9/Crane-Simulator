@@ -63,6 +63,10 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private LayerMask boardLayer;
     [SerializeField] private float skinWidth = 0.01f;
 
+    [Header("Warning Area Lock")]
+    [SerializeField] private bool descentLockedByWarningArea = false;
+    [SerializeField] private float unlockYHeight = -2.0f;
+
     [Header("Placement Wall Check")]
     [SerializeField] private LayerMask downStopLayer;
 
@@ -110,6 +114,19 @@ public class CraneUnit : MonoBehaviour
         float moveAmount = input * speed * Time.fixedDeltaTime;
 
         Vector3 pos = mainLifMag.localPosition;
+
+        // 警告後、一定高さまで上がったら下降禁止解除
+        if (descentLockedByWarningArea && pos.y >= unlockYHeight)
+        {
+            descentLockedByWarningArea = false;
+            Debug.Log("一定高さまで上昇したため、下降禁止を解除");
+        }
+
+        // 下降禁止中は下降入力だけ無効化する
+        if (descentLockedByWarningArea && moveAmount < 0f)
+        {
+            moveAmount = 0f;
+        }
 
         // 毎回いったん初期化
         debugHasBoxCast = false;
@@ -246,6 +263,12 @@ public class CraneUnit : MonoBehaviour
         pos.y += moveAmount;
         pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
         mainLifMag.localPosition = pos;
+    }
+
+    public void LockDescentByWarningArea()
+    {
+        descentLockedByWarningArea = true;
+        Debug.LogWarning("警告領域に板が侵入：一定高さまで上昇するまで下降禁止");
     }
 
     private bool CheckLifMagDownBlocked(Transform origin, out RaycastHit hitInfo)
