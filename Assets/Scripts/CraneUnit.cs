@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class CraneUnit : MonoBehaviour
 {
@@ -73,6 +74,11 @@ public class CraneUnit : MonoBehaviour
     [Header("Debug BoxCast Visualization")]
     [SerializeField] private bool showDebugBoxCast = true;
 
+    [Header("Warning UI")]
+    [SerializeField] private Text warningText;
+    [SerializeField] private string warningMessage =
+        "警告：板が配置禁止領域に侵入しました\n一定高さまで上昇してください";
+
     private bool debugHasBoxCast;
     private bool debugBoxCastHit;
     private Vector3 debugOrigin;
@@ -83,6 +89,11 @@ public class CraneUnit : MonoBehaviour
     private float debugMoveAmount;
     private Vector3 debugDirection = Vector3.down;
 
+
+    private void Start()
+    {
+        UpdateWarningUI();
+    }
 
     public void MoveMainCraneZ(float input)
     {
@@ -119,6 +130,8 @@ public class CraneUnit : MonoBehaviour
         if (descentLockedByWarningArea && pos.y >= unlockYHeight)
         {
             descentLockedByWarningArea = false;
+            UpdateWarningUI();
+
             Debug.Log("一定高さまで上昇したため、下降禁止を解除");
         }
 
@@ -268,7 +281,17 @@ public class CraneUnit : MonoBehaviour
     public void LockDescentByWarningArea()
     {
         descentLockedByWarningArea = true;
+        UpdateWarningUI();
+
         Debug.LogWarning("警告領域に板が侵入：一定高さまで上昇するまで下降禁止");
+    }
+
+    private void UpdateWarningUI()
+    {
+        if (warningText == null) return;
+
+        warningText.text = warningMessage;
+        warningText.gameObject.SetActive(descentLockedByWarningArea);
     }
 
     private bool CheckLifMagDownBlocked(Transform origin, out RaycastHit hitInfo)
