@@ -394,6 +394,12 @@ public class CraneUnit : MonoBehaviour
         if (lifMags[index].target == null) return;
         if (!lifMags[index].movable) return;
 
+        // 板を吸着している間は、各リフマグの幅操作を禁止
+        if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
+        {
+            return;
+        }
+
         float speed = GetLifMagSpeed(index) / 60f * 0.4515f / 0.8375f;
 
         Vector3 pos = lifMags[index].target.localPosition;
