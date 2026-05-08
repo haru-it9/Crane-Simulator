@@ -1789,7 +1789,7 @@ GameObject:
   m_Component:
   - component: {fileID: 176254093}
   m_Layer: 0
-  m_Name: BoardSamples
+  m_Name: BoardSamples1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8151,7 +8151,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 999517f045d65924db469ec2a4a5c833, type: 2}
+  - {fileID: 2100000, guid: 5ea39da124502614f890a8bbb53f858e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -13874,8 +13874,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   humanPrefab: {fileID: 1593910168856557513, guid: 68351f07ebe98354d8e4baef315675d5, type: 3}
-  spawnPoints:
-  - {x: 0, y: 7, z: 0}
+  spawnXList:
+  - -9
+  - 0
+  - 9
+  spawnYList:
+  - 6
+  spawnZList:
+  - -12
+  - -9
+  - -6
+  - -3
+  - 0
+  - 3
+  - 6
+  - 9
+  - 12
   useRandomSpawn: 1
   minSpawnInterval: 5
   maxSpawnInterval: 15

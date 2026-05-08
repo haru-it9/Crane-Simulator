@@ -9,17 +9,28 @@ public class HumanSpawnManager : MonoBehaviour
     public GameObject humanPrefab;
 
     [Header("出現候補座標")]
-    public List<Vector3> spawnPoints;
+    public List<float> spawnXList = new List<float> { -9f, 0f, 9f };
+    public List<float> spawnYList = new List<float> { 6f };
+    public List<float> spawnZList = new List<float>
+    {
+        -21f, -18f, -15f, -12f, -9f, -6f, -3f,
+         0f,
+         3f, 6f, 9f, 12f, 15f, 18f, 21f
+    };
 
     [Header("ランダム出現設定")]
     public bool useRandomSpawn = true;
     public float minSpawnInterval = 5f;
     public float maxSpawnInterval = 15f;
 
+    [Header("人を消すキー")]
+    public KeyCode removeHumanKey = KeyCode.R;
+
     [Header("警告UI")]
     public Text warningText;
-    public string warningMessage = "警告：作業エリア内に人を検知しました";
-    public float warningDisplayTime = 3f;
+    public string warningMessage = "警告：作業エリア内に人を検知しました\nRキーで安全確認完了";
+    
+    private GameObject currentHuman;
 
     private void Start()
     {
@@ -34,6 +45,14 @@ public class HumanSpawnManager : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (currentHuman != null && Input.GetKeyDown(removeHumanKey))
+        {
+            RemoveCurrentHuman();
+        }
+    }
+
     private IEnumerator RandomSpawnLoop()
     {
         while (true)
@@ -41,24 +60,47 @@ public class HumanSpawnManager : MonoBehaviour
             float wait = Random.Range(minSpawnInterval, maxSpawnInterval);
             yield return new WaitForSeconds(wait);
 
-            SpawnHumanRandom();
+            // 人が残っている間は次を出さない
+            if (currentHuman == null)
+            {
+                SpawnHumanRandom();
+            }
         }
     }
 
-    // ===== ランダム出現 =====
     public void SpawnHumanRandom()
     {
-        if (spawnPoints == null || spawnPoints.Count == 0)
-        {
-            Debug.LogWarning("spawnPoints が設定されていません");
-            return;
-        }
-
-        int index = Random.Range(0, spawnPoints.Count);
-        SpawnHuman(spawnPoints[index]);
+        Vector3 spawnPosition = GetRandomSpawnPosition();
+        SpawnHuman(spawnPosition);
     }
 
-    // ===== 共通出現処理 =====
+    private Vector3 GetRandomSpawnPosition()
+    {
+        if (spawnXList == null || spawnXList.Count == 0)
+        {
+            Debug.LogWarning("spawnXList が設定されていません");
+            return Vector3.zero;
+        }
+
+        if (spawnYList == null || spawnYList.Count == 0)
+        {
+            Debug.LogWarning("spawnYList が設定されていません");
+            return Vector3.zero;
+        }
+
+        if (spawnZList == null || spawnZList.Count == 0)
+        {
+            Debug.LogWarning("spawnZList が設定されていません");
+            return Vector3.zero;
+        }
+
+        float x = spawnXList[Random.Range(0, spawnXList.Count)];
+        float y = spawnYList[Random.Range(0, spawnYList.Count)];
+        float z = spawnZList[Random.Range(0, spawnZList.Count)];
+
+        return new Vector3(x, y, z);
+    }
+
     public void SpawnHuman(Vector3 position)
     {
         if (humanPrefab == null)
@@ -67,27 +109,31 @@ public class HumanSpawnManager : MonoBehaviour
             return;
         }
 
-        Instantiate(humanPrefab, position, Quaternion.identity);
+        // すでに人がいる場合は出さない
+        if (currentHuman != null)
+        {
+            Debug.Log("人が出現中のため、新たな人は出現しません");
+            return;
+        }
+
+        currentHuman = Instantiate(humanPrefab, position, Quaternion.identity);
 
         ShowWarning();
     }
 
-    // ===== CSV用（index指定） =====
-    public void SpawnHumanByIndex(int index)
-    {
-        if (index < 0 || index >= spawnPoints.Count)
-        {
-            Debug.LogWarning("spawn index が不正です");
-            return;
-        }
-
-        SpawnHuman(spawnPoints[index]);
-    }
-
-    // ===== CSV用（座標直接） =====
     public void SpawnHumanByPosition(float x, float y, float z)
     {
         SpawnHuman(new Vector3(x, y, z));
+    }
+
+    private void RemoveCurrentHuman()
+    {
+        if (currentHuman == null) return;
+
+        Destroy(currentHuman);
+        currentHuman = null;
+
+        HideWarning();
     }
 
     private void ShowWarning()
@@ -96,9 +142,6 @@ public class HumanSpawnManager : MonoBehaviour
 
         warningText.text = warningMessage;
         warningText.gameObject.SetActive(true);
-
-        CancelInvoke(nameof(HideWarning));
-        Invoke(nameof(HideWarning), warningDisplayTime);
     }
 
     private void HideWarning()
