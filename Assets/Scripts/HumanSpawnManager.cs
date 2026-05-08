@@ -32,6 +32,8 @@ public class HumanSpawnManager : MonoBehaviour
     
     private GameObject currentHuman;
 
+    [SerializeField] private string joyStick3RedButton = "JoyStick3RedButton";
+
     private void Start()
     {
         if (warningText != null)
@@ -47,9 +49,15 @@ public class HumanSpawnManager : MonoBehaviour
 
     private void Update()
     {
-        if (currentHuman != null && Input.GetKeyDown(removeHumanKey))
+        /*if (currentHuman != null && Input.GetKeyDown(removeHumanKey))
         {
             RemoveCurrentHuman();
+        }*/
+
+        if (currentHuman != null && Input.GetButtonDown(joyStick3RedButton))
+        {
+            RemoveCurrentHuman();
+            Debug.Log("人を消すキーが押されました：安全確認完了、人を消去");
         }
     }
 

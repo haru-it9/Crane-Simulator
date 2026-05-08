@@ -278,11 +278,11 @@ InputManager:
     axis: 3
     joyNum: 1
   - serializedVersion: 3
-    m_Name: aa
+    m_Name: JoyStick3RedButton
     descriptiveName: 
     descriptiveNegativeName: 
     negativeButton: 
-    positiveButton: 
+    positiveButton: joystick button 3
     altNegativeButton: 
     altPositiveButton: 
     gravity: 0
@@ -290,7 +290,7 @@ InputManager:
     sensitivity: 1
     snap: 0
     invert: 0
-    type: 2
+    type: 0
     axis: 3
-    joyNum: 1
+    joyNum: 2
   m_UsePhysicalKeys: 1

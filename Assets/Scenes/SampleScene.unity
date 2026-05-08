@@ -13893,9 +13893,10 @@ MonoBehaviour:
   useRandomSpawn: 1
   minSpawnInterval: 5
   maxSpawnInterval: 15
+  removeHumanKey: 114
   warningText: {fileID: 1253123847}
   warningMessage: "\u8B66\u544A\uFF1A\u4F5C\u696D\u30A8\u30EA\u30A2\u5185\u306B\u4EBA\u3092\u691C\u77E5\u3057\u307E\u3057\u305F"
-  warningDisplayTime: 3
+  joyStick3RedButton: JoyStick3RedButton
 --- !u!4 &1623731364
 Transform:
   m_ObjectHideFlags: 0
