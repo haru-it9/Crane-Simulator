@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
+using UnityEngine.UI;
 
 public class HumanSpawnManager : MonoBehaviour
 {
@@ -17,7 +17,7 @@ public class HumanSpawnManager : MonoBehaviour
     public float maxSpawnInterval = 15f;
 
     [Header("警告UI")]
-    public TextMeshProUGUI warningText;
+    public Text warningText;
     public string warningMessage = "警告：作業エリア内に人を検知しました";
     public float warningDisplayTime = 3f;
 
