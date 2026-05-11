@@ -25,34 +25,33 @@ public class LifMagCurrentButton : MonoBehaviour
     private void Start()
     {
         if (button == null)
-        {
             button = GetComponent<Button>();
-        }
 
         if (button != null)
         {
-            button.onClick.AddListener(ToggleCurrent);
+            button.onClick.AddListener(TurnOn);
             buttonImage = button.GetComponent<Image>();
         }
 
-        isOn = false;
+        ForceOff();
+    }
+
+    private void TurnOn()
+    {
+        isOn = true;
 
         if (lifMagSystem != null)
-        {
-            lifMagSystem.SetLifMagCurrent(lifMagIndex, false);
-        }
+            lifMagSystem.SetLifMagCurrent(lifMagIndex, true);
 
         UpdateView();
     }
 
-    private void ToggleCurrent()
+    public void ForceOff()
     {
-        isOn = !isOn;
+        isOn = false;
 
         if (lifMagSystem != null)
-        {
-            lifMagSystem.SetLifMagCurrent(lifMagIndex, isOn);
-        }
+            lifMagSystem.SetLifMagCurrent(lifMagIndex, false);
 
         UpdateView();
     }
@@ -60,13 +59,12 @@ public class LifMagCurrentButton : MonoBehaviour
     private void UpdateView()
     {
         if (buttonImage != null)
-        {
             buttonImage.color = isOn ? onColor : offColor;
-        }
 
         if (labelText != null)
-        {
             labelText.text = $"{(isOn ? "ON" : "OFF")}";
-        }
+
+        if (button != null)
+            button.interactable = !isOn;
     }
 }
