@@ -60,6 +60,9 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float attachCooldown = 0.2f;
     private float lastAttachTime = -999f;
 
+    [Header("リフマグ電流ON/OFF")]
+    [SerializeField] private bool[] lifMagCurrentOn = new bool[5];
+
     [Header("接触数デバッグ")]
     [SerializeField] private bool showMagnetContactDebugLog = true;
     [SerializeField] private float magnetContactDebugInterval = 0.2f;
@@ -143,77 +146,64 @@ public class LifMagSystem : MonoBehaviour
 
     private void HandleAttachInput() // 赤ボタン入力を処理し、累積値に応じて吸着を試みる
     {
-        bool attachDown = Input.GetKeyDown(attachKey) || Input.GetButtonDown(joyStick2RedButton);
-        bool attachHeld = Input.GetKey(attachKey) || Input.GetButton(joyStick2RedButton);
-        bool attachUp   = Input.GetKeyUp(attachKey) || Input.GetButtonUp(joyStick2RedButton);
-
         if (!useSliderAccumAttach)
         {
-            if (attachDown)
+            if (IsAnyLifMagCurrentOn())
             {
                 TryAttachUnified();
             }
             return;
         }
 
-        // 押した瞬間に積算開始
-        if (attachDown)
-        {
-            isAttachAccumulating = true;
-            sliderAccumulatedValue = 0f;
-            sliderSampleTimer = 0f;
-            Debug.Log("赤ボタン押下：スライダー累積開始");
-        }
+        bool currentOn = IsAnyLifMagCurrentOn();
 
-        // 押している間だけ0.1秒ごとに積算
-        if (isAttachAccumulating && attachHeld)
-        {
-            sliderSampleTimer += Time.deltaTime;
-
-            while (sliderSampleTimer >= sliderSampleInterval)
-            {
-                sliderSampleTimer -= sliderSampleInterval;
-
-                float sliderValue = Input.GetAxis(joyStick2Slider);
-                float sampleValue = useAbsoluteSliderValue ? Mathf.Abs(sliderValue) : sliderValue;
-
-                sliderAccumulatedValue += sampleValue + 1f;
-
-                Debug.Log($"[SliderAccum] sample={sampleValue:F3}, total={sliderAccumulatedValue:F3}");
-
-                // しきい値を超えた回数分だけ吸着を試みる
-                while (true)
-                {
-                    float currentThreshold = GetCurrentAttachThreshold();
-
-                    if (sliderAccumulatedValue < currentThreshold)
-                    {
-                        break;
-                    }
-
-                    bool success = TryAttachUnified();
-
-                    if (success)
-                    {
-                        sliderAccumulatedValue -= currentThreshold;
-                        Debug.Log($"しきい値到達 -> 吸着成功, consumed={currentThreshold:F3}, remaining={sliderAccumulatedValue:F3}");
-                    }
-                    else
-                    {
-                        Debug.Log("しきい値到達したが吸着失敗");
-                        break;
-                    }
-                }
-            }
-        }
-
-        // 離したら終了・リセット
-        if (attachUp)
+        // 電流ONが1つもなければ累積しない
+        if (!currentOn)
         {
             isAttachAccumulating = false;
             sliderAccumulatedValue = 0f;
             sliderSampleTimer = 0f;
-            Debug.Log("赤ボタン解除：スライダー累積リセット");
+            return;
+        }
+
+        // 電流ON中は常に累積
+        isAttachAccumulating = true;
+
+        sliderSampleTimer += Time.deltaTime;
+
+        while (sliderSampleTimer >= sliderSampleInterval)
+        {
+            sliderSampleTimer -= sliderSampleInterval;
+
+            float sliderValue = Input.GetAxis(joyStick2Slider);
+            float sampleValue = useAbsoluteSliderValue ? Mathf.Abs(sliderValue) : sliderValue;
+
+            sliderAccumulatedValue += sampleValue + 1f;
+
+            Debug.Log($"[SliderAccum] sample={sampleValue:F3}, total={sliderAccumulatedValue:F3}");
+
+            while (true)
+            {
+                float currentThreshold = GetCurrentAttachThreshold();
+
+                if (sliderAccumulatedValue < currentThreshold)
+                {
+                    break;
+                }
+
+                bool success = TryAttachUnified();
+
+                if (success)
+                {
+                    sliderAccumulatedValue -= currentThreshold;
+                    Debug.Log($"しきい値到達 -> 吸着成功, consumed={currentThreshold:F3}, remaining={sliderAccumulatedValue:F3}");
+                }
+                else
+                {
+                    Debug.Log("しきい値到達したが吸着失敗");
+                    break;
+                }
+            }
         }
     }
 
@@ -304,21 +294,57 @@ public class LifMagSystem : MonoBehaviour
 
         int count = 0;
 
-        foreach (MagnetSensor sensor in magnetSensors)
+        for (int i = 0; i < magnetSensors.Length; i++)
         {
+            MagnetSensor sensor = magnetSensors[i];
             if (sensor == null) continue;
+
+            if (!IsLifMagCurrentOn(i)) continue;
 
             foreach (GameObject board in sensor.TouchingBoards)
             {
                 if (board == targetBoard)
                 {
                     count++;
-                    break; // 同じsensor内で重複カウントしない
+                    break;
                 }
             }
         }
 
         return count;
+    }
+
+    public void SetLifMagCurrent(int index, bool isOn)
+    {
+        if (lifMagCurrentOn == null || lifMagCurrentOn.Length != magnetSensors.Length)
+        {
+            lifMagCurrentOn = new bool[magnetSensors.Length];
+        }
+
+        if (index < 0 || index >= lifMagCurrentOn.Length) return;
+
+        lifMagCurrentOn[index] = isOn;
+        Debug.Log($"LifMag[{index}] 電流: {(isOn ? "ON" : "OFF")}");
+    }
+
+    public bool IsLifMagCurrentOn(int index)
+    {
+        if (lifMagCurrentOn == null) return false;
+        if (index < 0 || index >= lifMagCurrentOn.Length) return false;
+
+        return lifMagCurrentOn[index];
+    }
+
+    private bool IsAnyLifMagCurrentOn()
+    {
+        if (lifMagCurrentOn == null) return false;
+
+        foreach (bool isOn in lifMagCurrentOn)
+        {
+            if (isOn) return true;
+        }
+
+        return false;
     }
 
     private void DebugCurrentCandidateMagnetDetails()
@@ -538,9 +564,12 @@ public class LifMagSystem : MonoBehaviour
         GameObject bestBoard = null;
         bestCount = 0;
 
-        foreach (MagnetSensor sensor in magnetSensors)
+        for (int i = 0; i < magnetSensors.Length; i++)
         {
+            MagnetSensor sensor = magnetSensors[i];
             if (sensor == null) continue;
+
+            if (!IsLifMagCurrentOn(i)) continue;
 
             foreach (GameObject board in sensor.TouchingBoards)
             {
