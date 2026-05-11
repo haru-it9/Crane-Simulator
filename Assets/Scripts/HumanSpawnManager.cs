@@ -14,8 +14,8 @@ public class HumanSpawnManager : MonoBehaviour
     public List<float> spawnZList = new List<float>
     {
         -21f, -18f, -15f, -12f, -9f, -6f, -3f,
-         0f,
-         3f, 6f, 9f, 12f, 15f, 18f, 21f
+        0f,
+        3f, 6f, 9f, 12f, 15f, 18f, 21f
     };
 
     [Header("ランダム出現設定")]
