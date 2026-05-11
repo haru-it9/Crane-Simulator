@@ -5,6 +5,9 @@ using UnityEngine.UI;
 
 public class LifMagCurrentResetButton : MonoBehaviour
 {
+    [Header("対象のLifMagSystem")]
+    [SerializeField] private LifMagSystem lifMagSystem;
+
     [Header("OFFに戻すLifMagボタン一覧")]
     [SerializeField] private LifMagCurrentButton[] lifMagButtons;
 
@@ -22,10 +25,16 @@ public class LifMagCurrentResetButton : MonoBehaviour
 
     public void ResetAll()
     {
+        // ① 吸着解除
+        if (lifMagSystem != null)
+        {
+            lifMagSystem.DetachAllFromButton();
+        }
+
+        // ② 電流OFF
         foreach (LifMagCurrentButton btn in lifMagButtons)
         {
             if (btn == null) continue;
-
             btn.ForceOff();
         }
     }

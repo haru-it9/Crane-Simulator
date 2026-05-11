@@ -427,6 +427,16 @@ public class LifMagSystem : MonoBehaviour
         Debug.Log("全板を解除しました");
     }
 
+    public void DetachAllFromButton()
+    {
+        DetachAll();
+
+        // 念のため積算状態もリセット
+        isAttachAccumulating = false;
+        sliderAccumulatedValue = 0f;
+        sliderSampleTimer = 0f;
+    }
+
     private void HandleDetachInput() // 黒ボタン入力を処理し、全板解除する
     {
         if (Input.GetKeyDown(detachKey) || Input.GetButtonDown(joyStick2BlackButton))
