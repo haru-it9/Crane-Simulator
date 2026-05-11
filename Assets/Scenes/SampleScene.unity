@@ -3934,6 +3934,7 @@ GameObject:
   - component: {fileID: 398063597}
   - component: {fileID: 398063596}
   - component: {fileID: 398063595}
+  - component: {fileID: 398063598}
   m_Layer: 5
   m_Name: LifMag(inR)Button
   m_TagString: Untagged
@@ -4044,6 +4045,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 398063593}
   m_CullTransparentMesh: 1
+--- !u!114 &398063598
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 398063593}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 3
+  button: {fileID: 398063595}
+  labelText: {fileID: 468231017}
+  offColor: {r: 1, g: 1, b: 1, a: 1}
+  onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &402821463
 GameObject:
   m_ObjectHideFlags: 0
@@ -4480,6 +4499,7 @@ GameObject:
   - component: {fileID: 436344392}
   - component: {fileID: 436344394}
   - component: {fileID: 436344393}
+  - component: {fileID: 436344395}
   m_Layer: 5
   m_Name: LifMag(outR)Current
   m_TagString: Untagged
@@ -4549,6 +4569,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 436344391}
   m_CullTransparentMesh: 1
+--- !u!114 &436344395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436344391}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 4
+  valueText: {fileID: 436344393}
 --- !u!1 &444142174
 GameObject:
   m_ObjectHideFlags: 0
@@ -4942,6 +4977,7 @@ RectTransform:
   - {fileID: 1938668573}
   - {fileID: 398063594}
   - {fileID: 991687542}
+  - {fileID: 1452691754}
   m_Father: {fileID: 290997810}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -4961,6 +4997,7 @@ GameObject:
   - component: {fileID: 492147426}
   - component: {fileID: 492147428}
   - component: {fileID: 492147427}
+  - component: {fileID: 492147429}
   m_Layer: 5
   m_Name: LifMag(center)Current
   m_TagString: Untagged
@@ -5030,6 +5067,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 492147425}
   m_CullTransparentMesh: 1
+--- !u!114 &492147429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 492147425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 2
+  valueText: {fileID: 492147427}
 --- !u!1 &498466574
 GameObject:
   m_ObjectHideFlags: 0
@@ -5047,7 +5099,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &498466575
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5354,6 +5406,7 @@ GameObject:
   - component: {fileID: 519517772}
   - component: {fileID: 519517774}
   - component: {fileID: 519517773}
+  - component: {fileID: 519517775}
   m_Layer: 5
   m_Name: LifMag(inR)Current
   m_TagString: Untagged
@@ -5423,6 +5476,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 519517771}
   m_CullTransparentMesh: 1
+--- !u!114 &519517775
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519517771}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 3
+  valueText: {fileID: 519517773}
 --- !u!1 &523458195
 GameObject:
   m_ObjectHideFlags: 0
@@ -5983,8 +6051,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetTransform: {fileID: 1514171645}
+  lifMagSystem: {fileID: 1514171650}
   xText: {fileID: 1305683433}
   zText: {fileID: 2127446650}
+  weightText: {fileID: 1949393911}
+  boardDensity: 7850
+  weightDisplayHeight: 0.2
+  zeroWeightText: 0.0 t
 --- !u!4 &565197927
 Transform:
   m_ObjectHideFlags: 0
@@ -8732,6 +8805,7 @@ GameObject:
   - component: {fileID: 924223206}
   - component: {fileID: 924223205}
   - component: {fileID: 924223204}
+  - component: {fileID: 924223207}
   m_Layer: 5
   m_Name: LifMag(outL)Button
   m_TagString: Untagged
@@ -8842,6 +8916,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 924223202}
   m_CullTransparentMesh: 1
+--- !u!114 &924223207
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 924223202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 0
+  button: {fileID: 924223204}
+  labelText: {fileID: 694530704}
+  offColor: {r: 1, g: 1, b: 1, a: 1}
+  onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &928291067
 GameObject:
   m_ObjectHideFlags: 0
@@ -9794,6 +9886,7 @@ GameObject:
   - component: {fileID: 991687545}
   - component: {fileID: 991687544}
   - component: {fileID: 991687543}
+  - component: {fileID: 991687546}
   m_Layer: 5
   m_Name: LifMag(outR)Button
   m_TagString: Untagged
@@ -9904,6 +9997,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 991687541}
   m_CullTransparentMesh: 1
+--- !u!114 &991687546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991687541}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 4
+  button: {fileID: 991687543}
+  labelText: {fileID: 43014163}
+  offColor: {r: 1, g: 1, b: 1, a: 1}
+  onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &994383518
 GameObject:
   m_ObjectHideFlags: 0
@@ -12023,6 +12134,7 @@ GameObject:
   - component: {fileID: 1120257985}
   - component: {fileID: 1120257987}
   - component: {fileID: 1120257986}
+  - component: {fileID: 1120257988}
   m_Layer: 5
   m_Name: LifMag(outL)Current
   m_TagString: Untagged
@@ -12092,6 +12204,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1120257984}
   m_CullTransparentMesh: 1
+--- !u!114 &1120257988
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1120257984}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 0
+  valueText: {fileID: 1120257986}
 --- !u!1 &1131729631
 GameObject:
   m_ObjectHideFlags: 0
@@ -13234,6 +13361,7 @@ GameObject:
   - component: {fileID: 1224691895}
   - component: {fileID: 1224691897}
   - component: {fileID: 1224691896}
+  - component: {fileID: 1224691898}
   m_Layer: 5
   m_Name: LifMag(inL)Current
   m_TagString: Untagged
@@ -13303,6 +13431,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1224691894}
   m_CullTransparentMesh: 1
+--- !u!114 &1224691898
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1224691894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 1
+  valueText: {fileID: 1224691896}
 --- !u!1 &1226107937
 GameObject:
   m_ObjectHideFlags: 0
@@ -15000,6 +15143,149 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1024956598970767786, guid: ba87ae7a15f3428429d8b382e7556cb0, type: 3}
   m_PrefabInstance: {fileID: 1545738098}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1452691753
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1452691754}
+  - component: {fileID: 1452691758}
+  - component: {fileID: 1452691757}
+  - component: {fileID: 1452691756}
+  - component: {fileID: 1452691755}
+  m_Layer: 5
+  m_Name: LifMagOFFButton
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1452691754
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452691753}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1831137694}
+  m_Father: {fileID: 482944708}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: 700, y: -365}
+  m_SizeDelta: {x: 200, y: 150}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1452691755
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452691753}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90f55f0351d730e41957b9dc5410cd0f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagButtons:
+  - {fileID: 924223207}
+  - {fileID: 1971218024}
+  - {fileID: 1938668577}
+  - {fileID: 398063598}
+  - {fileID: 991687546}
+  resetButton: {fileID: 1452691756}
+--- !u!114 &1452691756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452691753}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 1452691757}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &1452691757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452691753}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1452691758
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452691753}
+  m_CullTransparentMesh: 1
 --- !u!1 &1461305737
 GameObject:
   m_ObjectHideFlags: 0
@@ -15899,6 +16185,7 @@ MonoBehaviour:
   referenceMagnetContactCount: 5
   maxContactMultiplier: 5
   attachCooldown: 0.2
+  lifMagCurrentOn: 0000000000
   showMagnetContactDebugLog: 1
   magnetContactDebugInterval: 0.2
   showDebugOverlapBox: 0
@@ -19941,6 +20228,88 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1830188652}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1831137693
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1831137694}
+  - component: {fileID: 1831137696}
+  - component: {fileID: 1831137695}
+  m_Layer: 5
+  m_Name: Text (Legacy)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1831137694
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831137693}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1452691754}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1831137695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831137693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_FontSize: 60
+    m_FontStyle: 1
+    m_BestFit: 0
+    m_MinSize: 6
+    m_MaxSize: 60
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: 'All OFF
+
+'
+--- !u!222 &1831137696
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1831137693}
+  m_CullTransparentMesh: 1
 --- !u!1 &1842029451
 GameObject:
   m_ObjectHideFlags: 0
@@ -21515,6 +21884,7 @@ GameObject:
   - component: {fileID: 1938668576}
   - component: {fileID: 1938668575}
   - component: {fileID: 1938668574}
+  - component: {fileID: 1938668577}
   m_Layer: 5
   m_Name: LifMag(center)Button
   m_TagString: Untagged
@@ -21625,6 +21995,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1938668572}
   m_CullTransparentMesh: 1
+--- !u!114 &1938668577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1938668572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 2
+  button: {fileID: 1938668574}
+  labelText: {fileID: 392783329}
+  offColor: {r: 1, g: 1, b: 1, a: 1}
+  onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &1949393909
 GameObject:
   m_ObjectHideFlags: 0
@@ -21717,6 +22105,7 @@ GameObject:
   - component: {fileID: 1971218023}
   - component: {fileID: 1971218022}
   - component: {fileID: 1971218021}
+  - component: {fileID: 1971218024}
   m_Layer: 5
   m_Name: LifMag(inL)Button
   m_TagString: Untagged
@@ -21827,6 +22216,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1971218019}
   m_CullTransparentMesh: 1
+--- !u!114 &1971218024
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971218019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lifMagSystem: {fileID: 1514171650}
+  lifMagIndex: 1
+  button: {fileID: 1971218021}
+  labelText: {fileID: 757127827}
+  offColor: {r: 1, g: 1, b: 1, a: 1}
+  onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &1982478839
 GameObject:
   m_ObjectHideFlags: 0

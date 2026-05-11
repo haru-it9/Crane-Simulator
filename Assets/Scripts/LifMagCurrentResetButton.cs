@@ -25,13 +25,12 @@ public class LifMagCurrentResetButton : MonoBehaviour
 
     public void ResetAll()
     {
-        // ① 吸着解除
         if (lifMagSystem != null)
         {
             lifMagSystem.DetachAllFromButton();
+            lifMagSystem.ResetLifMagDisplayAccumValues();
         }
 
-        // ② 電流OFF
         foreach (LifMagCurrentButton btn in lifMagButtons)
         {
             if (btn == null) continue;

@@ -27,6 +27,8 @@ public class LifMagSystem : MonoBehaviour
     private float sliderAccumulatedValue = 0f;
     private float sliderSampleTimer = 0f;
 
+    private float[] lifMagDisplayAccumValues = new float[5];
+
     [Header("板サイズ連動しきい値")]
     [SerializeField] private bool useBoardSizeThreshold = true;
 
@@ -178,7 +180,27 @@ public class LifMagSystem : MonoBehaviour
             float sliderValue = Input.GetAxis(joyStick2Slider);
             float sampleValue = useAbsoluteSliderValue ? Mathf.Abs(sliderValue) : sliderValue;
 
-            sliderAccumulatedValue += sampleValue + 1f;
+            float addValue;
+
+            // -0.8 ～ -1.0 はゼロ扱い
+            if (sampleValue <= -0.8f)
+            {
+                addValue = 0f;
+            }
+            else
+            {
+                addValue = sampleValue + 1f;
+            }
+
+            sliderAccumulatedValue += addValue;
+
+            for (int i = 0; i < lifMagDisplayAccumValues.Length; i++)
+            {
+                if (IsLifMagCurrentOn(i))
+                {
+                    lifMagDisplayAccumValues[i] += addValue;
+                }
+            }
 
             Debug.Log($"[SliderAccum] sample={sampleValue:F3}, total={sliderAccumulatedValue:F3}");
 
@@ -204,6 +226,27 @@ public class LifMagSystem : MonoBehaviour
                     break;
                 }
             }
+        }
+    }
+
+    public float GetLifMagDisplayAccumValue(int index)
+    {
+        if (lifMagDisplayAccumValues == null) return 0f;
+        if (index < 0 || index >= lifMagDisplayAccumValues.Length) return 0f;
+
+        return lifMagDisplayAccumValues[index];
+    }
+
+    public void ResetLifMagDisplayAccumValues()
+    {
+        if (lifMagDisplayAccumValues == null || lifMagDisplayAccumValues.Length != magnetSensors.Length)
+        {
+            lifMagDisplayAccumValues = new float[magnetSensors.Length];
+        }
+
+        for (int i = 0; i < lifMagDisplayAccumValues.Length; i++)
+        {
+            lifMagDisplayAccumValues[i] = 0f;
         }
     }
 
@@ -321,9 +364,21 @@ public class LifMagSystem : MonoBehaviour
             lifMagCurrentOn = new bool[magnetSensors.Length];
         }
 
+        if (lifMagDisplayAccumValues == null || lifMagDisplayAccumValues.Length != magnetSensors.Length)
+        {
+            lifMagDisplayAccumValues = new float[magnetSensors.Length];
+        }
+
         if (index < 0 || index >= lifMagCurrentOn.Length) return;
 
         lifMagCurrentOn[index] = isOn;
+
+        // ONになった直後からの累積値にする
+        if (isOn)
+        {
+            lifMagDisplayAccumValues[index] = 0f;
+        }
+
         Debug.Log($"LifMag[{index}] 電流: {(isOn ? "ON" : "OFF")}");
     }
 

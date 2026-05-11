@@ -1,0 +1,44 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class LifMagAccumValueText : MonoBehaviour
+{
+    [Header("対象のLifMagSystem")]
+    [SerializeField] private LifMagSystem lifMagSystem;
+
+    [Header("対象リフマグ番号")]
+    [SerializeField] private int lifMagIndex = 0;
+
+    [Header("表示Text")]
+    [SerializeField] private Text valueText;
+
+    private void Start()
+    {
+        if (valueText == null)
+        {
+            valueText = GetComponent<Text>();
+        }
+    }
+
+    private void Update()
+    {
+        if (valueText == null) return;
+
+        if (lifMagSystem == null)
+        {
+            valueText.text = "0.0";
+            return;
+        }
+
+        if (!lifMagSystem.IsLifMagCurrentOn(lifMagIndex))
+        {
+            valueText.text = "0.0";
+            return;
+        }
+
+        float value = lifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
+        valueText.text = value.ToString("F1");
+    }
+}
