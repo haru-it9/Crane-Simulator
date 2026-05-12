@@ -20,13 +20,16 @@ public class CraneInformationDisplay : MonoBehaviour
     [SerializeField] private float boardDensity = 7850f;
 
     [Header("重量表示演出")]
-    [SerializeField] private float weightDisplayHeight = 1.0f;
+    [SerializeField] private float weightDisplayHeight = 0.2f;
 
     [Header("重量0表示時")]
-    [SerializeField] private string zeroWeightText = "0.0 t";
+    [SerializeField] private string zeroWeightText = "0.00 t";
 
     private float liftStartY;
     private bool wasHoldingLastFrame = false;
+
+    private bool hasReachedMaxWeight = false;
+    private bool shouldResetWeight = false;
 
     public float CurrentX { get; private set; }
     public float CurrentZ { get; private set; }
@@ -74,6 +77,10 @@ public class CraneInformationDisplay : MonoBehaviour
             {
                 liftStartY = targetTransform.position.y;
             }
+
+            hasReachedMaxWeight = false;
+            shouldResetWeight = false;
+            CurrentDisplayWeightTon = 0f;
         }
 
         wasHoldingLastFrame = isHolding;
@@ -81,35 +88,69 @@ public class CraneInformationDisplay : MonoBehaviour
         // 非吸着時
         if (!isHolding)
         {
-            CurrentDisplayWeightTon = 0f;
-            weightText.text = zeroWeightText;
+            shouldResetWeight = false;
+            ResetWeightDisplay();
+            return;
+        }
+
+        // 板が場の板やステージに接触した後
+        if (shouldResetWeight)
+        {
+            ResetWeightDisplay();
             return;
         }
 
         // 実重量計算
-        float actualWeight = 0f;
+        float actualWeightKg = 0f;
 
         foreach (GameObject board in boards)
         {
             if (board == null) continue;
 
-            actualWeight += CalculateBoardWeight(board);
+            actualWeightKg += CalculateBoardWeight(board);
+        }
+
+        float actualWeightTon = actualWeightKg / 1000f;
+
+        // 一度最大表示に達したら、その後は高さで減らさない
+        if (hasReachedMaxWeight)
+        {
+            CurrentDisplayWeightTon = actualWeightTon;
+            weightText.text = $"{CurrentDisplayWeightTon:F2} t";
+            return;
         }
 
         // 持ち上げ高さ
-        float liftedHeight =
-            Mathf.Max(0f, targetTransform.position.y - liftStartY);
+        float liftedHeight = Mathf.Max(0f, targetTransform.position.y - liftStartY);
 
-        // 0～1
-        float ratio =
-            Mathf.Clamp01(liftedHeight / weightDisplayHeight);
+        float ratio = Mathf.Clamp01(liftedHeight / weightDisplayHeight);
 
-        // 見かけ重量
-        float displayWeight = actualWeight * ratio / 1000f;
+        CurrentDisplayWeightTon = actualWeightTon * ratio;
 
-        CurrentDisplayWeightTon = displayWeight;
-        
-        weightText.text = $"{displayWeight:F2} t";
+        if (ratio >= 1f)
+        {
+            hasReachedMaxWeight = true;
+            CurrentDisplayWeightTon = actualWeightTon;
+        }
+
+        weightText.text = $"{CurrentDisplayWeightTon:F2} t";
+    }
+
+    private void ResetWeightDisplay()
+    {
+        CurrentDisplayWeightTon = 0f;
+        hasReachedMaxWeight = false;
+
+        if (weightText != null)
+        {
+            weightText.text = zeroWeightText;
+        }
+    }
+
+    // 追加：下降停止が確定したときに外部から呼ぶ
+    public void NotifyDownwardMovementStopped()
+    {
+        shouldResetWeight = true;
     }
 
     private float CalculateBoardWeight(GameObject board)
@@ -123,10 +164,7 @@ public class CraneInformationDisplay : MonoBehaviour
 
         Bounds b = col.bounds;
 
-        float volume =
-            b.size.x *
-            b.size.y *
-            b.size.z;
+        float volume = b.size.x * b.size.y * b.size.z;
 
         float weight = volume * boardDensity;
 

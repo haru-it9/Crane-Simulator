@@ -42,6 +42,11 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float lifInnerSpeeds = 1.785f;
     [SerializeField] private int lifInnerSpeedIndex = 0;
 
+    [Header("Speed Display Text")]
+    [SerializeField] private Text zSpeedText;
+    [SerializeField] private Text mainLifMagXSpeedText;
+    [SerializeField] private Text mainLifMagYSpeedText;
+
     [Header("MainCrane Z Range")]
     [SerializeField] private float minZ = -10f;
     [SerializeField] private float maxZ = 10f;
@@ -57,6 +62,9 @@ public class CraneUnit : MonoBehaviour
     [Header("Board Contact Check")]
     [SerializeField] private LifMagSystem lifMagSystem;
     [SerializeField] private MagnetSensor[] sensors;
+
+    [Header("Information Display")]
+    [SerializeField] private CraneInformationDisplay craneInformationDisplay;
 
     [Header("Down Block Check")]
     [SerializeField] private Transform downCheckOrigin;
@@ -93,6 +101,22 @@ public class CraneUnit : MonoBehaviour
     private void Start()
     {
         UpdateWarningUI();
+        UpdateSpeedTexts();
+    }
+
+    private void UpdateSpeedTexts()
+    {
+        if (zSpeedText != null)
+            zSpeedText.text = 
+                $"{zSpeeds[zSpeedIndex]:0.###}" + $" ({zSpeedIndex + 1}/{zSpeeds.Length})";
+
+        if (mainLifMagXSpeedText != null)
+            mainLifMagXSpeedText.text =
+                $"{mainLifMagXSpeeds[mainLifMagXSpeedIndex]:0.###}" + $" ({mainLifMagXSpeedIndex + 1}/{mainLifMagXSpeeds.Length})";
+
+        if (mainLifMagYSpeedText != null)
+            mainLifMagYSpeedText.text =
+                $"{mainLifMagYSpeeds[mainLifMagYSpeedIndex]:0.###}" + $" ({mainLifMagYSpeedIndex + 1}/{mainLifMagYSpeeds.Length})";
     }
 
     public void MoveMainCraneZ(float input)
@@ -145,6 +169,11 @@ public class CraneUnit : MonoBehaviour
         if (descentLockedByWarningArea && moveAmount < 0f)
         {
             moveAmount = 0f;
+
+            if (craneInformationDisplay != null)
+            {
+                craneInformationDisplay.NotifyDownwardMovementStopped();
+            }
         }
 
         // 毎回いったん初期化
@@ -437,19 +466,64 @@ public class CraneUnit : MonoBehaviour
     public void ChangeZSpeed()
     {
         zSpeedIndex = (zSpeedIndex + 1) % zSpeeds.Length;
+        UpdateSpeedTexts();
         Debug.Log($"{name} MainCrane Z速度: {zSpeeds[zSpeedIndex]} m/min");
     }
 
     public void ChangeMainLifMagXSpeed()
     {
         mainLifMagXSpeedIndex = (mainLifMagXSpeedIndex + 1) % mainLifMagXSpeeds.Length;
+        UpdateSpeedTexts();
         Debug.Log($"{name} MainLifMag X速度: {mainLifMagXSpeeds[mainLifMagXSpeedIndex]} m/min");
     }
 
     public void ChangeMainLifMagYSpeed()
     {
         mainLifMagYSpeedIndex = (mainLifMagYSpeedIndex + 1) % mainLifMagYSpeeds.Length;
+        UpdateSpeedTexts();
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
+    }
+
+    public void IncreaseZSpeed()
+    {
+        zSpeedIndex = Mathf.Min(zSpeedIndex + 1, zSpeeds.Length - 1);
+        UpdateSpeedTexts();
+        Debug.Log($"{name} MainCrane Z速度UP: Lv.{zSpeedIndex + 1} / {zSpeeds.Length}");
+    }
+
+    public void DecreaseZSpeed()
+    {
+        zSpeedIndex = Mathf.Max(zSpeedIndex - 1, 0);
+        UpdateSpeedTexts();
+        Debug.Log($"{name} MainCrane Z速度DOWN: Lv.{zSpeedIndex + 1} / {zSpeeds.Length}");
+    }
+
+    public void IncreaseMainLifMagXSpeed()
+    {
+        mainLifMagXSpeedIndex = Mathf.Min(mainLifMagXSpeedIndex + 1, mainLifMagXSpeeds.Length - 1);
+        UpdateSpeedTexts();
+        Debug.Log($"{name} MainLifMag X速度UP: Lv.{mainLifMagXSpeedIndex + 1} / {mainLifMagXSpeeds.Length}");
+    }
+
+    public void DecreaseMainLifMagXSpeed()
+    {
+        mainLifMagXSpeedIndex = Mathf.Max(mainLifMagXSpeedIndex - 1, 0);
+        UpdateSpeedTexts();
+        Debug.Log($"{name} MainLifMag X速度DOWN: Lv.{mainLifMagXSpeedIndex + 1} / {mainLifMagXSpeeds.Length}");
+    }
+
+    public void IncreaseMainLifMagYSpeed()
+    {
+        mainLifMagYSpeedIndex = Mathf.Min(mainLifMagYSpeedIndex + 1, mainLifMagYSpeeds.Length - 1);
+        UpdateSpeedTexts();
+        Debug.Log($"{name} MainLifMag Y速度UP: Lv.{mainLifMagYSpeedIndex + 1} / {mainLifMagYSpeeds.Length}");
+    }
+
+    public void DecreaseMainLifMagYSpeed()
+    {
+        mainLifMagYSpeedIndex = Mathf.Max(mainLifMagYSpeedIndex - 1, 0);
+        UpdateSpeedTexts();
+        Debug.Log($"{name} MainLifMag Y速度DOWN: Lv.{mainLifMagYSpeedIndex + 1} / {mainLifMagYSpeeds.Length}");
     }
 
     private void OnDrawGizmos()

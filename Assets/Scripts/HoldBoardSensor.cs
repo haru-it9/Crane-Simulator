@@ -10,6 +10,8 @@ public class HoldBoardSensor : MonoBehaviour
     public bool IsTouchingStopTarget => touchingStopTargets.Count > 0;
     public IReadOnlyCollection<GameObject> TouchingStopTargets => touchingStopTargets;
 
+    [SerializeField] private CraneInformationDisplay craneInformationDisplay;
+
     public void SetOwnerBoard(GameObject board)
     {
         ownerBoard = board;
@@ -54,13 +56,19 @@ public class HoldBoardSensor : MonoBehaviour
 
         if (isTouching)
         {
-            touchingStopTargets.Add(other);
-            //Debug.Log($"[HoldBoardSensor] 他板接触追加: {other.name}, count={touchingStopTargets.Count}");
+            bool isNewTouch = touchingStopTargets.Add(other);
+
+            if (isNewTouch && ownerBoard != null)
+            {
+                if (craneInformationDisplay != null)
+                {
+                    craneInformationDisplay.NotifyHeldBoardTouchedGround();
+                }
+            }
         }
         else
         {
             touchingStopTargets.Remove(other);
-            //Debug.Log($"[HoldBoardSensor] 他板接触解除: {other.name}, count={touchingStopTargets.Count}");
         }
     }
 }
