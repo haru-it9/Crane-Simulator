@@ -62,7 +62,7 @@ public class HoldBoardSensor : MonoBehaviour
             {
                 if (craneInformationDisplay != null)
                 {
-                    craneInformationDisplay.NotifyHeldBoardTouchedGround();
+                    craneInformationDisplay.NotifyDownwardMovementStopped();
                 }
             }
         }
