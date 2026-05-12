@@ -28,6 +28,10 @@ public class CraneInformationDisplay : MonoBehaviour
     private float liftStartY;
     private bool wasHoldingLastFrame = false;
 
+    public float CurrentX { get; private set; }
+    public float CurrentZ { get; private set; }
+    public float CurrentDisplayWeightTon { get; private set; }
+
     private void Update()
     {
         UpdatePositionText();
@@ -40,14 +44,17 @@ public class CraneInformationDisplay : MonoBehaviour
 
         Vector3 pos = targetTransform.position;
 
+        CurrentX = pos.x;
+        CurrentZ = pos.z;
+
         if (xText != null)
         {
-            xText.text = $"{pos.x:F2}";
+            xText.text = $"{CurrentX:F2}";
         }
 
         if (zText != null)
         {
-            zText.text = $"{pos.z:F2}";
+            zText.text = $"{CurrentZ:F2}";
         }
     }
 
@@ -74,6 +81,7 @@ public class CraneInformationDisplay : MonoBehaviour
         // 非吸着時
         if (!isHolding)
         {
+            CurrentDisplayWeightTon = 0f;
             weightText.text = zeroWeightText;
             return;
         }
@@ -99,6 +107,8 @@ public class CraneInformationDisplay : MonoBehaviour
         // 見かけ重量
         float displayWeight = actualWeight * ratio / 1000f;
 
+        CurrentDisplayWeightTon = displayWeight;
+        
         weightText.text = $"{displayWeight:F2} t";
     }
 

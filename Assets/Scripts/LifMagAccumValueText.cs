@@ -14,6 +14,8 @@ public class LifMagAccumValueText : MonoBehaviour
     [Header("表示Text")]
     [SerializeField] private Text valueText;
 
+    public float CurrentValue { get; private set; }
+
     private void Start()
     {
         if (valueText == null)
@@ -28,17 +30,19 @@ public class LifMagAccumValueText : MonoBehaviour
 
         if (lifMagSystem == null)
         {
+            CurrentValue = 0f;
             valueText.text = "0.0";
             return;
         }
 
         if (!lifMagSystem.IsLifMagCurrentOn(lifMagIndex))
         {
+            CurrentValue = 0f;
             valueText.text = "0.0";
             return;
         }
 
-        float value = lifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
-        valueText.text = value.ToString("F2");
+        CurrentValue = lifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
+        valueText.text = CurrentValue.ToString("F2");
     }
 }

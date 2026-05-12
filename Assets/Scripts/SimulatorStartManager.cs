@@ -20,6 +20,9 @@ public class SimulatorStartManager : MonoBehaviour
     [Header("Tobii Gaze Logger")]
     [SerializeField] private TobiiGazeCsvLogger tobiiGazeLogger;
 
+    [Header("Work Information Logger")]
+    [SerializeField] private WorkInformationCsvLogger workInformationLogger;
+
     [Header("CSVファイル名入力")]
     [SerializeField] private InputField fileNameInputField;
 
@@ -69,6 +72,11 @@ public class SimulatorStartManager : MonoBehaviour
         if (tobiiGazeLogger != null)
         {
             tobiiGazeLogger.StartLogging(inputFileName);
+        }
+
+        if (workInformationLogger != null)
+        {
+            workInformationLogger.StartLogging(inputFileName);
         }
 
         Debug.Log("Start：操作開始＋CSV記録開始");
