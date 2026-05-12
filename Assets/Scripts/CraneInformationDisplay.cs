@@ -42,12 +42,12 @@ public class CraneInformationDisplay : MonoBehaviour
 
         if (xText != null)
         {
-            xText.text = $"{pos.x:F1}";
+            xText.text = $"{pos.x:F2}";
         }
 
         if (zText != null)
         {
-            zText.text = $"{pos.z:F1}";
+            zText.text = $"{pos.z:F2}";
         }
     }
 
@@ -99,7 +99,7 @@ public class CraneInformationDisplay : MonoBehaviour
         // 見かけ重量
         float displayWeight = actualWeight * ratio / 1000f;
 
-        weightText.text = $"{displayWeight:F1} t";
+        weightText.text = $"{displayWeight:F2} t";
     }
 
     private float CalculateBoardWeight(GameObject board)

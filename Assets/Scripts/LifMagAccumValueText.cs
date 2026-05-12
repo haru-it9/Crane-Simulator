@@ -39,6 +39,6 @@ public class LifMagAccumValueText : MonoBehaviour
         }
 
         float value = lifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
-        valueText.text = value.ToString("F1");
+        valueText.text = value.ToString("F2");
     }
 }

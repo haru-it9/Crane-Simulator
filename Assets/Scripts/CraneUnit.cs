@@ -97,6 +97,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainCraneZ(float input)
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (mainCrane == null) return;
 
         float speed = zSpeeds[zSpeedIndex] / 60f;
@@ -108,6 +110,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagX(float input)
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (mainLifMag == null) return;
 
         float speed = mainLifMagXSpeeds[mainLifMagXSpeedIndex] / 60f * 0.368f / 6f;
@@ -119,6 +123,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagY(float input)
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (mainLifMag == null) return;
 
         float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
@@ -389,6 +395,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveLifMagX(int index, float input)
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (lifMags == null || index < 0 || index >= lifMags.Length) return;
         if (lifMags[index] == null) return;
         if (lifMags[index].target == null) return;

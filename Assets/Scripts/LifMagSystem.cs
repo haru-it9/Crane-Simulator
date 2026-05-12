@@ -82,6 +82,11 @@ public class LifMagSystem : MonoBehaviour
 
     private void Update()
     {
+        if (!SimulatorStartManager.IsOperationEnabled)
+        {
+            return;
+        }
+        
         HandleAttachInput();
         HandleDetachInput();
         //DebugCurrentCandidateMagnetDetails();
