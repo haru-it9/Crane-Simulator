@@ -324,6 +324,7 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
+  craneInformationDisplay: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -654,11 +655,11 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 45
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 40
+    m_MaxSize: 50
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -1583,6 +1584,7 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
+  craneInformationDisplay: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -2007,6 +2009,7 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
+  craneInformationDisplay: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -2273,8 +2276,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 525, y: 90}
-  m_SizeDelta: {x: 50, y: 80}
+  m_AnchoredPosition: {x: 500, y: 90}
+  m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &148451225
 MonoBehaviour:
@@ -3405,8 +3408,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 825, y: -210}
-  m_SizeDelta: {x: 50, y: 80}
+  m_AnchoredPosition: {x: 850, y: -210}
+  m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &255797433
 MonoBehaviour:
@@ -4379,11 +4382,11 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 45
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 40
+    m_MaxSize: 45
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -7248,11 +7251,11 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 45
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 40
+    m_MaxSize: 45
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -10087,8 +10090,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 525, y: -210}
-  m_SizeDelta: {x: 50, y: 80}
+  m_AnchoredPosition: {x: 500, y: -210}
+  m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &924131505
 MonoBehaviour:
@@ -10850,8 +10853,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 525, y: -60}
-  m_SizeDelta: {x: 50, y: 80}
+  m_AnchoredPosition: {x: 500, y: -60}
+  m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &964589553
 MonoBehaviour:
@@ -14163,11 +14166,11 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 45
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 40
+    m_MaxSize: 45
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -16222,6 +16225,7 @@ MonoBehaviour:
   - {fileID: 1743662108}
   - {fileID: 1874086611}
   - {fileID: 796789747}
+  craneInformationDisplay: {fileID: 0}
   downCheckOrigin: {fileID: 1065044026}
   downCheckHalfExtents: {x: 0.2, y: 0.03, z: 0.5}
   boardLayer:
@@ -19274,11 +19278,11 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 45
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 40
+    m_MaxSize: 45
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -19758,8 +19762,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 825, y: -60}
-  m_SizeDelta: {x: 50, y: 80}
+  m_AnchoredPosition: {x: 850, y: -60}
+  m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1670168580
 MonoBehaviour:
@@ -20639,6 +20643,7 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
+  craneInformationDisplay: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -21699,11 +21704,11 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 40
+    m_FontSize: 45
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 0
-    m_MaxSize: 40
+    m_MaxSize: 45
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -24885,6 +24890,7 @@ MonoBehaviour:
   maxMainY: -1.56
   lifMagSystem: {fileID: 0}
   sensors: []
+  craneInformationDisplay: {fileID: 0}
   downCheckOrigin: {fileID: 0}
   downCheckHalfExtents: {x: 0.35, y: 0.05, z: 0.35}
   boardLayer:
@@ -25236,8 +25242,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 825, y: 90}
-  m_SizeDelta: {x: 50, y: 80}
+  m_AnchoredPosition: {x: 850, y: 90}
+  m_SizeDelta: {x: 80, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2007077752
 MonoBehaviour:
