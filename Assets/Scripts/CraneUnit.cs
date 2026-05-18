@@ -156,6 +156,14 @@ public class CraneUnit : MonoBehaviour
 
         Vector3 pos = mainLifMag.localPosition;
 
+        if (moveAmount > 0f)
+        {
+            if (craneInformationDisplay != null)
+            {
+                craneInformationDisplay.NotifyUpwardMovementStarted();
+            }
+        }
+
         // 警告後、一定高さまで上がったら下降禁止解除
         if (descentLockedByWarningArea && pos.y >= unlockYHeight)
         {
@@ -169,11 +177,6 @@ public class CraneUnit : MonoBehaviour
         if (descentLockedByWarningArea && moveAmount < 0f)
         {
             moveAmount = 0f;
-
-            if (craneInformationDisplay != null)
-            {
-                craneInformationDisplay.NotifyDownwardMovementStopped();
-            }
         }
 
         // 毎回いったん初期化
@@ -305,6 +308,11 @@ public class CraneUnit : MonoBehaviour
             if (shouldStop)
             {
                 moveAmount = 0f;
+
+                if (craneInformationDisplay != null)
+                {
+                    craneInformationDisplay.NotifyDownwardMovementStopped();
+                }
             }
         }
 

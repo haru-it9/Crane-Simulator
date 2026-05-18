@@ -153,6 +153,24 @@ public class CraneInformationDisplay : MonoBehaviour
         shouldResetWeight = true;
     }
 
+    public void NotifyUpwardMovementStarted()
+    {
+        // 0表示解除
+        if (shouldResetWeight)
+        {
+            shouldResetWeight = false;
+
+            // 再度持ち上げ開始位置を記録
+            if (targetTransform != null)
+            {
+                liftStartY = targetTransform.position.y;
+            }
+
+            // もう一度 0→重量 の線形変化を行う
+            hasReachedMaxWeight = false;
+        }
+    }
+
     private float CalculateBoardWeight(GameObject board)
     {
         Collider col = board.GetComponent<Collider>();

@@ -79,7 +79,6 @@ public class LifMagSystem : MonoBehaviour
     private readonly List<Collider> debugOverlapHits = new List<Collider>();
     private GameObject debugSelectedCandidate;
 
-
     private void Update()
     {
         if (!SimulatorStartManager.IsOperationEnabled)
@@ -90,6 +89,22 @@ public class LifMagSystem : MonoBehaviour
         HandleAttachInput();
         HandleDetachInput();
         //DebugCurrentCandidateMagnetDetails();
+    }
+
+    private int GetEnabledMagnetCount()
+    {
+        int count = 0;
+
+        foreach (bool isOn in lifMagCurrentOn)
+        {
+            if (isOn)
+            {
+                count++;
+            }
+        }
+
+        // 0除算防止
+        return Mathf.Max(count, 1);
     }
 
     public bool IsAttachedBoard(GameObject board) // 指定した板が現在吸着中かどうかを返す
@@ -295,17 +310,17 @@ public class LifMagSystem : MonoBehaviour
         // 少ないほど大きくする
         // -----------------------------
         float contactMultiplier = 1f;
-        int touchingCount = GetTouchingMagnetCount(candidate);
+        int enabledCount = GetEnabledMagnetCount();
 
         if (useMagnetContactThreshold)
         {
-            if (touchingCount <= 0)
+            if (enabledCount <= 0)
             {
                 contactMultiplier = maxContactMultiplier;
             }
             else
             {
-                contactMultiplier = (float)referenceMagnetContactCount / touchingCount;
+                contactMultiplier = (float)referenceMagnetContactCount / enabledCount;
                 contactMultiplier = Mathf.Clamp(contactMultiplier, 1f, maxContactMultiplier);
             }
         }
@@ -315,7 +330,7 @@ public class LifMagSystem : MonoBehaviour
         Debug.Log(
             $"候補板={candidate.name}, " +
             $"size={size}, " +
-            $"touchingCount={touchingCount}, " +
+            $"enabledCount={enabledCount}, " +
             $"volumeMul={volumeMultiplier:F3}, " +
             $"contactMul={contactMultiplier:F3}, " +
             $"threshold={threshold:F3}"
