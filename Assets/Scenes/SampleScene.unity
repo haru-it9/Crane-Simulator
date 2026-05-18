@@ -337,6 +337,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   showDebugBoxCast: 1
+  uiButtonCsvLogger: {fileID: 0}
   warningText: {fileID: 0}
   warningMessage: "\u8B66\u544A\uFF1A\u677F\u304C\u914D\u7F6E\u7981\u6B62\u9818\u57DF\u306B\u4FB5\u5165\u3057\u307E\u3057\u305F\n\u4E00\u5B9A\u9AD8\u3055\u307E\u3067\u4E0A\u6607\u3057\u3066\u304F\u3060\u3055\u3044"
 --- !u!4 &5693043
@@ -1594,6 +1595,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   showDebugBoxCast: 1
+  uiButtonCsvLogger: {fileID: 0}
   warningText: {fileID: 0}
   warningMessage: "\u8B66\u544A\uFF1A\u677F\u304C\u914D\u7F6E\u7981\u6B62\u9818\u57DF\u306B\u4FB5\u5165\u3057\u307E\u3057\u305F\n\u4E00\u5B9A\u9AD8\u3055\u307E\u3067\u4E0A\u6607\u3057\u3066\u304F\u3060\u3055\u3044"
 --- !u!4 &109010577
@@ -2016,6 +2018,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   showDebugBoxCast: 1
+  uiButtonCsvLogger: {fileID: 0}
   warningText: {fileID: 0}
   warningMessage: "\u8B66\u544A\uFF1A\u677F\u304C\u914D\u7F6E\u7981\u6B62\u9818\u57DF\u306B\u4FB5\u5165\u3057\u307E\u3057\u305F\n\u4E00\u5B9A\u9AD8\u3055\u307E\u3067\u4E0A\u6607\u3057\u3066\u304F\u3060\u3055\u3044"
 --- !u!4 &110875036
@@ -16395,6 +16398,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   showDebugBoxCast: 0
+  uiButtonCsvLogger: {fileID: 2080963380}
   warningText: {fileID: 1804951096}
   warningMessage: "\u8B66\u544A\uFF1A\u677F\u304C\u914D\u7F6E\u7981\u6B62\u9818\u57DF\u306B\u4FB5\u5165\u3057\u307E\u3057\u305F\n\u4E00\u5B9A\u9AD8\u3055\u307E\u3067\u4E0A\u6607\u3057\u3066\u304F\u3060\u3055\u3044"
 --- !u!1 &1386883058
@@ -20813,6 +20817,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   showDebugBoxCast: 1
+  uiButtonCsvLogger: {fileID: 0}
   warningText: {fileID: 0}
   warningMessage: "\u8B66\u544A\uFF1A\u677F\u304C\u914D\u7F6E\u7981\u6B62\u9818\u57DF\u306B\u4FB5\u5165\u3057\u307E\u3057\u305F\n\u4E00\u5B9A\u9AD8\u3055\u307E\u3067\u4E0A\u6607\u3057\u3066\u304F\u3060\u3055\u3044"
 --- !u!4 &1696454653
@@ -25045,6 +25050,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   showDebugBoxCast: 1
+  uiButtonCsvLogger: {fileID: 0}
   warningText: {fileID: 0}
   warningMessage: "\u8B66\u544A\uFF1A\u677F\u304C\u914D\u7F6E\u7981\u6B62\u9818\u57DF\u306B\u4FB5\u5165\u3057\u307E\u3057\u305F\n\u4E00\u5B9A\u9AD8\u3055\u307E\u3067\u4E0A\u6607\u3057\u3066\u304F\u3060\u3055\u3044"
 --- !u!4 &1994968995

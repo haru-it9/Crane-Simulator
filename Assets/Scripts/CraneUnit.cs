@@ -82,6 +82,9 @@ public class CraneUnit : MonoBehaviour
     [Header("Debug BoxCast Visualization")]
     [SerializeField] private bool showDebugBoxCast = true;
 
+    [Header("CSV SpeedLogger")]
+    [SerializeField] private UIButtonCsvLogger uiButtonCsvLogger;
+
     [Header("Warning UI")]
     [SerializeField] private Text warningText;
     [SerializeField] private string warningMessage =
@@ -492,10 +495,30 @@ public class CraneUnit : MonoBehaviour
         Debug.Log($"{name} MainLifMag Y速度: {mainLifMagYSpeeds[mainLifMagYSpeedIndex]} m/min");
     }
 
+    public float CurrentMainLifMagXSpeed =>
+        mainLifMagXSpeeds[mainLifMagXSpeedIndex];
+
+    public float CurrentMainLifMagYSpeed =>
+        mainLifMagYSpeeds[mainLifMagYSpeedIndex];
+
+    public float CurrentMainCraneZSpeed =>
+        zSpeeds[zSpeedIndex];
+
     public void IncreaseZSpeed()
     {
         zSpeedIndex = Mathf.Min(zSpeedIndex + 1, zSpeeds.Length - 1);
         UpdateSpeedTexts();
+
+        if (uiButtonCsvLogger != null)
+        {
+            uiButtonCsvLogger.RecordSpeedChange(
+                "IncreaseZSpeed",
+                mainLifMagXSpeeds[mainLifMagXSpeedIndex],
+                mainLifMagYSpeeds[mainLifMagYSpeedIndex],
+                zSpeeds[zSpeedIndex]
+            );
+        }
+
         Debug.Log($"{name} MainCrane Z速度UP: Lv.{zSpeedIndex + 1} / {zSpeeds.Length}");
     }
 
@@ -503,13 +526,31 @@ public class CraneUnit : MonoBehaviour
     {
         zSpeedIndex = Mathf.Max(zSpeedIndex - 1, 0);
         UpdateSpeedTexts();
+        if (uiButtonCsvLogger != null)
+        {
+            uiButtonCsvLogger.RecordSpeedChange(
+                "DecreaseZSpeed",
+                mainLifMagXSpeeds[mainLifMagXSpeedIndex],
+                mainLifMagYSpeeds[mainLifMagYSpeedIndex],
+                zSpeeds[zSpeedIndex]
+            );
+        }
         Debug.Log($"{name} MainCrane Z速度DOWN: Lv.{zSpeedIndex + 1} / {zSpeeds.Length}");
     }
 
     public void IncreaseMainLifMagXSpeed()
-    {
+    {   
         mainLifMagXSpeedIndex = Mathf.Min(mainLifMagXSpeedIndex + 1, mainLifMagXSpeeds.Length - 1);
         UpdateSpeedTexts();
+        if (uiButtonCsvLogger != null)
+        {
+            uiButtonCsvLogger.RecordSpeedChange(
+                "IncreaseMainLifMagXSpeed",
+                mainLifMagXSpeeds[mainLifMagXSpeedIndex],
+                mainLifMagYSpeeds[mainLifMagYSpeedIndex],
+                zSpeeds[zSpeedIndex]
+            );
+        }
         Debug.Log($"{name} MainLifMag X速度UP: Lv.{mainLifMagXSpeedIndex + 1} / {mainLifMagXSpeeds.Length}");
     }
 
@@ -517,6 +558,15 @@ public class CraneUnit : MonoBehaviour
     {
         mainLifMagXSpeedIndex = Mathf.Max(mainLifMagXSpeedIndex - 1, 0);
         UpdateSpeedTexts();
+        if (uiButtonCsvLogger != null)
+        {
+            uiButtonCsvLogger.RecordSpeedChange(
+                "DecreaseMainLifMagXSpeed",
+                mainLifMagXSpeeds[mainLifMagXSpeedIndex],
+                mainLifMagYSpeeds[mainLifMagYSpeedIndex],
+                zSpeeds[zSpeedIndex]
+            );
+        }
         Debug.Log($"{name} MainLifMag X速度DOWN: Lv.{mainLifMagXSpeedIndex + 1} / {mainLifMagXSpeeds.Length}");
     }
 
@@ -524,6 +574,15 @@ public class CraneUnit : MonoBehaviour
     {
         mainLifMagYSpeedIndex = Mathf.Min(mainLifMagYSpeedIndex + 1, mainLifMagYSpeeds.Length - 1);
         UpdateSpeedTexts();
+        if (uiButtonCsvLogger != null)
+        {
+            uiButtonCsvLogger.RecordSpeedChange(
+                "IncreaseMainLifMagYSpeed",
+                mainLifMagXSpeeds[mainLifMagXSpeedIndex],
+                mainLifMagYSpeeds[mainLifMagYSpeedIndex],
+                zSpeeds[zSpeedIndex]
+            );
+        }
         Debug.Log($"{name} MainLifMag Y速度UP: Lv.{mainLifMagYSpeedIndex + 1} / {mainLifMagYSpeeds.Length}");
     }
 
@@ -531,6 +590,15 @@ public class CraneUnit : MonoBehaviour
     {
         mainLifMagYSpeedIndex = Mathf.Max(mainLifMagYSpeedIndex - 1, 0);
         UpdateSpeedTexts();
+        if (uiButtonCsvLogger != null)
+        {
+            uiButtonCsvLogger.RecordSpeedChange(
+                "DecreaseMainLifMagYSpeed",
+                mainLifMagXSpeeds[mainLifMagXSpeedIndex],
+                mainLifMagYSpeeds[mainLifMagYSpeedIndex],
+                zSpeeds[zSpeedIndex]
+            );
+        }
         Debug.Log($"{name} MainLifMag Y速度DOWN: Lv.{mainLifMagYSpeedIndex + 1} / {mainLifMagYSpeeds.Length}");
     }
 

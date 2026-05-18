@@ -6,12 +6,17 @@ using System.IO;
 public class UIButtonCsvLogger : MonoBehaviour
 {
     [Header("保存先フォルダ")]
-    [SerializeField] private string saveFolderPath =
+    [SerializeField]
+    private string saveFolderPath =
         @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
 
-    private StreamWriter writer;
+    private StreamWriter currentWriter;
+    private StreamWriter speedWriter;
+
     private bool isLogging = false;
-    private string filePath;
+
+    private string currentFilePath;
+    private string speedFilePath;
 
     private float startTime;
 
@@ -26,7 +31,7 @@ public class UIButtonCsvLogger : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(inputFileName))
         {
-            inputFileName = "UIButtonLog";
+            inputFileName = "CurrentButtonLog";
         }
 
         foreach (char c in Path.GetInvalidFileNameChars())
@@ -34,29 +39,67 @@ public class UIButtonCsvLogger : MonoBehaviour
             inputFileName = inputFileName.Replace(c, '_');
         }
 
-        string fileName = inputFileName + "_UIButton.csv";
-        filePath = Path.Combine(folderPath, fileName);
+        currentFilePath = Path.Combine(folderPath, inputFileName + "_CurrentButton.csv");
+        speedFilePath = Path.Combine(folderPath, inputFileName + "_SpeedChange.csv");
 
-        writer = new StreamWriter(filePath, false);
-        writer.WriteLine("Time,ButtonName");
+        currentWriter = new StreamWriter(currentFilePath, false);
+        speedWriter = new StreamWriter(speedFilePath, false);
 
-        // StartScreen消失後に呼ぶことで、ここが0秒基準になる
+        // リフマグON/OFFボタン用
+        currentWriter.WriteLine("Time,ButtonName");
+
+        // 速度変更ボタン用
+        speedWriter.WriteLine(
+            "Time,ButtonName,MainLifMagXSpeed,MainLifMagYSpeed,MainCraneZSpeed"
+        );
+
         startTime = Time.time;
         isLogging = true;
 
-        Debug.Log("UIボタンCSV記録開始: " + filePath);
+        Debug.Log("UIボタンCSV記録開始: " + currentFilePath);
+        Debug.Log("速度変更CSV記録開始: " + speedFilePath);
     }
 
+    // =========================
+    // リフマグON/OFFボタン記録用
+    // =========================
     public void RecordButtonClick(string buttonName)
     {
-        if (!isLogging || writer == null) return;
+        if (!isLogging || currentWriter == null) return;
 
         float elapsedTime = Time.time - startTime;
 
-        writer.WriteLine($"{elapsedTime:F3},{buttonName}");
-        writer.Flush();
+        currentWriter.WriteLine($"{elapsedTime:F3},{buttonName}");
+        currentWriter.Flush();
 
         Debug.Log($"UIボタン記録: {buttonName}, {elapsedTime:F3}s");
+    }
+
+    // =========================
+    // 速度変更ボタン記録用
+    // =========================
+    public void RecordSpeedChange(
+        string buttonName,
+        float mainLifMagXSpeed,
+        float mainLifMagYSpeed,
+        float mainCraneZSpeed
+    )
+    {
+        if (!isLogging || speedWriter == null) return;
+
+        float elapsedTime = Time.time - startTime;
+
+        speedWriter.WriteLine(
+            $"{elapsedTime:F3},{buttonName},{mainLifMagXSpeed:F3},{mainLifMagYSpeed:F3},{mainCraneZSpeed:F3}"
+        );
+
+        speedWriter.Flush();
+
+        Debug.Log(
+            $"速度変更記録: {buttonName}, " +
+            $"X={mainLifMagXSpeed}, Y={mainLifMagYSpeed}, Z={mainCraneZSpeed}, " +
+            $"{elapsedTime:F3}s"
+        );
     }
 
     private void OnApplicationQuit()
@@ -71,10 +114,18 @@ public class UIButtonCsvLogger : MonoBehaviour
 
     private void CloseWriter()
     {
-        if (writer == null) return;
+        if (currentWriter != null)
+        {
+            currentWriter.Flush();
+            currentWriter.Close();
+            currentWriter = null;
+        }
 
-        writer.Flush();
-        writer.Close();
-        writer = null;
+        if (speedWriter != null)
+        {
+            speedWriter.Flush();
+            speedWriter.Close();
+            speedWriter = null;
+        }
     }
 }
