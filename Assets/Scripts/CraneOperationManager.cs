@@ -18,7 +18,7 @@ public class CraneOperationManager : MonoBehaviour
     [SerializeField] private string joyStick2Vertical = "JoyStick2Vertical";
     [SerializeField] private string joyStick3Vertical = "JoyStick3Vertical";
     [SerializeField] private string joyStick2Trigger = "JoyStick2Trigger";
-    [SerializeField] private string joyStick2MiniHorizontal = "JoyStick2MiniHorizontal";
+    [SerializeField] private string joyStick3MiniVertical = "JoyStick3MiniVertical";
 
     [Header("Dead Zone")]
     [SerializeField] private float deadZone = 0.1f;
@@ -109,7 +109,7 @@ public class CraneOperationManager : MonoBehaviour
         CurrentCrane.MoveMainLifMagY(mainYInput);
         CurrentCrane.MoveMainCraneZ(mainZInput);
 
-        float spreadInput = Input.GetAxis(joyStick2MiniHorizontal); // ジョイスティック入力
+        float spreadInput = Input.GetAxis(joyStick3MiniVertical); // ジョイスティック入力
 
         // 中央は動かさない
         CurrentCrane.MoveLifMagX(2, 0f);
@@ -152,7 +152,7 @@ public class CraneOperationManager : MonoBehaviour
         }
         else
         {
-            return ApplyDeadZone(Input.GetAxis(joyStick2Horizontal));
+            return ApplyDeadZone(-Input.GetAxis(joyStick3Vertical));
         }
     }
 
@@ -182,7 +182,7 @@ public class CraneOperationManager : MonoBehaviour
         }
         else
         {
-            return ApplyDeadZone(-Input.GetAxis(joyStick3Vertical));
+            return ApplyDeadZone(-Input.GetAxis(joyStick2Horizontal));
         }
     }
 
