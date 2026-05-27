@@ -61,6 +61,7 @@ public class CraneUnit : MonoBehaviour
 
     [Header("Board Contact Check")]
     [SerializeField] private LifMagSystem lifMagSystem;
+    public LifMagSystem LifMagSystem => lifMagSystem;
     [SerializeField] private MagnetSensor[] sensors;
 
     [Header("Information Display")]

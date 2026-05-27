@@ -46,6 +46,9 @@ public class CraneOperationManager : MonoBehaviour
     [SerializeField] private CraneInformationDisplay craneInformationDisplay;
     [SerializeField] private CraneDisplaySet[] craneDisplaySets;
 
+    [Header("LifMag UI")]
+    [SerializeField] private LifMagCurrentButton[] lifMagCurrentButtons;
+
     [Header("Crane Select UI")]
     [SerializeField] private Button[] craneSelectButtons; // Crane1〜6のボタン
     [SerializeField] private Button lockUnlockButton;
@@ -58,7 +61,7 @@ public class CraneOperationManager : MonoBehaviour
 
     private bool isSelectionLocked = false;
 
-    private CraneUnit CurrentCrane
+    public CraneUnit CurrentCrane
     {
         get
         {
@@ -72,6 +75,7 @@ public class CraneOperationManager : MonoBehaviour
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
+        UpdateLifMagButtonViews();
         SetSelectionLock(false); // 初期状態はUnlock
     }
 
@@ -116,6 +120,7 @@ public class CraneOperationManager : MonoBehaviour
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
+        UpdateLifMagButtonViews();
         SetSelectionLock(true); // 選択後は自動Lock
     }
 
@@ -189,6 +194,41 @@ public class CraneOperationManager : MonoBehaviour
     {
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseZSpeed();
+    }
+
+    public void SetCurrentCraneLifMagCurrent(int index, bool isOn)
+    {
+        if (CurrentCrane == null) return;
+        if (CurrentCrane.LifMagSystem == null) return;
+
+        CurrentCrane.LifMagSystem.SetLifMagCurrent(index, isOn);
+    }
+
+    public void ResetCurrentCraneLifMag()
+    {
+        if (CurrentCrane == null) return;
+        if (CurrentCrane.LifMagSystem == null) return;
+
+        CurrentCrane.LifMagSystem.DetachAllFromButton();
+        CurrentCrane.LifMagSystem.ResetLifMagDisplayAccumValues();
+    }
+
+    private void UpdateLifMagButtonViews()
+    {
+        if (CurrentCrane == null) return;
+        if (CurrentCrane.LifMagSystem == null) return;
+        if (lifMagCurrentButtons == null) return;
+
+        for (int i = 0; i < lifMagCurrentButtons.Length; i++)
+        {
+            if (lifMagCurrentButtons[i] == null) continue;
+
+            bool isOn = CurrentCrane.LifMagSystem.GetLifMagCurrent(i);
+            float currentValue = CurrentCrane.LifMagSystem.GetLifMagDisplayAccumValue(i);
+
+            lifMagCurrentButtons[i].SetViewOnly(isOn);
+            lifMagCurrentButtons[i].SetCurrentValueView(currentValue);
+        }
     }
 
     public void ToggleSelectionLock()

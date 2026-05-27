@@ -7,6 +7,9 @@ public class LifMagSystem : MonoBehaviour
     [Header("5つのマグネットセンサ")]
     [SerializeField] private MagnetSensor[] magnetSensors;
 
+    [Header("CraneOperationManager")]
+    [SerializeField] private CraneOperationManager craneOperationManager;
+
     [Header("入力")]
     [SerializeField] private KeyCode attachKey = KeyCode.E;
     [SerializeField] private KeyCode detachKey = KeyCode.R;
@@ -85,10 +88,23 @@ public class LifMagSystem : MonoBehaviour
         {
             return;
         }
-        
+
+        if (!IsCurrentOperatingCrane())
+        {
+            return;
+        }
+
         HandleAttachInput();
         HandleDetachInput();
         //DebugCurrentCandidateMagnetDetails();
+    }
+
+    private bool IsCurrentOperatingCrane()
+    {
+        if (craneOperationManager == null) return false;
+        if (craneOperationManager.CurrentCrane == null) return false;
+
+        return craneOperationManager.CurrentCrane.LifMagSystem == this;
     }
 
     private int GetEnabledMagnetCount()
@@ -247,6 +263,12 @@ public class LifMagSystem : MonoBehaviour
                 }
             }
         }
+    }
+
+    public bool GetLifMagCurrent(int index)
+    {
+        if (index < 0 || index >= lifMagCurrentOn.Length) return false;
+        return lifMagCurrentOn[index];
     }
 
     public float GetLifMagDisplayAccumValue(int index)

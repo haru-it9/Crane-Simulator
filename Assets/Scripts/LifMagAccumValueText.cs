@@ -5,8 +5,8 @@ using UnityEngine.UI;
 
 public class LifMagAccumValueText : MonoBehaviour
 {
-    [Header("対象のLifMagSystem")]
-    [SerializeField] private LifMagSystem lifMagSystem;
+    [Header("CraneOperationManager")]
+    [SerializeField] private CraneOperationManager craneOperationManager;
 
     [Header("対象リフマグ番号")]
     [SerializeField] private int lifMagIndex = 0;
@@ -28,21 +28,31 @@ public class LifMagAccumValueText : MonoBehaviour
     {
         if (valueText == null) return;
 
-        if (lifMagSystem == null)
+        LifMagSystem currentLifMagSystem = GetCurrentLifMagSystem();
+
+        if (currentLifMagSystem == null)
         {
             CurrentValue = 0f;
             valueText.text = "0.0";
             return;
         }
 
-        if (!lifMagSystem.IsLifMagCurrentOn(lifMagIndex))
+        if (!currentLifMagSystem.IsLifMagCurrentOn(lifMagIndex))
         {
             CurrentValue = 0f;
             valueText.text = "0.0";
             return;
         }
 
-        CurrentValue = lifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
+        CurrentValue = currentLifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
         valueText.text = CurrentValue.ToString("F2");
+    }
+    
+    private LifMagSystem GetCurrentLifMagSystem()
+    {
+        if (craneOperationManager == null) return null;
+        if (craneOperationManager.CurrentCrane == null) return null;
+
+        return craneOperationManager.CurrentCrane.LifMagSystem;
     }
 }

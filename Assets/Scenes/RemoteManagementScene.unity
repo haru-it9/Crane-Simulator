@@ -4577,6 +4577,7 @@ MonoBehaviour:
   - {fileID: 861982157}
   - {fileID: 1028579237}
   - {fileID: 194627684}
+  craneOperationManager: {fileID: 1612894383}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -5797,6 +5798,7 @@ MonoBehaviour:
   - {fileID: 1534596500}
   - {fileID: 378258161}
   - {fileID: 109125945}
+  craneOperationManager: {fileID: 1612894383}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -10975,10 +10977,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 3
   button: {fileID: 398063595}
   labelText: {fileID: 468231017}
+  currentValueText: {fileID: 519517773}
+  currentValueUnit: 3
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &408608185
@@ -12625,7 +12629,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 4
   valueText: {fileID: 436344393}
 --- !u!1 &436623840
@@ -14293,7 +14297,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 2
   valueText: {fileID: 492147427}
 --- !u!1 &492944167
@@ -15970,7 +15974,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 3
   valueText: {fileID: 519517773}
 --- !u!1 &519599269
@@ -17623,6 +17627,7 @@ MonoBehaviour:
   - {fileID: 1480680792}
   - {fileID: 1375266806}
   - {fileID: 1493476431}
+  craneOperationManager: {fileID: 1612894383}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -25883,10 +25888,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 0
   button: {fileID: 924223204}
   labelText: {fileID: 694530704}
+  currentValueText: {fileID: 1120257986}
+  currentValueUnit: 0
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &928291067
@@ -28149,10 +28156,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 4
   button: {fileID: 991687543}
   labelText: {fileID: 43014163}
+  currentValueText: {fileID: 436344393}
+  currentValueUnit: 4
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &992471529
@@ -30242,6 +30251,7 @@ MonoBehaviour:
   - {fileID: 425435694}
   - {fileID: 695618369}
   - {fileID: 730464053}
+  craneOperationManager: {fileID: 1612894383}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -31520,7 +31530,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 0
   valueText: {fileID: 1120257986}
 --- !u!1 &1122837852
@@ -33994,7 +34004,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 1
   valueText: {fileID: 1224691896}
 --- !u!1 &1229067177
@@ -37403,6 +37413,7 @@ MonoBehaviour:
   - {fileID: 1308964416}
   - {fileID: 291348915}
   - {fileID: 323044849}
+  craneOperationManager: {fileID: 1612894383}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -39577,7 +39588,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90f55f0351d730e41957b9dc5410cd0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagButtons:
   - {fileID: 924223207}
   - {fileID: 1971218024}
@@ -41521,6 +41532,7 @@ MonoBehaviour:
   - {fileID: 1743662108}
   - {fileID: 1874086611}
   - {fileID: 796789747}
+  craneOperationManager: {fileID: 1612894383}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -43617,6 +43629,12 @@ MonoBehaviour:
     lifMagSystem: {fileID: 1063165988}
   - informationTarget: {fileID: 1369304103}
     lifMagSystem: {fileID: 1369304104}
+  lifMagCurrentButtons:
+  - {fileID: 924223207}
+  - {fileID: 1971218024}
+  - {fileID: 1938668577}
+  - {fileID: 398063598}
+  - {fileID: 991687546}
   craneSelectButtons:
   - {fileID: 1616252961}
   - {fileID: 91529066}
@@ -51742,10 +51760,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 2
   button: {fileID: 1938668574}
   labelText: {fileID: 392783329}
+  currentValueText: {fileID: 492147427}
+  currentValueUnit: 2
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &1939195228
@@ -52453,10 +52473,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 1
   button: {fileID: 1971218021}
   labelText: {fileID: 757127827}
+  currentValueText: {fileID: 1224691896}
+  currentValueUnit: 1
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &1975655521

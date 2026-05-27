@@ -5,8 +5,8 @@ using UnityEngine.UI;
 
 public class LifMagCurrentButton : MonoBehaviour
 {
-    [Header("対象のLifMagSystem")]
-    [SerializeField] private LifMagSystem lifMagSystem;
+    [Header("CraneOperationManager")]
+    [SerializeField] private CraneOperationManager craneOperationManager;
 
     [Header("対象リフマグ番号")]
     [SerializeField] private int lifMagIndex = 0;
@@ -14,6 +14,10 @@ public class LifMagCurrentButton : MonoBehaviour
     [Header("UI")]
     [SerializeField] private Button button;
     [SerializeField] private Text labelText;
+
+    [Header("電流累積値表示")]
+    [SerializeField] private Text currentValueText;
+    [SerializeField] private string currentValueUnit = "";
 
     [Header("色設定")]
     [SerializeField] private Color offColor = Color.white;
@@ -40,8 +44,8 @@ public class LifMagCurrentButton : MonoBehaviour
     {
         isOn = true;
 
-        if (lifMagSystem != null)
-            lifMagSystem.SetLifMagCurrent(lifMagIndex, true);
+        if (craneOperationManager != null)
+        craneOperationManager.SetCurrentCraneLifMagCurrent(lifMagIndex, true);
 
         UpdateView();
     }
@@ -50,10 +54,24 @@ public class LifMagCurrentButton : MonoBehaviour
     {
         isOn = false;
 
-        if (lifMagSystem != null)
-            lifMagSystem.SetLifMagCurrent(lifMagIndex, false);
+        if (craneOperationManager != null)
+            craneOperationManager.SetCurrentCraneLifMagCurrent(lifMagIndex, false);
 
         UpdateView();
+    }
+
+    public void SetViewOnly(bool on)
+    {
+        isOn = on;
+        UpdateView();
+    }
+
+    public void SetCurrentValueView(float value)
+    {
+        if (currentValueText != null)
+        {
+            currentValueText.text = value.ToString("F1") + currentValueUnit;
+        }
     }
 
     private void UpdateView()

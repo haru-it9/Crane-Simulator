@@ -5,8 +5,8 @@ using UnityEngine.UI;
 
 public class LifMagCurrentResetButton : MonoBehaviour
 {
-    [Header("対象のLifMagSystem")]
-    [SerializeField] private LifMagSystem lifMagSystem;
+    [Header("CraneOperationManager")]
+    [SerializeField] private CraneOperationManager craneOperationManager;
 
     [Header("OFFに戻すLifMagボタン一覧")]
     [SerializeField] private LifMagCurrentButton[] lifMagButtons;
@@ -25,10 +25,9 @@ public class LifMagCurrentResetButton : MonoBehaviour
 
     public void ResetAll()
     {
-        if (lifMagSystem != null)
+        if (craneOperationManager != null)
         {
-            lifMagSystem.DetachAllFromButton();
-            lifMagSystem.ResetLifMagDisplayAccumValues();
+            craneOperationManager.ResetCurrentCraneLifMag();
         }
 
         foreach (LifMagCurrentButton btn in lifMagButtons)
