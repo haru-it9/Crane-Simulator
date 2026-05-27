@@ -306,6 +306,20 @@ public class CraneStatusManager : MonoBehaviour
         }
     }
 
+    public void CompleteErrorByCraneIndex(int craneIndex)
+    {
+        if (craneStates == null) return;
+        if (craneIndex < 0 || craneIndex >= craneStates.Count) return;
+
+        CraneState state = craneStates[craneIndex];
+
+        state.hasError = false;
+        state.isStopped = false;
+        state.currentErrorType = ErrorType.None;
+
+        UpdateStatusTexts();
+    }
+
     private string GetPhaseDisplayName(WorkPhase phase)
     {
         switch (phase)

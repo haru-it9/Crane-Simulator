@@ -42,12 +42,21 @@ public class CraneOperationManager : MonoBehaviour
     [SerializeField] private CraneCameraSet[] craneCameraSets;
     [SerializeField] private int currentCraneIndex = 0;
 
+    [Header("Waiting Screen")]
+    [SerializeField] private GameObject waitingScreen;
+
     [Header("Display2")]
     [SerializeField] private CraneInformationDisplay craneInformationDisplay;
     [SerializeField] private CraneDisplaySet[] craneDisplaySets;
 
     [Header("LifMag UI")]
     [SerializeField] private LifMagCurrentButton[] lifMagCurrentButtons;
+
+    [Header("Current Crane Display")]
+    [SerializeField] private Text currentCraneNameText;
+
+    [Header("Display5 Status")]
+    [SerializeField] private CraneStatusManager craneStatusManager;
 
     [Header("Crane Select UI")]
     [SerializeField] private Button[] craneSelectButtons; // Crane1〜6のボタン
@@ -66,16 +75,22 @@ public class CraneOperationManager : MonoBehaviour
         get
         {
             if (cranes == null || cranes.Length == 0) return null;
+            if (currentCraneIndex < 0 || currentCraneIndex >= cranes.Length) return null;
+
             return cranes[currentCraneIndex];
         }
     }
 
     private void Start()
     {
+        currentCraneIndex = -1;
+        UpdateWaitingScreen();
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
         UpdateLifMagButtonViews();
+        UpdateCurrentCraneNameText();
+
         SetSelectionLock(false); // 初期状態はUnlock
     }
 
@@ -117,16 +132,25 @@ public class CraneOperationManager : MonoBehaviour
 
         CurrentCrane.ResetSpeedLevel();
 
+        UpdateWaitingScreen();
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
         UpdateLifMagButtonViews();
+        UpdateCurrentCraneNameText();
+
         SetSelectionLock(true); // 選択後は自動Lock
     }
 
     private void UpdateActiveCamera()
     {
         if (craneCameraSets == null || craneCameraSets.Length == 0) return;
+
+        // 未選択状態ではカメラ状態を変更しない
+        if (currentCraneIndex < 0)
+        {
+            return;
+        }
 
         for (int i = 0; i < craneCameraSets.Length; i++)
         {
@@ -146,6 +170,14 @@ public class CraneOperationManager : MonoBehaviour
         }
     }
 
+    private void UpdateWaitingScreen()
+    {
+        if (waitingScreen != null)
+        {
+            waitingScreen.SetActive(CurrentCrane == null);
+        }
+    }
+
     private void UpdateDisplay2()
     {
         if (craneInformationDisplay == null) return;
@@ -158,6 +190,18 @@ public class CraneOperationManager : MonoBehaviour
             set.informationTarget,
             set.lifMagSystem
         );
+    }
+
+    public void EnterWaitingMode()
+    {
+        currentCraneIndex = -1;
+
+        UpdateWaitingScreen();
+        UpdateActiveCamera();
+        UpdateCraneButtonColors();
+        UpdateCurrentCraneNameText();
+
+        SetSelectionLock(false);
     }
 
     public void IncreaseCurrentCraneXSpeed()
@@ -231,6 +275,18 @@ public class CraneOperationManager : MonoBehaviour
         }
     }
 
+    private void UpdateCurrentCraneNameText()
+    {
+        if (currentCraneNameText == null) return;
+        
+        if (currentCraneIndex < 0 || cranes == null || currentCraneIndex >= cranes.Length)
+        {
+            currentCraneNameText.text = "未選択";
+            return;
+        }
+        currentCraneNameText.text = $"Crane {currentCraneIndex + 1}";;
+    }
+
     public void ToggleSelectionLock()
     {
         SetSelectionLock(!isSelectionLocked);
@@ -273,6 +329,13 @@ public class CraneOperationManager : MonoBehaviour
                 ? selectedButtonColor
                 : normalButtonColor;
         }
+    }
+
+    public void CompleteCurrentCraneError()
+    {
+        if (craneStatusManager == null) return;
+
+        craneStatusManager.CompleteErrorByCraneIndex(currentCraneIndex);
     }
     
     private void HandleSpeedSwitch()
