@@ -41,6 +41,17 @@ public class CraneInformationDisplay : MonoBehaviour
         UpdateWeightText();
     }
 
+    public void SetTarget(Transform newTargetTransform, LifMagSystem newLifMagSystem)
+    {
+        targetTransform = newTargetTransform;
+        lifMagSystem = newLifMagSystem;
+
+        wasHoldingLastFrame = false;
+        hasReachedMaxWeight = false;
+        shouldResetWeight = false;
+        CurrentDisplayWeightTon = 0f;
+    }
+
     private void UpdatePositionText()
     {
         if (targetTransform == null) return;

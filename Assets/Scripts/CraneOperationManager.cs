@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class CraneOperationManager : MonoBehaviour
 {
@@ -8,6 +9,19 @@ public class CraneOperationManager : MonoBehaviour
     {
         Keyboard,
         Joystick
+    }
+
+    [System.Serializable]
+    public class CraneCameraSet
+    {
+        public Camera[] cameras = new Camera[7];
+    }
+
+    [System.Serializable]
+    public class CraneDisplaySet
+    {
+        public Transform informationTarget;
+        public LifMagSystem lifMagSystem;
     }
 
     [Header("Input Settings")]
@@ -25,8 +39,24 @@ public class CraneOperationManager : MonoBehaviour
     
     [Header("Crane Settings")]
     [SerializeField] private CraneUnit[] cranes;
-    [SerializeField] private Camera[] craneCameras;
+    [SerializeField] private CraneCameraSet[] craneCameraSets;
     [SerializeField] private int currentCraneIndex = 0;
+
+    [Header("Display2")]
+    [SerializeField] private CraneInformationDisplay craneInformationDisplay;
+    [SerializeField] private CraneDisplaySet[] craneDisplaySets;
+
+    [Header("Crane Select UI")]
+    [SerializeField] private Button[] craneSelectButtons; // Crane1〜6のボタン
+    [SerializeField] private Button lockUnlockButton;
+    [SerializeField] private Text lockUnlockButtonText;
+
+    [SerializeField] private Color normalButtonColor = Color.white;
+    [SerializeField] private Color selectedButtonColor = Color.yellow;
+    [SerializeField] private Color unlockColor = new Color(0.7f, 1.0f, 0.7f); // 淡い緑
+    [SerializeField] private Color lockColor = new Color(1.0f, 0.7f, 0.7f);   // 淡い赤
+
+    private bool isSelectionLocked = false;
 
     private CraneUnit CurrentCrane
     {
@@ -40,52 +70,171 @@ public class CraneOperationManager : MonoBehaviour
     private void Start()
     {
         UpdateActiveCamera();
+        UpdateCraneButtonColors();
+        UpdateDisplay2();
+        SetSelectionLock(false); // 初期状態はUnlock
     }
 
     private void Update()
     {
         if (CurrentCrane == null) return;
 
-        HandleCraneSelection();
+        //HandleCraneSelection();
         HandleSpeedSwitch();
+        //HandleMovement();
+    }
+
+    private void FixedUpdate()
+    {
+        if (CurrentCrane == null) return;
+
         HandleMovement();
     }
 
-    private void HandleCraneSelection()
+    public void HandleCraneSelection(int craneIndex)
     {
-        if (inputMode == InputMode.Keyboard)
+        if (isSelectionLocked)
         {
-            // 例: Tabで操作対象クレーン切替
-            if (Input.GetKeyDown(KeyCode.Tab))
-            {
-                currentCraneIndex = (currentCraneIndex + 1) % cranes.Length;
-                Debug.Log($"操作対象クレーン: {CurrentCrane.name}");
-                UpdateActiveCamera();
-            }
+            Debug.Log("クレーン選択はLock中です");
+            return;
         }
-        // ジョイスティックでのクレーン切替例
-        if (Input.GetButtonDown("JoyStick2Trigger"))
+
+        if (cranes == null || cranes.Length == 0) return;
+
+        if (craneIndex < 0 || craneIndex >= cranes.Length)
         {
-            currentCraneIndex = (currentCraneIndex + 1) % cranes.Length;
-            Debug.Log($"操作対象クレーン: {CurrentCrane.name}");
-            UpdateActiveCamera();
+            Debug.LogWarning($"存在しないクレーン番号です: {craneIndex}");
+            return;
         }
-        
+
+        currentCraneIndex = craneIndex;
+
+        Debug.Log($"操作対象クレーン: {CurrentCrane.name}");
+
+        CurrentCrane.ResetSpeedLevel();
+
+        UpdateActiveCamera();
+        UpdateCraneButtonColors();
+        UpdateDisplay2();
+        SetSelectionLock(true); // 選択後は自動Lock
     }
 
     private void UpdateActiveCamera()
     {
-        if (craneCameras == null || craneCameras.Length == 0) return;
+        if (craneCameraSets == null || craneCameraSets.Length == 0) return;
 
-        for (int i = 0; i < craneCameras.Length; i++)
+        for (int i = 0; i < craneCameraSets.Length; i++)
         {
-            if (craneCameras[i] != null)
+            bool isActiveCrane = i == currentCraneIndex;
+
+            if (craneCameraSets[i] == null || craneCameraSets[i].cameras == null) continue;
+
+            for (int j = 0; j < craneCameraSets[i].cameras.Length; j++)
             {
-                craneCameras[i].gameObject.SetActive(i == currentCraneIndex);
+                Camera cam = craneCameraSets[i].cameras[j];
+
+                if (cam != null)
+                {
+                    cam.gameObject.SetActive(isActiveCrane);
+                }
             }
         }
     }
 
+    private void UpdateDisplay2()
+    {
+        if (craneInformationDisplay == null) return;
+        if (craneDisplaySets == null) return;
+        if (currentCraneIndex < 0 || currentCraneIndex >= craneDisplaySets.Length) return;
+
+        CraneDisplaySet set = craneDisplaySets[currentCraneIndex];
+
+        craneInformationDisplay.SetTarget(
+            set.informationTarget,
+            set.lifMagSystem
+        );
+    }
+
+    public void IncreaseCurrentCraneXSpeed()
+    {
+        if (CurrentCrane == null) return;
+        CurrentCrane.IncreaseMainLifMagXSpeed();
+    }
+
+    public void DecreaseCurrentCraneXSpeed()
+    {
+        if (CurrentCrane == null) return;
+        CurrentCrane.DecreaseMainLifMagXSpeed();
+    }
+
+    public void IncreaseCurrentCraneYSpeed()
+    {
+        if (CurrentCrane == null) return;
+        CurrentCrane.IncreaseMainLifMagYSpeed();
+    }
+
+    public void DecreaseCurrentCraneYSpeed()
+    {
+        if (CurrentCrane == null) return;
+        CurrentCrane.DecreaseMainLifMagYSpeed();
+    }
+
+    public void IncreaseCurrentCraneZSpeed()
+    {
+        if (CurrentCrane == null) return;
+        CurrentCrane.IncreaseZSpeed();
+    }
+
+    public void DecreaseCurrentCraneZSpeed()
+    {
+        if (CurrentCrane == null) return;
+        CurrentCrane.DecreaseZSpeed();
+    }
+
+    public void ToggleSelectionLock()
+    {
+        SetSelectionLock(!isSelectionLocked);
+    }
+
+    private void SetSelectionLock(bool locked)
+    {
+        isSelectionLocked = locked;
+
+        if (lockUnlockButtonText != null)
+        {
+            lockUnlockButtonText.text = isSelectionLocked ? "Lock" : "Unlock";
+        }
+
+        if (lockUnlockButton != null)
+        {
+            Image buttonImage = lockUnlockButton.GetComponent<Image>();
+
+            if (buttonImage != null)
+            {
+                buttonImage.color = isSelectionLocked
+                    ? lockColor
+                    : unlockColor;
+            }
+        }
+    }
+
+    private void UpdateCraneButtonColors()
+    {
+        if (craneSelectButtons == null) return;
+
+        for (int i = 0; i < craneSelectButtons.Length; i++)
+        {
+            if (craneSelectButtons[i] == null) continue;
+
+            Image buttonImage = craneSelectButtons[i].GetComponent<Image>();
+            if (buttonImage == null) continue;
+
+            buttonImage.color = (i == currentCraneIndex)
+                ? selectedButtonColor
+                : normalButtonColor;
+        }
+    }
+    
     private void HandleSpeedSwitch()
     {
         // 速度切替キーは例

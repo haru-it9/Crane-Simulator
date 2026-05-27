@@ -107,7 +107,7 @@ public class CraneUnit : MonoBehaviour
         UpdateSpeedTexts();
     }
 
-    private void UpdateSpeedTexts()
+    public void UpdateSpeedTexts()
     {
         if (zSpeedText != null)
             zSpeedText.text = 
@@ -120,6 +120,15 @@ public class CraneUnit : MonoBehaviour
         if (mainLifMagYSpeedText != null)
             mainLifMagYSpeedText.text =
                 $"{mainLifMagYSpeeds[mainLifMagYSpeedIndex]:0.###}" + $" ({mainLifMagYSpeedIndex + 1}/{mainLifMagYSpeeds.Length})";
+    }
+
+    public void ResetSpeedLevel()
+    {
+        zSpeedIndex = 0;
+        mainLifMagXSpeedIndex = 0;
+        mainLifMagYSpeedIndex = 0;
+
+        UpdateSpeedTexts();
     }
 
     public void MoveMainCraneZ(float input)
@@ -141,9 +150,12 @@ public class CraneUnit : MonoBehaviour
         
         if (mainLifMag == null) return;
 
-        float speed = mainLifMagXSpeeds[mainLifMagXSpeedIndex] / 60f * 0.368f / 6f;
+        float speed = mainLifMagXSpeeds[mainLifMagXSpeedIndex] / 60f;
+
+        float parentScaleX = mainLifMag.parent != null ? mainLifMag.parent.lossyScale.x : 1f;
+
         Vector3 pos = mainLifMag.localPosition;
-        pos.x += input * speed * Time.fixedDeltaTime;
+        pos.x += input * speed * Time.fixedDeltaTime / parentScaleX;
         pos.x = Mathf.Clamp(pos.x, minMainX, maxMainX);
         mainLifMag.localPosition = pos;
     }
@@ -155,7 +167,9 @@ public class CraneUnit : MonoBehaviour
         if (mainLifMag == null) return;
 
         float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
-        float moveAmount = input * speed * Time.fixedDeltaTime;
+
+        float parentScaleY = mainLifMag.parent != null ? mainLifMag.parent.lossyScale.y : 1f;
+        float moveAmount = input * speed * Time.fixedDeltaTime / parentScaleY;
 
         Vector3 pos = mainLifMag.localPosition;
 
