@@ -22,6 +22,10 @@ public class CraneUnit : MonoBehaviour
     [Header("LifMag Settings (left to right: lif0, lif1, lif2, lif3, lif4)")]
     [SerializeField] private LifMagSetting[] lifMags = new LifMagSetting[5];
 
+    [Header("Joystick Step Speed")]
+    [SerializeField] private bool useJoystickStepSpeed = false;
+    [SerializeField] private float joystickSpeedZeroRange = 0.1f;
+
     [Header("Z Speed (MainCrane) [m/min]")]
     [SerializeField] private float[] zSpeeds = { 7.5f, 20f, 37.5f, 70f };
     [SerializeField] private int zSpeedIndex = 0;
@@ -101,6 +105,10 @@ public class CraneUnit : MonoBehaviour
     private float debugMoveAmount;
     private Vector3 debugDirection = Vector3.down;
 
+    private int currentJoystickZSpeedIndex = -1;
+    private int currentJoystickXSpeedIndex = -1;
+    private int currentJoystickYSpeedIndex = -1;
+
 
     private void Start()
     {
@@ -108,19 +116,38 @@ public class CraneUnit : MonoBehaviour
         UpdateSpeedTexts();
     }
 
+    public void SetJoystickStepSpeedMode(bool enabled)
+    {
+        useJoystickStepSpeed = enabled;
+        UpdateSpeedTexts();
+    }
+    
     public void UpdateSpeedTexts()
     {
+        int displayZIndex = useJoystickStepSpeed ? currentJoystickZSpeedIndex : zSpeedIndex;
+        int displayXIndex = useJoystickStepSpeed ? currentJoystickXSpeedIndex : mainLifMagXSpeedIndex;
+        int displayYIndex = useJoystickStepSpeed ? currentJoystickYSpeedIndex : mainLifMagYSpeedIndex;
+
         if (zSpeedText != null)
-            zSpeedText.text = 
-                $"{zSpeeds[zSpeedIndex]:0.###}" + $" ({zSpeedIndex + 1}/{zSpeeds.Length})";
+            if (displayZIndex < 0) 
+                zSpeedText.text = $"0.0 ({0}/{zSpeeds.Length})";
+            else
+                zSpeedText.text = 
+                    $"{zSpeeds[displayZIndex]:0.###}" + $" ({displayZIndex + 1}/{zSpeeds.Length})";
 
         if (mainLifMagXSpeedText != null)
-            mainLifMagXSpeedText.text =
-                $"{mainLifMagXSpeeds[mainLifMagXSpeedIndex]:0.###}" + $" ({mainLifMagXSpeedIndex + 1}/{mainLifMagXSpeeds.Length})";
+            if (displayXIndex < 0) 
+                mainLifMagXSpeedText.text = $"0.0 ({0}/{mainLifMagXSpeeds.Length})";
+            else
+                mainLifMagXSpeedText.text =
+                    $"{mainLifMagXSpeeds[displayXIndex]:0.###}" + $" ({displayXIndex + 1}/{mainLifMagXSpeeds.Length})";
 
         if (mainLifMagYSpeedText != null)
-            mainLifMagYSpeedText.text =
-                $"{mainLifMagYSpeeds[mainLifMagYSpeedIndex]:0.###}" + $" ({mainLifMagYSpeedIndex + 1}/{mainLifMagYSpeeds.Length})";
+            if (displayYIndex < 0)
+                mainLifMagYSpeedText.text = $"0.0 ({0}/{mainLifMagYSpeeds.Length})";
+            else
+                mainLifMagYSpeedText.text =
+                    $"{mainLifMagYSpeeds[displayYIndex]:0.###}" + $" ({displayYIndex + 1}/{mainLifMagYSpeeds.Length})";
     }
 
     public void ResetSpeedLevel()
@@ -132,13 +159,46 @@ public class CraneUnit : MonoBehaviour
         UpdateSpeedTexts();
     }
 
+    private int GetSpeedIndexFromJoystickInput(float input, int speedCount)
+    {
+        float absInput = Mathf.Abs(input);
+
+        if (absInput <= joystickSpeedZeroRange)
+        {
+            return -1; // 停止
+        }
+
+        float usableRange = 1.0f - joystickSpeedZeroRange;
+        float normalized = (absInput - joystickSpeedZeroRange) / usableRange;
+
+        int level = Mathf.CeilToInt(normalized * speedCount);
+        level = Mathf.Clamp(level, 1, speedCount);
+
+        return level - 1;
+    }
+
     public void MoveMainCraneZ(float input)
     {
         if (!SimulatorStartManager.IsOperationEnabled) return;
         
         if (mainCrane == null) return;
 
-        float speed = zSpeeds[zSpeedIndex] / 60f;
+        int speedIndex = zSpeedIndex;
+
+        if (useJoystickStepSpeed)
+        {
+            speedIndex = GetSpeedIndexFromJoystickInput(input, zSpeeds.Length);
+
+            currentJoystickZSpeedIndex = speedIndex;
+            UpdateSpeedTexts();
+
+            if (speedIndex < 0)
+            {
+                return;
+            }
+        }
+
+        float speed = zSpeeds[speedIndex] / 60f;
         Vector3 pos = mainCrane.localPosition;
         pos.z += input * speed * Time.fixedDeltaTime;
         pos.z = Mathf.Clamp(pos.z, minZ, maxZ);
@@ -151,7 +211,22 @@ public class CraneUnit : MonoBehaviour
         
         if (mainLifMag == null) return;
 
-        float speed = mainLifMagXSpeeds[mainLifMagXSpeedIndex] / 60f;
+        int speedIndex = mainLifMagXSpeedIndex;
+
+        if (useJoystickStepSpeed)
+        {
+            speedIndex = GetSpeedIndexFromJoystickInput(input, mainLifMagXSpeeds.Length);
+
+            currentJoystickXSpeedIndex = speedIndex;
+            UpdateSpeedTexts();
+
+            if (speedIndex < 0)
+            {
+                return;
+            }
+        }
+
+        float speed = mainLifMagXSpeeds[speedIndex] / 60f;
 
         float parentScaleX = mainLifMag.parent != null ? mainLifMag.parent.lossyScale.x : 1f;
 
@@ -167,7 +242,22 @@ public class CraneUnit : MonoBehaviour
         
         if (mainLifMag == null) return;
 
-        float speed = mainLifMagYSpeeds[mainLifMagYSpeedIndex] / 60f * 5.154f / 2.25f;
+        int speedIndex = mainLifMagYSpeedIndex;
+
+        if (useJoystickStepSpeed)
+        {
+            speedIndex = GetSpeedIndexFromJoystickInput(input, mainLifMagYSpeeds.Length);
+
+            currentJoystickYSpeedIndex = speedIndex;
+            UpdateSpeedTexts();
+
+            if (speedIndex < 0)
+            {
+                return;
+            }
+        }
+
+        float speed = mainLifMagYSpeeds[speedIndex] / 60f;
 
         float parentScaleY = mainLifMag.parent != null ? mainLifMag.parent.lossyScale.y : 1f;
         float moveAmount = input * speed * Time.fixedDeltaTime / parentScaleY;

@@ -11,6 +11,12 @@ public class CraneOperationManager : MonoBehaviour
         Joystick
     }
 
+    public enum SpeedControlMode
+    {
+        ButtonAndKeyboard,
+        JoystickStep
+    }
+
     [System.Serializable]
     public class CraneCameraSet
     {
@@ -26,6 +32,12 @@ public class CraneOperationManager : MonoBehaviour
 
     [Header("Input Settings")]
     [SerializeField] private InputMode inputMode = InputMode.Keyboard;
+
+    [Header("Speed Control Mode")]
+    [SerializeField] private SpeedControlMode speedControlMode = SpeedControlMode.ButtonAndKeyboard;
+
+    [Header("Speed Control UI Buttons")]
+    [SerializeField] private GameObject[] speedControlUIButtons;
 
     [Header("Joystick Axes")]
     [SerializeField] private string joyStick2Horizontal = "JoyStick2Horizontal";
@@ -92,6 +104,10 @@ public class CraneOperationManager : MonoBehaviour
         UpdateCurrentCraneNameText();
 
         SetSelectionLock(false); // 初期状態はUnlock
+
+        UpdateSpeedControlUI();
+
+        ApplySpeedControlModeToCranes();
     }
 
     private void Update()
@@ -204,38 +220,59 @@ public class CraneOperationManager : MonoBehaviour
         SetSelectionLock(false);
     }
 
+    private void UpdateSpeedControlUI()
+    {
+        bool showButtons = speedControlMode == SpeedControlMode.ButtonAndKeyboard;
+
+        if (speedControlUIButtons == null) return;
+
+        foreach (GameObject obj in speedControlUIButtons)
+        {
+            if (obj != null)
+            {
+                obj.SetActive(showButtons);
+            }
+        }
+    }
+
     public void IncreaseCurrentCraneXSpeed()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagXSpeed();
     }
 
     public void DecreaseCurrentCraneXSpeed()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagXSpeed();
     }
 
     public void IncreaseCurrentCraneYSpeed()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagYSpeed();
     }
 
     public void DecreaseCurrentCraneYSpeed()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagYSpeed();
     }
 
     public void IncreaseCurrentCraneZSpeed()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseZSpeed();
     }
 
     public void DecreaseCurrentCraneZSpeed()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseZSpeed();
     }
@@ -340,6 +377,11 @@ public class CraneOperationManager : MonoBehaviour
     
     private void HandleSpeedSwitch()
     {
+        if (speedControlMode != SpeedControlMode.ButtonAndKeyboard)
+        {
+            return;
+        }
+        
         // 速度切替キーは例
         if (Input.GetKeyDown(KeyCode.C))
             CurrentCrane.ChangeZSpeed();
@@ -441,7 +483,30 @@ public class CraneOperationManager : MonoBehaviour
     private float ApplyDeadZone(float value)
     {
         if (Mathf.Abs(value) < deadZone) return 0f;
+        
+        if (speedControlMode == SpeedControlMode.JoystickStep)
+        {
+            if (Mathf.Abs(value) < deadZone) return 0f;
+            return Mathf.Clamp(value, -1f, 1f);
+        }
+        
+        if (Mathf.Abs(value) < deadZone) return 0f;
         return value > 0f ? 1f : -1f;
+    }
+
+    private void ApplySpeedControlModeToCranes()
+    {
+        if (cranes == null) return;
+
+        bool useJoystickStep = speedControlMode == SpeedControlMode.JoystickStep;
+
+        foreach (CraneUnit crane in cranes)
+        {
+            if (crane != null)
+            {
+                crane.SetJoystickStepSpeedMode(useJoystickStep);
+            }
+        }
     }
 
     private float GetAxisFromKeys(KeyCode positive, KeyCode negative)
