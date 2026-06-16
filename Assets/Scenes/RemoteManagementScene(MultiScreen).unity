@@ -24569,6 +24569,8 @@ MonoBehaviour:
   - {fileID: 700697500}
   - {fileID: 1156617660}
   - {fileID: 1050012370}
+  statusManagementEnabled: 1
+  resetToAutoWhenDisabled: 1
 --- !u!4 &825525980
 Transform:
   m_ObjectHideFlags: 0
@@ -45090,6 +45092,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a84bfdc413a59049a855252174a62dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  operationMode: 0
+  singleCraneIndex: 0
+  craneStatusScreen: {fileID: 0}
   inputMode: 1
   speedControlMode: 1
   speedControlUIButtons:
@@ -56761,6 +56766,8 @@ MonoBehaviour:
   tobiiGazeLogger: {fileID: 2080963385}
   workInformationLogger: {fileID: 2080963386}
   fileNameInputField: {fileID: 682514084}
+  operationUiRoots: []
+  excludeSelectables: []
 --- !u!4 &2080963383
 Transform:
   m_ObjectHideFlags: 0

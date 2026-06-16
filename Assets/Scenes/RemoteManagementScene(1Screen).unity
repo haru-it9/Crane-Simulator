@@ -2956,7 +2956,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &110828387
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24443,7 +24443,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &825525979
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24569,6 +24569,8 @@ MonoBehaviour:
   - {fileID: 700697500}
   - {fileID: 1156617660}
   - {fileID: 1050012370}
+  statusManagementEnabled: 1
+  resetToAutoWhenDisabled: 1
 --- !u!4 &825525980
 Transform:
   m_ObjectHideFlags: 0
@@ -27815,7 +27817,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &968091381
 Transform:
   m_ObjectHideFlags: 0
@@ -29203,7 +29205,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &995693973
 Transform:
   m_ObjectHideFlags: 0
@@ -30313,7 +30315,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1033601251
 Transform:
   m_ObjectHideFlags: 0
@@ -30521,7 +30523,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1034056409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31569,7 +31571,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1068331733
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35101,7 +35103,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1229067178
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37832,7 +37834,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1343052236
 Transform:
   m_ObjectHideFlags: 0
@@ -45090,6 +45092,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a84bfdc413a59049a855252174a62dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  operationMode: 1
+  singleCraneIndex: 0
+  craneStatusScreen: {fileID: 1068331732}
   inputMode: 1
   speedControlMode: 1
   speedControlUIButtons:
@@ -56761,6 +56766,13 @@ MonoBehaviour:
   tobiiGazeLogger: {fileID: 2080963385}
   workInformationLogger: {fileID: 2080963386}
   fileNameInputField: {fileID: 682514084}
+  operationUiRoots:
+  - {fileID: 290997809}
+  - {fileID: 1068331732}
+  excludeSelectables:
+  - {fileID: 385358890}
+  - {fileID: 63940842}
+  - {fileID: 682514084}
 --- !u!4 &2080963383
 Transform:
   m_ObjectHideFlags: 0
