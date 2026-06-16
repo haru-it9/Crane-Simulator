@@ -17,6 +17,21 @@ public class CraneOperationManager : MonoBehaviour
         JoystickStep
     }
 
+    public enum OperationMode
+    {
+        MultiCraneManagement,
+        SingleCrane
+    }
+
+    [Header("Operation Mode")]
+    [SerializeField] private OperationMode operationMode = OperationMode.MultiCraneManagement;
+
+    [Tooltip("SingleCraneモードで操作するクレーン番号。Crane1なら0、Crane2なら1")]
+    [SerializeField] private int singleCraneIndex = 0;
+
+    [Header("Display5")]
+    [SerializeField] private GameObject craneStatusScreen;
+
     [System.Serializable]
     public class CraneCameraSet
     {
@@ -95,15 +110,13 @@ public class CraneOperationManager : MonoBehaviour
 
     private void Start()
     {
-        currentCraneIndex = -1;
-        UpdateWaitingScreen();
+        ApplyOperationMode();
+        
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
         UpdateLifMagButtonViews();
         UpdateCurrentCraneNameText();
-
-        SetSelectionLock(false); // 初期状態はUnlock
 
         UpdateSpeedControlUI();
 
@@ -112,22 +125,97 @@ public class CraneOperationManager : MonoBehaviour
 
     private void Update()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
         if (CurrentCrane == null) return;
 
-        //HandleCraneSelection();
+        // InputField入力中はキーボードによる速度切替を受け付けない
+        if (SimulatorStartManager.IsInputFieldFocused()) return;
+
         HandleSpeedSwitch();
-        //HandleMovement();
+    }
+
+    private void ApplyOperationMode()
+    {
+        if (operationMode == OperationMode.SingleCrane)
+        {
+            if (cranes == null || cranes.Length == 0)
+            {
+                currentCraneIndex = -1;
+            }
+            else
+            {
+                singleCraneIndex = Mathf.Clamp(singleCraneIndex, 0, cranes.Length - 1);
+                currentCraneIndex = singleCraneIndex;
+            }
+
+            // 単一モードではDisplay1 WaitingScreenを表示しない
+            if (waitingScreen != null)
+            {
+                waitingScreen.SetActive(false);
+            }
+
+            // 単一モードではDisplay5 CraneStatusScreenを表示しない
+            if (craneStatusScreen != null)
+            {
+                craneStatusScreen.SetActive(false);
+            }
+
+            // ★追加：単一モードではCraneStatusManagerを停止
+            if (craneStatusManager != null)
+            {
+                craneStatusManager.SetStatusManagementEnabled(false);
+            }
+
+            // 単一モードではクレーン選択を固定しておく
+            SetSelectionLock(true);
+        }
+        else
+        {
+            // 複数台管理モードは従来通り、最初は未選択
+            currentCraneIndex = -1;
+
+            // 複数台管理モードではDisplay5を表示
+            if (craneStatusScreen != null)
+            {
+                craneStatusScreen.SetActive(true);
+            }
+
+            // ★追加：複数台管理モードではCraneStatusManagerを再開
+            if (craneStatusManager != null)
+            {
+                craneStatusManager.SetStatusManagementEnabled(true);
+            }
+
+            UpdateWaitingScreen();
+
+            SetSelectionLock(false);
+        }
     }
 
     private void FixedUpdate()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
         if (CurrentCrane == null) return;
+
+        // Keyboardモード中、InputField入力中はクレーン操作を受け付けない
+        if (inputMode == InputMode.Keyboard && SimulatorStartManager.IsInputFieldFocused())
+        {
+            return;
+        }
 
         HandleMovement();
     }
 
     public void HandleCraneSelection(int craneIndex)
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
+        if (operationMode == OperationMode.SingleCrane)
+        {
+            Debug.Log("SingleCraneモード中のため、クレーン選択は無効です");
+            return;
+        }
+
         if (isSelectionLocked)
         {
             Debug.Log("クレーン選択はLock中です");
@@ -155,7 +243,7 @@ public class CraneOperationManager : MonoBehaviour
         UpdateLifMagButtonViews();
         UpdateCurrentCraneNameText();
 
-        SetSelectionLock(true); // 選択後は自動Lock
+        SetSelectionLock(true);
     }
 
     private void UpdateActiveCamera()
@@ -188,6 +276,15 @@ public class CraneOperationManager : MonoBehaviour
 
     private void UpdateWaitingScreen()
     {
+        if (operationMode == OperationMode.SingleCrane)
+        {
+            if (waitingScreen != null)
+            {
+                waitingScreen.SetActive(false);
+            }
+            return;
+        }
+
         if (waitingScreen != null)
         {
             waitingScreen.SetActive(CurrentCrane == null);
@@ -210,6 +307,14 @@ public class CraneOperationManager : MonoBehaviour
 
     public void EnterWaitingMode()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
+        if (operationMode == OperationMode.SingleCrane)
+        {
+            Debug.Log("SingleCraneモード中のため、WaitingScreenには戻りません");
+            return;
+        }
+
         currentCraneIndex = -1;
 
         UpdateWaitingScreen();
@@ -237,6 +342,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneXSpeed()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagXSpeed();
@@ -244,6 +351,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneXSpeed()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagXSpeed();
@@ -251,6 +360,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneYSpeed()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagYSpeed();
@@ -258,6 +369,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneYSpeed()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagYSpeed();
@@ -265,6 +378,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneZSpeed()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseZSpeed();
@@ -272,6 +387,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneZSpeed()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseZSpeed();
@@ -279,6 +396,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void SetCurrentCraneLifMagCurrent(int index, bool isOn)
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
 
@@ -287,6 +406,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void ResetCurrentCraneLifMag()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
 
@@ -326,6 +447,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void ToggleSelectionLock()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         SetSelectionLock(!isSelectionLocked);
     }
 
@@ -370,6 +493,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void CompleteCurrentCraneError()
     {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (craneStatusManager == null) return;
 
         craneStatusManager.CompleteErrorByCraneIndex(currentCraneIndex);

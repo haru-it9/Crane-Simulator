@@ -2956,7 +2956,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &110828387
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4584,10 +4584,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 1
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -5805,10 +5812,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 1
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -12635,6 +12649,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 4
   valueText: {fileID: 436344393}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &436623840
 GameObject:
   m_ObjectHideFlags: 0
@@ -14303,6 +14320,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 2
   valueText: {fileID: 492147427}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &492944167
 GameObject:
   m_ObjectHideFlags: 0
@@ -15980,6 +16000,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 3
   valueText: {fileID: 519517773}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &519599269
 GameObject:
   m_ObjectHideFlags: 0
@@ -17637,10 +17660,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 1
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -24413,7 +24443,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &825525979
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27785,7 +27815,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &968091381
 Transform:
   m_ObjectHideFlags: 0
@@ -29173,7 +29203,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &995693973
 Transform:
   m_ObjectHideFlags: 0
@@ -30283,7 +30313,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1033601251
 Transform:
   m_ObjectHideFlags: 0
@@ -30491,7 +30521,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1034056409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -30554,7 +30584,7 @@ Canvas:
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 1
-  m_TargetDisplay: 0
+  m_TargetDisplay: 7
 --- !u!224 &1034056412
 RectTransform:
   m_ObjectHideFlags: 0
@@ -31198,10 +31228,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 1
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -31532,7 +31569,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1068331733
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -32565,6 +32602,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 0
   valueText: {fileID: 1120257986}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &1122837852
 GameObject:
   m_ObjectHideFlags: 0
@@ -35039,6 +35079,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 1
   valueText: {fileID: 1224691896}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &1229067177
 GameObject:
   m_ObjectHideFlags: 0
@@ -35058,7 +35101,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1229067178
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37789,7 +37832,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1343052236
 Transform:
   m_ObjectHideFlags: 0
@@ -38667,10 +38710,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 1
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -42788,10 +42838,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 1
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -45066,6 +45123,7 @@ MonoBehaviour:
     - {fileID: 1085891184}
     - {fileID: 1429197304}
     - {fileID: 30788106}
+    - {fileID: 1012316564}
   - cameras:
     - {fileID: 517836584}
     - {fileID: 2112476446}
@@ -45076,6 +45134,7 @@ MonoBehaviour:
     - {fileID: 2130271328}
     - {fileID: 219762882}
     - {fileID: 1122837855}
+    - {fileID: 664813593}
   - cameras:
     - {fileID: 295771101}
     - {fileID: 908314413}
@@ -45086,6 +45145,7 @@ MonoBehaviour:
     - {fileID: 653279608}
     - {fileID: 711368177}
     - {fileID: 769512494}
+    - {fileID: 1092801813}
   - cameras:
     - {fileID: 2015561515}
     - {fileID: 372140265}
@@ -45096,6 +45156,7 @@ MonoBehaviour:
     - {fileID: 550413082}
     - {fileID: 1535277277}
     - {fileID: 1376407961}
+    - {fileID: 1747843362}
   - cameras:
     - {fileID: 501089517}
     - {fileID: 1048940667}
@@ -45106,6 +45167,7 @@ MonoBehaviour:
     - {fileID: 1395540857}
     - {fileID: 350670552}
     - {fileID: 822389992}
+    - {fileID: 1328187622}
   - cameras:
     - {fileID: 1905247418}
     - {fileID: 1977502756}
@@ -45116,6 +45178,7 @@ MonoBehaviour:
     - {fileID: 598030709}
     - {fileID: 170498014}
     - {fileID: 408608186}
+    - {fileID: 862626252}
   currentCraneIndex: 0
   waitingScreen: {fileID: 1034056408}
   craneInformationDisplay: {fileID: 565197926}
@@ -45699,6 +45762,11 @@ MonoBehaviour:
   boardRandomXRange: {x: 1.5, y: 7.35}
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7

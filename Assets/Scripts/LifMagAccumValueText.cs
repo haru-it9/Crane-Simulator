@@ -14,6 +14,11 @@ public class LifMagAccumValueText : MonoBehaviour
     [Header("表示Text")]
     [SerializeField] private Text valueText;
 
+    [Header("表示設定")]
+    [SerializeField] private string zeroText = "0.0";
+    [SerializeField] private bool showUnitInInputMode = true;
+    [SerializeField] private string currentUnit = " A";
+
     public float CurrentValue { get; private set; }
 
     private void Start()
@@ -33,17 +38,36 @@ public class LifMagAccumValueText : MonoBehaviour
         if (currentLifMagSystem == null)
         {
             CurrentValue = 0f;
-            valueText.text = "0.0";
+            valueText.text = zeroText;
             return;
         }
 
+        // 対象リフマグの電流がOFFなら0表示
         if (!currentLifMagSystem.IsLifMagCurrentOn(lifMagIndex))
         {
             CurrentValue = 0f;
-            valueText.text = "0.0";
+            valueText.text = zeroText;
             return;
         }
 
+        // 入力値モードなら、累積値ではなく現在の電流値を表示
+        if (currentLifMagSystem.IsInputValueLiftMode)
+        {
+            CurrentValue = currentLifMagSystem.CurrentElectricCurrentA;
+
+            if (showUnitInInputMode)
+            {
+                valueText.text = CurrentValue.ToString("F1") + currentUnit;
+            }
+            else
+            {
+                valueText.text = CurrentValue.ToString("F1");
+            }
+
+            return;
+        }
+
+        // 従来の累積値モード
         CurrentValue = currentLifMagSystem.GetLifMagDisplayAccumValue(lifMagIndex);
         valueText.text = CurrentValue.ToString("F2");
     }

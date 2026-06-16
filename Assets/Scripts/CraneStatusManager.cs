@@ -96,12 +96,29 @@ public class CraneStatusManager : MonoBehaviour
 
     [Header("エラー種別表示Text")]
     [SerializeField] private Text[] errorTypeTexts;
+
+    [Header("状態管理の有効/無効")]
+    [SerializeField] private bool statusManagementEnabled = true;
+
+    [Header("状態管理停止時に全クレーンを自動表示へ戻す")]
+    [SerializeField] private bool resetToAutoWhenDisabled = true;
+
+    public bool IsStatusManagementEnabled
+    {
+        get { return statusManagementEnabled; }
+    }
     
 
     private void Start()
     {
         InitializeCranes();
-        StartAllCranes();
+
+        if (statusManagementEnabled)
+        {
+            StartAllCranes();
+        }
+
+        UpdateStatusTexts();
     }
 
     private void Update()
@@ -129,9 +146,73 @@ public class CraneStatusManager : MonoBehaviour
 
     private void StartAllCranes()
     {
+        if (craneStates == null) return;
+
         foreach (CraneState state in craneStates)
         {
-            state.routine = StartCoroutine(CraneWorkRoutine(state));
+            if (state == null) continue;
+
+            // 二重起動防止
+            if (state.routine == null)
+            {
+                state.routine = StartCoroutine(CraneWorkRoutine(state));
+            }
+        }
+    }
+
+    private void StopAllCranes()
+    {
+        if (craneStates == null) return;
+
+        foreach (CraneState state in craneStates)
+        {
+            if (state == null) continue;
+
+            if (state.routine != null)
+            {
+                StopCoroutine(state.routine);
+                state.routine = null;
+            }
+        }
+    }
+
+    public void SetStatusManagementEnabled(bool enabled)
+    {
+        if (statusManagementEnabled == enabled) return;
+
+        statusManagementEnabled = enabled;
+
+        if (statusManagementEnabled)
+        {
+            StartAllCranes();
+            Debug.Log("CraneStatusManager：状態管理を再開しました");
+        }
+        else
+        {
+            StopAllCranes();
+
+            if (resetToAutoWhenDisabled)
+            {
+                ResetAllCraneStatusToAuto();
+            }
+
+            Debug.Log("CraneStatusManager：状態管理を停止しました");
+        }
+
+        UpdateStatusTexts();
+    }
+
+    private void ResetAllCraneStatusToAuto()
+    {
+        if (craneStates == null) return;
+
+        foreach (CraneState state in craneStates)
+        {
+            if (state == null) continue;
+
+            state.hasError = false;
+            state.isStopped = false;
+            state.currentErrorType = ErrorType.None;
         }
     }
 
@@ -144,6 +225,7 @@ public class CraneStatusManager : MonoBehaviour
             if (setting == null)
             {
                 Debug.LogWarning(state.craneName + " のフェーズ設定が見つかりません: " + state.currentPhase);
+                state.routine = null;
                 yield break;
             }
 
@@ -253,12 +335,16 @@ public class CraneStatusManager : MonoBehaviour
     // UIボタンなどから呼び出してエラー解除
     public void ResolveError(int craneIndex)
     {
+        if (!statusManagementEnabled) return;
+
         if (craneIndex < 0 || craneIndex >= craneStates.Count) return;
 
         craneStates[craneIndex].hasError = false;
         craneStates[craneIndex].isStopped = false;
 
         craneStates[craneIndex].currentErrorType = ErrorType.None;
+
+        UpdateStatusTexts();
 
         Debug.Log(craneStates[craneIndex].craneName + " を自動に復帰しました");
     }
@@ -308,6 +394,8 @@ public class CraneStatusManager : MonoBehaviour
 
     public void CompleteErrorByCraneIndex(int craneIndex)
     {
+        if (!statusManagementEnabled) return;
+
         if (craneStates == null) return;
         if (craneIndex < 0 || craneIndex >= craneStates.Count) return;
 

@@ -41,6 +41,17 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float minLiftCapacityKg = 0f;
     [SerializeField] private float maxLiftCapacityKg = 25000f;
 
+    [Header("入力値モード：電流値表示")]
+    [SerializeField] private float maxCurrentAmpere = 100f;
+
+    public float CurrentSliderInput01 { get; private set; }
+    public float CurrentElectricCurrentA { get; private set; }
+    public float CurrentLiftCapacityKg { get; private set; }
+    public float CurrentAttachedWeightKg { get; private set; }
+
+    public bool IsInputValueLiftMode =>
+        liftJudgementMode == LiftJudgementMode.CurrentSliderInputByWeight;
+
     [Header("つり上げ能力不足時の離脱")]
     [SerializeField] private float capacityDetachMarginKg = 0f;
 
@@ -216,6 +227,8 @@ public class LifMagSystem : MonoBehaviour
 
     private void HandleAttachInput()
     {
+        UpdateCurrentInputDisplayValues();
+        
         bool currentOn = IsAnyLifMagCurrentOn();
 
         // 電流ONが1つもなければ判定しない
@@ -406,6 +419,33 @@ public class LifMagSystem : MonoBehaviour
             maxLiftCapacityKg,
             Mathf.Clamp01(currentInput01)
         );
+    }
+
+    private void UpdateCurrentInputDisplayValues()
+    {
+        if (!IsInputValueLiftMode)
+        {
+            CurrentSliderInput01 = 0f;
+            CurrentElectricCurrentA = 0f;
+            CurrentLiftCapacityKg = 0f;
+            CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
+            return;
+        }
+
+        // 電流ONが1つもない場合は、電流値0として表示
+        if (!IsAnyLifMagCurrentOn())
+        {
+            CurrentSliderInput01 = 0f;
+            CurrentElectricCurrentA = 0f;
+            CurrentLiftCapacityKg = 0f;
+            CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
+            return;
+        }
+
+        CurrentSliderInput01 = GetCurrentSliderInput01();
+        CurrentElectricCurrentA = CurrentSliderInput01 * maxCurrentAmpere;
+        CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(CurrentSliderInput01);
+        CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
     }
 
     private float GetAttachedTotalWeightKg()
