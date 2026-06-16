@@ -32,6 +32,15 @@ public class BoardGenerator : MonoBehaviour
     [SerializeField] private Vector2 boardRandomYRange = new Vector2(0.0225f, 0.0675f);
     [SerializeField] private Vector2 boardRandomZRange = new Vector2(0.5f, 1.65f);
 
+    [Header("板重量設定")]
+    [SerializeField] private float boardDensity = 7850f;
+
+    [Header("ランダム生成サイズの丸め")]
+    [SerializeField] private bool roundRandomBoardSize = true;
+    [SerializeField] private int boardXDecimalDigits = 1;
+    [SerializeField] private int boardYDecimalDigits = 4;
+    [SerializeField] private int boardZDecimalDigits = 1;
+
     [Header("BoardStageのサイズ")]
     [SerializeField] private float boardStageSizeX = 7.5f;
     [SerializeField] private Vector2 boardStageRandomYRange = new Vector2(0.05f, 1f);
@@ -101,6 +110,13 @@ public class BoardGenerator : MonoBehaviour
                 float boardX = Random.Range(boardRandomXRange.x, boardRandomXRange.y);
                 float boardY = Random.Range(boardRandomYRange.x, boardRandomYRange.y);
                 float boardZ = Random.Range(boardRandomZRange.x, boardRandomZRange.y);
+
+                if (roundRandomBoardSize)
+                {
+                    boardX = RoundToDigits(boardX, boardXDecimalDigits);
+                    boardY = RoundToDigits(boardY, boardYDecimalDigits);
+                    boardZ = RoundToDigits(boardZ, boardZDecimalDigits);
+                }
 
                 CreateBoard(i, j, basePos, currentTopY, boardX, boardY, boardZ);
 
@@ -205,7 +221,27 @@ public class BoardGenerator : MonoBehaviour
         board.transform.localScale = new Vector3(boardX, boardY, boardZ);
         board.name = $"Board_{spawnIndex}_{boardIndex}";
 
+        BoardInfo boardInfo = board.GetComponent<BoardInfo>();
+
+        if (boardInfo == null)
+        {
+            boardInfo = board.AddComponent<BoardInfo>();
+        }
+
+        boardInfo.SetBoardInfo(
+            boardX,
+            boardY,
+            boardZ,
+            boardDensity
+        );
+
         return board;
+    }
+
+    private float RoundToDigits(float value, int digits)
+    {
+        float scale = Mathf.Pow(10f, digits);
+        return Mathf.Round(value * scale) / scale;
     }
 
     private List<CsvBoardData> LoadCsv(TextAsset csv)

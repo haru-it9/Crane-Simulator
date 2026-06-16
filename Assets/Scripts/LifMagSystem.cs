@@ -4,6 +4,12 @@ using UnityEngine;
 
 public class LifMagSystem : MonoBehaviour
 {
+    public enum LiftJudgementMode
+    {
+        CumulativeSliderInput,       // 従来：スライダー累積値で判定
+        CurrentSliderInputByWeight   // 新規：現在入力値と板重量で判定
+    }
+    
     [Header("5つのマグネットセンサ")]
     [SerializeField] private MagnetSensor[] magnetSensors;
 
@@ -20,15 +26,34 @@ public class LifMagSystem : MonoBehaviour
     [Header("吸着に必要な最小接触数")]
     [SerializeField] private int requiredMagnetCount = 1;
 
+    [Header("つり上げ判定モード")]
+    [SerializeField] private LiftJudgementMode liftJudgementMode =
+        LiftJudgementMode.CumulativeSliderInput;
+
     [Header("スライダー累積吸着")]
-    [SerializeField] private bool useSliderAccumAttach = true;
     [SerializeField] private float sliderSampleInterval = 0.1f;   // 0.1秒ごと
     [SerializeField] private float sliderAttachThreshold = 2.0f;  // この値ごとに1枚吸着
     [SerializeField] private bool useAbsoluteSliderValue = false;  // 絶対値で積算するか
 
+    [Header("現在入力値吸着：つり上げ能力")]
+    [SerializeField] private float boardDensity = 7850f; // BoardInfoがない場合の予備
+
+    [SerializeField] private float minLiftCapacityKg = 0f;
+    [SerializeField] private float maxLiftCapacityKg = 25000f;
+
+    [Header("つり上げ能力不足時の離脱")]
+    [SerializeField] private float capacityDetachMarginKg = 0f;
+
+    [Header("確率的つり上げ失敗")]
+    [SerializeField] private bool useRandomLiftFailure = false;
+
+    [Range(0f, 1f)]
+    [SerializeField] private float liftFailureProbability = 0.05f;
+
     private bool isAttachAccumulating = false;
     private float sliderAccumulatedValue = 0f;
     private float sliderSampleTimer = 0f;
+    private bool lastAttachFailedByRandom = false;
 
     private float[] lifMagDisplayAccumValues = new float[5];
 
@@ -128,8 +153,10 @@ public class LifMagSystem : MonoBehaviour
         return attachedBoards.Contains(board);
     }
 
-    private bool TryAttachUnified() // 初回吸着か追加吸着かを判断して、吸着処理を一本化する
+    private bool TryAttachUnified()
     {
+        lastAttachFailedByRandom = false;
+
         if (Time.time - lastAttachTime < attachCooldown)
         {
             return false;
@@ -139,14 +166,14 @@ public class LifMagSystem : MonoBehaviour
 
         if (!HasAttachedBoard)
         {
-            success = TryAttach(); // ← bool返すように変更
+            success = TryAttach();
         }
         else
         {
-            success = TryAttachAdditionalBoard(); // ← bool返すように変更
+            success = TryAttachAdditionalBoard();
         }
 
-        if (success)
+        if (success || lastAttachFailedByRandom)
         {
             lastAttachTime = Time.time;
         }
@@ -178,24 +205,20 @@ public class LifMagSystem : MonoBehaviour
             return false;
         }
 
+        if (!PassRandomLiftFailureCheck(targetBoard))
+        {
+            return false;
+        }
+
         AttachBoardInternal(targetBoard);
         return true;
     }
 
-    private void HandleAttachInput() // 赤ボタン入力を処理し、累積値に応じて吸着を試みる
+    private void HandleAttachInput()
     {
-        if (!useSliderAccumAttach)
-        {
-            if (IsAnyLifMagCurrentOn())
-            {
-                TryAttachUnified();
-            }
-            return;
-        }
-
         bool currentOn = IsAnyLifMagCurrentOn();
 
-        // 電流ONが1つもなければ累積しない
+        // 電流ONが1つもなければ判定しない
         if (!currentOn)
         {
             isAttachAccumulating = false;
@@ -204,6 +227,20 @@ public class LifMagSystem : MonoBehaviour
             return;
         }
 
+        switch (liftJudgementMode)
+        {
+            case LiftJudgementMode.CumulativeSliderInput:
+                HandleCumulativeSliderAttach();
+                break;
+
+            case LiftJudgementMode.CurrentSliderInputByWeight:
+                HandleCurrentInputByWeightAttach();
+                break;
+        }
+    }
+
+    private void HandleCumulativeSliderAttach()
+    {
         // 電流ON中は常に累積
         isAttachAccumulating = true;
 
@@ -258,11 +295,182 @@ public class LifMagSystem : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("しきい値到達したが吸着失敗");
+                    if (lastAttachFailedByRandom)
+                    {
+                        sliderAccumulatedValue -= currentThreshold;
+                        sliderAccumulatedValue = Mathf.Max(0f, sliderAccumulatedValue);
+
+                        Debug.Log($"しきい値到達 -> 確率判定により吸着失敗, consumed={currentThreshold:F3}, remaining={sliderAccumulatedValue:F3}");
+                    }
+                    else
+                    {
+                        Debug.Log("しきい値到達したが吸着失敗");
+                    }
+
                     break;
                 }
             }
         }
+    }
+
+    private void HandleCurrentInputByWeightAttach()
+    {
+        float currentInput01 = GetCurrentSliderInput01();
+        float liftCapacityKg = GetCurrentLiftCapacityKg(currentInput01);
+        float attachedWeightKg = GetAttachedTotalWeightKg();
+
+        // すでに保持している板の重量を支えられなくなったら離脱
+        if (HasAttachedBoard && liftCapacityKg + capacityDetachMarginKg < attachedWeightKg)
+        {
+            Debug.LogWarning(
+                $"つり上げ能力不足のため離脱: " +
+                $"input={currentInput01:F3}, " +
+                $"capacity={liftCapacityKg:F1} kg, " +
+                $"attachedWeight={attachedWeightKg:F1} kg"
+            );
+
+            DetachAll();
+
+            isAttachAccumulating = false;
+            sliderAccumulatedValue = 0f;
+            sliderSampleTimer = 0f;
+
+            return;
+        }
+
+        GameObject candidate = GetCurrentCandidateBoard();
+
+        if (candidate == null)
+        {
+            return;
+        }
+
+        float candidateWeightKg = GetBoardWeight(candidate);
+        float remainingCapacityKg = liftCapacityKg - attachedWeightKg;
+
+        // 余ったつり上げ能力で次の板を持てるか判定
+        if (remainingCapacityKg < candidateWeightKg)
+        {
+            Debug.Log(
+                $"現在入力値モード：能力不足のため追加吸着不可, " +
+                $"input={currentInput01:F3}, " +
+                $"capacity={liftCapacityKg:F1} kg, " +
+                $"attached={attachedWeightKg:F1} kg, " +
+                $"remaining={remainingCapacityKg:F1} kg, " +
+                $"candidate={candidate.name}, " +
+                $"candidateWeight={candidateWeightKg:F1} kg"
+            );
+
+            return;
+        }
+
+        bool success = TryAttachUnified();
+
+        if (success)
+        {
+            Debug.Log(
+                $"現在入力値モード：吸着成功, " +
+                $"input={currentInput01:F3}, " +
+                $"capacity={liftCapacityKg:F1} kg, " +
+                $"attachedBefore={attachedWeightKg:F1} kg, " +
+                $"candidate={candidate.name}, " +
+                $"candidateWeight={candidateWeightKg:F1} kg"
+            );
+        }
+    }
+
+    private float GetCurrentSliderInput01()
+    {
+        float sliderValue = Input.GetAxis(joyStick2Slider);
+
+        // 絶対値モードを使う場合
+        if (useAbsoluteSliderValue)
+        {
+            return Mathf.Clamp01(Mathf.Abs(sliderValue));
+        }
+
+        // 既存仕様に合わせて、-0.8 ～ -1.0 は入力なし扱い
+        if (sliderValue <= -0.8f)
+        {
+            return 0f;
+        }
+
+        // -0.8 を 0、1.0 を 1 として正規化
+        return Mathf.InverseLerp(-0.8f, 1.0f, sliderValue);
+    }
+
+    private float GetCurrentLiftCapacityKg(float currentInput01)
+    {
+        return Mathf.Lerp(
+            minLiftCapacityKg,
+            maxLiftCapacityKg,
+            Mathf.Clamp01(currentInput01)
+        );
+    }
+
+    private float GetAttachedTotalWeightKg()
+    {
+        float totalWeightKg = 0f;
+
+        foreach (GameObject board in attachedBoards)
+        {
+            if (board == null) continue;
+
+            totalWeightKg += GetBoardWeight(board);
+        }
+
+        return totalWeightKg;
+    }
+
+    private float GetBoardWeight(GameObject board)
+    {
+        if (board == null) return 0f;
+
+        BoardInfo boardInfo = board.GetComponent<BoardInfo>();
+
+        if (boardInfo != null)
+        {
+            return boardInfo.Weight;
+        }
+
+        Collider col = board.GetComponent<Collider>();
+
+        if (col == null)
+        {
+            return 0f;
+        }
+
+        Bounds b = col.bounds;
+        Vector3 size = b.size;
+
+        float volume = size.x * size.y * size.z;
+        float weight = volume * boardDensity;
+
+        return weight;
+    }
+
+    private bool PassRandomLiftFailureCheck(GameObject board)
+    {
+        lastAttachFailedByRandom = false;
+
+        if (!useRandomLiftFailure)
+        {
+            return true;
+        }
+
+        if (Random.value < liftFailureProbability)
+        {
+            lastAttachFailedByRandom = true;
+
+            Debug.LogWarning(
+                $"確率判定によりつり上げ失敗: board={board.name}, " +
+                $"failureProbability={liftFailureProbability:F3}"
+            );
+
+            return false;
+        }
+
+        return true;
     }
 
     public bool GetLifMagCurrent(int index)
@@ -292,22 +500,16 @@ public class LifMagSystem : MonoBehaviour
         }
     }
 
-    private float GetCurrentAttachThreshold() // 今回の吸着に必要な累積値を、板体積と接触マグネット数から計算する
+    private float GetCurrentAttachThreshold() // 今回の吸着に必要な累積値を、板サイズと接触マグネット数から計算する
     {
         GameObject candidate = GetCurrentCandidateBoard();
+
         if (candidate == null)
         {
             return sliderAttachThreshold;
         }
 
-        Collider col = candidate.GetComponent<Collider>();
-        if (col == null)
-        {
-            return sliderAttachThreshold;
-        }
-
-        Bounds b = col.bounds;
-        Vector3 size = b.size;
+        Vector3 size = GetBoardSize(candidate);
 
         // -----------------------------
         // 1. 体積ベース倍率
@@ -316,13 +518,24 @@ public class LifMagSystem : MonoBehaviour
 
         if (useBoardSizeThreshold)
         {
-            float referenceVolume = referenceBoardSize.x * referenceBoardSize.y * referenceBoardSize.z;
-            float candidateVolume = size.x * size.y * size.z;
+            float referenceVolume =
+                referenceBoardSize.x *
+                referenceBoardSize.y *
+                referenceBoardSize.z;
+
+            float candidateVolume =
+                size.x *
+                size.y *
+                size.z;
 
             if (referenceVolume > 0.0001f)
             {
                 volumeMultiplier = candidateVolume / referenceVolume;
-                volumeMultiplier = Mathf.Clamp(volumeMultiplier, minThresholdMultiplier, maxThresholdMultiplier);
+                volumeMultiplier = Mathf.Clamp(
+                    volumeMultiplier,
+                    minThresholdMultiplier,
+                    maxThresholdMultiplier
+                );
             }
         }
 
@@ -342,12 +555,21 @@ public class LifMagSystem : MonoBehaviour
             }
             else
             {
-                contactMultiplier = (float)referenceMagnetContactCount / enabledCount;
-                contactMultiplier = Mathf.Clamp(contactMultiplier, 1f, maxContactMultiplier);
+                contactMultiplier =
+                    (float)referenceMagnetContactCount / enabledCount;
+
+                contactMultiplier = Mathf.Clamp(
+                    contactMultiplier,
+                    1f,
+                    maxContactMultiplier
+                );
             }
         }
 
-        float threshold = sliderAttachThreshold * volumeMultiplier * contactMultiplier;
+        float threshold =
+            sliderAttachThreshold *
+            volumeMultiplier *
+            contactMultiplier;
 
         Debug.Log(
             $"候補板={candidate.name}, " +
@@ -359,6 +581,35 @@ public class LifMagSystem : MonoBehaviour
         );
 
         return threshold;
+    }
+
+    private Vector3 GetBoardSize(GameObject board)
+    {
+        if (board == null)
+        {
+            return referenceBoardSize;
+        }
+
+        BoardInfo boardInfo = board.GetComponent<BoardInfo>();
+
+        if (boardInfo != null)
+        {
+            return new Vector3(
+                boardInfo.SizeX,
+                boardInfo.SizeY,
+                boardInfo.SizeZ
+            );
+        }
+
+        // BoardInfo が付いていない板だけ、従来の bounds を予備的に使う
+        Collider col = board.GetComponent<Collider>();
+
+        if (col != null)
+        {
+            return col.bounds.size;
+        }
+
+        return referenceBoardSize;
     }
 
     private GameObject GetCurrentCandidateBoard() // 現在の吸着候補板を返す（初回吸着か追加吸着かで分岐）
@@ -560,6 +811,11 @@ public class LifMagSystem : MonoBehaviour
         if (candidate == null)
         {
             Debug.Log("追加吸着候補なし");
+            return false;
+        }
+
+        if (!PassRandomLiftFailureCheck(candidate))
+        {
             return false;
         }
 

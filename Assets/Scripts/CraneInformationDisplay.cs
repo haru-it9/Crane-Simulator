@@ -184,6 +184,19 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private float CalculateBoardWeight(GameObject board)
     {
+        if (board == null)
+        {
+            return 0f;
+        }
+
+        BoardInfo boardInfo = board.GetComponent<BoardInfo>();
+
+        if (boardInfo != null)
+        {
+            return boardInfo.Weight;
+        }
+
+        // BoardInfo が付いていない板があった場合だけ、従来方式で計算する
         Collider col = board.GetComponent<Collider>();
 
         if (col == null)
@@ -194,7 +207,6 @@ public class CraneInformationDisplay : MonoBehaviour
         Bounds b = col.bounds;
 
         float volume = b.size.x * b.size.y * b.size.z;
-
         float weight = volume * boardDensity;
 
         return weight;
