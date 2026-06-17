@@ -5,21 +5,22 @@ using Tobii.Gaming;
 
 public class TobiiDebugCheck : MonoBehaviour
 {
-    void Update()
-    {
-        var gazePoint = TobiiAPI.GetGazePoint();
+    private float logTimer = 0f;
 
-        if (gazePoint.IsValid)
-        {
-            Debug.Log(
-                "Gaze = " +
-                gazePoint.Screen.x + ", " +
-                gazePoint.Screen.y
-            );
-        }
-        else
-        {
-            Debug.Log("Invalid");
-        }
+    private void Update()
+    {
+        logTimer += Time.deltaTime;
+        if (logTimer < 1f) return;
+        logTimer = 0f;
+
+        GazePoint gazePoint = TobiiAPI.GetGazePoint();
+
+        Debug.Log(
+            "Tobii IsConnected = " + TobiiAPI.IsConnected +
+            ", Gaze IsValid = " + gazePoint.IsValid +
+            ", Screen = " + gazePoint.Screen +
+            ", Viewport = " + gazePoint.Viewport +
+            ", AppFocused = " + Application.isFocused
+        );
     }
 }
