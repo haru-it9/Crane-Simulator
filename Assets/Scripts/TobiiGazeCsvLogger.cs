@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Globalization;
 using Tobii.Gaming;
 
 public class TobiiGazeCsvLogger : MonoBehaviour
@@ -12,19 +13,45 @@ public class TobiiGazeCsvLogger : MonoBehaviour
     [Header("記録間隔")]
     public float logInterval = 0.02f; // 50Hz相当
 
+    [Header("一定行数ごとにFlush")]
+    [SerializeField] private int flushEveryLines = 100;
+
     private StreamWriter writer;
     private bool isLogging = false;
+
     private float startTime;
     private float timer = 0f;
 
+    private int sampleIndex = 0;
+    private int linesSinceFlush = 0;
+
+    private string currentFilePath = "";
+
+    private string F(float value, string format = "F4")
+    {
+        if (float.IsNaN(value) || float.IsInfinity(value))
+        {
+            return "";
+        }
+
+        return value.ToString(format, CultureInfo.InvariantCulture);
+    }
+
     public void StartLogging(string inputFileName)
     {
+        // すでに記録中なら一度閉じる
+        if (isLogging || writer != null)
+        {
+            StopLogging();
+        }
+
         if (!Directory.Exists(saveFolderPath))
         {
             Directory.CreateDirectory(saveFolderPath);
         }
 
         string timeStamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
         string fileName;
 
         if (string.IsNullOrEmpty(inputFileName))
@@ -38,23 +65,30 @@ public class TobiiGazeCsvLogger : MonoBehaviour
 
         string filePath = Path.Combine(saveFolderPath, fileName + ".csv");
 
-        writer = new StreamWriter(filePath, false);
+        writer = new StreamWriter(filePath, false, new System.Text.UTF8Encoding(true));
 
         writer.WriteLine(
+            "sampleIndex," +
             "time," +
+            "isConnected," +
+            "appFocused," +
+            "isValid," +
             "gameScreenX,gameScreenY," +
-            "windowsX,windowsY," +
+            "clampedGameScreenX,clampedGameScreenY," +
             "viewportX,viewportY," +
             "rawScreenX,rawScreenY," +
-            "screenWidth,screenHeight," +
-            "isValid"
+            "screenWidth,screenHeight"
         );
 
+        currentFilePath = filePath;
         startTime = Time.time;
         timer = 0f;
+        sampleIndex = 0;
+        linesSinceFlush = 0;
         isLogging = true;
 
         Debug.Log("Tobii gaze logging started: " + filePath);
+        Debug.Log("TobiiAPI.IsConnected at StartLogging = " + TobiiAPI.IsConnected);
     }
 
     public void StopLogging()
@@ -70,58 +104,75 @@ public class TobiiGazeCsvLogger : MonoBehaviour
             writer = null;
         }
 
-        Debug.Log("Tobii gaze logging stopped");
+        Debug.Log("Tobii gaze logging stopped: " + currentFilePath);
     }
 
     private void Update()
     {
         if (!isLogging) return;
+        if (writer == null) return;
 
         timer += Time.deltaTime;
+
         if (timer < logInterval) return;
 
-        timer = 0f;
+        // 0に戻すより、差し引いた方が周期のズレが少ない
+        timer -= logInterval;
 
+        WriteGazeLine();
+    }
+
+    private void WriteGazeLine()
+    {
         float elapsedTime = Time.time - startTime;
 
+        bool isConnected = TobiiAPI.IsConnected;
+        bool appFocused = Application.isFocused;
+
         GazePoint gazePoint = TobiiAPI.GetGazePoint();
+
+        int screenWidth = Screen.width;
+        int screenHeight = Screen.height;
 
         if (gazePoint.IsValid)
         {
             Vector2 viewportPos = gazePoint.Viewport;
             Vector2 rawScreenPos = gazePoint.Screen;
 
-            // Unity Game画面座標
-            // 左下 = (0,0), 右上 = (Screen.width, Screen.height)
-            // 現在のViewportが中央原点系として出ているため補正
-            float gameScreenX = (viewportPos.x / 2f + 0.5f) * Screen.width;
-            float gameScreenY = (viewportPos.y / 2f + 0.5f) * Screen.height;
+            // Viewportは今回のCSVを見る限り、0～1座標として出ている
+            float gameScreenX = viewportPos.x * screenWidth;
+            float gameScreenY = viewportPos.y * screenHeight;
 
-            // Windows画面座標系
-            // 左下 = (0,0), 右上 = (Screen.width, Screen.height)
-            // rawScreenPosは左上原点系に近いためYを反転
-            float windowsX = rawScreenPos.x;
-            float windowsY = Screen.height - rawScreenPos.y;
+            // 解析用に画面内へ丸めた座標も保存
+            float clampedGameScreenX = Mathf.Clamp(gameScreenX, 0f, screenWidth);
+            float clampedGameScreenY = Mathf.Clamp(gameScreenY, 0f, screenHeight);
 
             writer.WriteLine(
-                elapsedTime.ToString("F4") + "," +
-                gameScreenX.ToString("F2") + "," +
-                gameScreenY.ToString("F2") + "," +
-                windowsX.ToString("F2") + "," +
-                windowsY.ToString("F2") + "," +
-                viewportPos.x.ToString("F6") + "," +
-                viewportPos.y.ToString("F6") + "," +
-                rawScreenPos.x.ToString("F2") + "," +
-                rawScreenPos.y.ToString("F2") + "," +
-                Screen.width + "," +
-                Screen.height + "," +
-                "1"
+                sampleIndex + "," +
+                F(elapsedTime, "F4") + "," +
+                isConnected + "," +
+                appFocused + "," +
+                "1," +
+                F(gameScreenX, "F2") + "," +
+                F(gameScreenY, "F2") + "," +
+                F(clampedGameScreenX, "F2") + "," +
+                F(clampedGameScreenY, "F2") + "," +
+                F(viewportPos.x, "F6") + "," +
+                F(viewportPos.y, "F6") + "," +
+                F(rawScreenPos.x, "F2") + "," +
+                F(rawScreenPos.y, "F2") + "," +
+                screenWidth + "," +
+                screenHeight
             );
         }
         else
         {
             writer.WriteLine(
-                elapsedTime.ToString("F4") + "," +
+                sampleIndex + "," +
+                F(elapsedTime, "F4") + "," +
+                isConnected + "," +
+                appFocused + "," +
+                "0," +
                 "," +
                 "," +
                 "," +
@@ -130,14 +181,27 @@ public class TobiiGazeCsvLogger : MonoBehaviour
                 "," +
                 "," +
                 "," +
-                Screen.width + "," +
-                Screen.height + "," +
-                "0"
+                screenWidth + "," +
+                screenHeight
             );
+        }
+
+        sampleIndex++;
+        linesSinceFlush++;
+
+        if (linesSinceFlush >= flushEveryLines)
+        {
+            writer.Flush();
+            linesSinceFlush = 0;
         }
     }
 
     private void OnApplicationQuit()
+    {
+        StopLogging();
+    }
+
+    private void OnDestroy()
     {
         StopLogging();
     }
