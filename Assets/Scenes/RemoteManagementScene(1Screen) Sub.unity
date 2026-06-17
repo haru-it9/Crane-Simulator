@@ -2956,7 +2956,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &110828387
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56840,6 +56840,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   saveFolderPath: C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData
   logInterval: 0.02
+  flushEveryLines: 100
 --- !u!114 &2080963386
 MonoBehaviour:
   m_ObjectHideFlags: 0
