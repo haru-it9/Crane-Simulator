@@ -17089,7 +17089,7 @@ MonoBehaviour:
   targetXText: {fileID: 839047524}
   targetZText: {fileID: 910134174}
   targetWeightText: {fileID: 1012305192}
-  nextKey: 110
+  nextKey: 9
   weightUnit: ' t'
 --- !u!1 &568394532
 GameObject:

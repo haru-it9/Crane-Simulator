@@ -30,7 +30,7 @@ public class TargetInformationDisplay : MonoBehaviour
     [SerializeField] private Text targetWeightText;
 
     [Header("次の値へ進むキー")]
-    [SerializeField] private KeyCode nextKey = KeyCode.N;
+    [SerializeField] private KeyCode nextKey = KeyCode.Tab;
 
     [Header("表示フォーマット")]
     [SerializeField] private string weightUnit = " t";
