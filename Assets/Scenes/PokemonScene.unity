@@ -1648,7 +1648,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ballPrefab: {fileID: 7645441007120370970, guid: aa0a63f63d3fa1a469205fb55e5cd7ac, type: 3}
   shootPoint: {fileID: 1588221947}
-  shootSpeed: 25
+  shootSpeed: 40
   yUpwardFactor: 0.1
   yawSpeed: 25
   pitchSpeed: 10
