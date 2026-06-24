@@ -449,4 +449,24 @@ public class CraneStatusManager : MonoBehaviour
                 return "";
         }
     }
+
+   public bool TryGetCraneInterventionInfo(
+        int craneIndex,
+        out WorkPhase phase,
+        out ErrorType errorType
+    )
+    {
+        phase = WorkPhase.Move1;
+        errorType = ErrorType.None;
+
+        if (craneStates == null) return false;
+        if (craneIndex < 0 || craneIndex >= craneStates.Count) return false;
+
+        CraneState state = craneStates[craneIndex];
+
+        phase = state.currentPhase;
+        errorType = state.currentErrorType;
+
+        return true;
+    }
 }

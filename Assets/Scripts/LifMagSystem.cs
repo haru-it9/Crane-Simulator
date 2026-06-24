@@ -997,6 +997,86 @@ public class LifMagSystem : MonoBehaviour
         return bestBoard;
     }
 
+    // ================================
+    // 介入開始状態の再現用
+    // ================================
+
+    public void ForceAttachBoardForIntervention(GameObject board)
+    {
+        if (board == null) return;
+
+        ForceDetachAllForIntervention();
+
+        Rigidbody rb = board.GetComponent<Rigidbody>();
+        HoldBoardSensor sensor = board.GetComponent<HoldBoardSensor>();
+
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        if (!attachedBoards.Contains(board))
+        {
+            attachedBoards.Add(board);
+        }
+
+        if (rb != null && !attachedRigidbodies.Contains(rb))
+        {
+            attachedRigidbodies.Add(rb);
+        }
+
+        if (sensor != null && !attachedHoldSensors.Contains(sensor))
+        {
+            sensor.SetOwnerBoard(board);
+            attachedHoldSensors.Add(sensor);
+        }
+
+        if (lifMagCurrentOn == null || lifMagCurrentOn.Length != magnetSensors.Length)
+        {
+            lifMagCurrentOn = new bool[magnetSensors.Length];
+        }
+
+        for (int i = 0; i < lifMagCurrentOn.Length; i++)
+        {
+            SetLifMagCurrent(i, true);
+        }
+
+        isAttachAccumulating = false;
+        sliderAccumulatedValue = 0f;
+        sliderSampleTimer = 0f;
+        lastAttachTime = Time.time;
+
+        Debug.Log($"介入開始用に強制吸着状態へ設定: {board.name}");
+    }
+
+    public void ForceDetachAllForIntervention()
+    {
+        DetachAllFromButton();
+
+        attachedBoards.Clear();
+        attachedRigidbodies.Clear();
+        attachedHoldSensors.Clear();
+
+        if (lifMagCurrentOn == null || lifMagCurrentOn.Length != magnetSensors.Length)
+        {
+            lifMagCurrentOn = new bool[magnetSensors.Length];
+        }
+
+        for (int i = 0; i < lifMagCurrentOn.Length; i++)
+        {
+            SetLifMagCurrent(i, false);
+        }
+
+        isAttachAccumulating = false;
+        sliderAccumulatedValue = 0f;
+        sliderSampleTimer = 0f;
+
+        Debug.Log("介入開始用に強制吸着解除状態へ設定");
+    }
+
     private void OnDrawGizmos() // 毎フレームの入力監視、デバッグ描画
     {
         if (!showDebugOverlapBox) return;

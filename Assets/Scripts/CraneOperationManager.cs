@@ -45,6 +45,9 @@ public class CraneOperationManager : MonoBehaviour
         public LifMagSystem lifMagSystem;
     }
 
+    [Header("Intervention Scenario Manager")]
+    [SerializeField] private CraneInterventionScenarioManager interventionScenarioManager;
+
     [Header("Input Settings")]
     [SerializeField] private InputMode inputMode = InputMode.Keyboard;
 
@@ -209,7 +212,7 @@ public class CraneOperationManager : MonoBehaviour
     public void HandleCraneSelection(int craneIndex)
     {
         if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+
         if (operationMode == OperationMode.SingleCrane)
         {
             Debug.Log("SingleCraneモード中のため、クレーン選択は無効です");
@@ -232,9 +235,50 @@ public class CraneOperationManager : MonoBehaviour
 
         currentCraneIndex = craneIndex;
 
+        if (CurrentCrane == null)
+        {
+            Debug.LogWarning($"Crane {craneIndex + 1} が取得できません");
+            return;
+        }
+
         Debug.Log($"操作対象クレーン: {CurrentCrane.name}");
 
         CurrentCrane.ResetSpeedLevel();
+
+        // ================================
+        // 介入開始状態の生成
+        // ================================
+        if (operationMode == OperationMode.MultiCraneManagement)
+        {
+            if (craneStatusManager == null)
+            {
+                Debug.LogWarning("CraneStatusManager が設定されていません");
+            }
+            else if (interventionScenarioManager == null)
+            {
+                Debug.LogWarning("InterventionScenarioManager が設定されていません");
+            }
+            else
+            {
+                bool gotInfo = craneStatusManager.TryGetCraneInterventionInfo(
+                    craneIndex,
+                    out CraneStatusManager.WorkPhase phase,
+                    out CraneStatusManager.ErrorType errorType
+                );
+
+                if (!gotInfo)
+                {
+                    Debug.LogWarning($"Crane {craneIndex + 1} の作業状態・停止要因を取得できませんでした");
+                    return;
+                }
+
+                interventionScenarioManager.SetupInterventionState(
+                    CurrentCrane,
+                    phase,
+                    errorType
+                );
+            }
+        }
 
         UpdateWaitingScreen();
         UpdateActiveCamera();
@@ -308,11 +352,17 @@ public class CraneOperationManager : MonoBehaviour
     public void EnterWaitingMode()
     {
         if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+
         if (operationMode == OperationMode.SingleCrane)
         {
             Debug.Log("SingleCraneモード中のため、WaitingScreenには戻りません");
             return;
+        }
+
+        // 介入開始時に生成した厚板・人オブジェクトを削除する
+        if (interventionScenarioManager != null)
+        {
+            interventionScenarioManager.ClearCurrentScenarioObjects();
         }
 
         currentCraneIndex = -1;
@@ -320,6 +370,8 @@ public class CraneOperationManager : MonoBehaviour
         UpdateWaitingScreen();
         UpdateActiveCamera();
         UpdateCraneButtonColors();
+        UpdateDisplay2();
+        UpdateLifMagButtonViews();
         UpdateCurrentCraneNameText();
 
         SetSelectionLock(false);
@@ -494,10 +546,24 @@ public class CraneOperationManager : MonoBehaviour
     public void CompleteCurrentCraneError()
     {
         if (!SimulatorStartManager.IsOperationEnabled) return;
+
+        if (operationMode == OperationMode.SingleCrane)
+        {
+            Debug.Log("SingleCraneモード中のため、エラー完了処理は行いません");
+            return;
+        }
         
         if (craneStatusManager == null) return;
 
+        if (currentCraneIndex < 0)
+        {
+            Debug.LogWarning("操作対象クレーンが未選択です");
+            return;
+        }
+
         craneStatusManager.CompleteErrorByCraneIndex(currentCraneIndex);
+
+        EnterWaitingMode();
     }
     
     private void HandleSpeedSwitch()

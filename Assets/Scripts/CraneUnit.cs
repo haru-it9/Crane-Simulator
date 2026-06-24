@@ -707,6 +707,77 @@ public class CraneUnit : MonoBehaviour
         Debug.Log($"{name} MainLifMag Y速度DOWN: Lv.{mainLifMagYSpeedIndex + 1} / {mainLifMagYSpeeds.Length}");
     }
 
+    // ================================
+    // 介入開始状態の再現用
+    // ================================
+
+    public void SetInterventionPose(
+        float mainCraneLocalZ,
+        float mainLifMagLocalX,
+        float mainLifMagLocalY
+    )
+    {
+        if (mainCrane != null)
+        {
+            Vector3 cranePos = mainCrane.localPosition;
+            cranePos.z = Mathf.Clamp(mainCraneLocalZ, minZ, maxZ);
+            mainCrane.localPosition = cranePos;
+        }
+
+        if (mainLifMag != null)
+        {
+            Vector3 lifMagPos = mainLifMag.localPosition;
+            lifMagPos.x = Mathf.Clamp(mainLifMagLocalX, minMainX, maxMainX);
+            lifMagPos.y = Mathf.Clamp(mainLifMagLocalY, minMainY, maxMainY);
+            mainLifMag.localPosition = lifMagPos;
+        }
+
+        descentLockedByWarningArea = false;
+
+        currentJoystickZSpeedIndex = -1;
+        currentJoystickXSpeedIndex = -1;
+        currentJoystickYSpeedIndex = -1;
+
+        UpdateWarningUI();
+        UpdateSpeedTexts();
+    }
+
+    public void SetInterventionBoardAttached(
+        GameObject board,
+        Vector3 attachedLocalPosition,
+        Vector3 attachedLocalEuler
+    )
+    {
+        if (board == null || mainLifMag == null) return;
+
+        Rigidbody rb = board.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        board.SetActive(true);
+        board.transform.SetParent(mainLifMag, false);
+        board.transform.localPosition = attachedLocalPosition;
+        board.transform.localRotation = Quaternion.Euler(attachedLocalEuler);
+
+        if (lifMagSystem != null)
+        {
+            lifMagSystem.ForceAttachBoardForIntervention(board);
+        }
+    }
+
+    public void ClearInterventionBoardAttachment()
+    {
+        if (lifMagSystem != null)
+        {
+            lifMagSystem.ForceDetachAllForIntervention();
+        }
+    }
+
     private void OnDrawGizmos()
     {
         if (!showDebugBoxCast) return;
