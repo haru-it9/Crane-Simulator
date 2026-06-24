@@ -398,7 +398,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -96}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1500, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14138010
@@ -4584,10 +4584,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -5805,10 +5812,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -6421,7 +6435,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 48}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 90}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &248908963
@@ -12635,6 +12649,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 4
   valueText: {fileID: 436344393}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &436623840
 GameObject:
   m_ObjectHideFlags: 0
@@ -14303,6 +14320,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 2
   valueText: {fileID: 492147427}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &492944167
 GameObject:
   m_ObjectHideFlags: 0
@@ -15980,6 +16000,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 3
   valueText: {fileID: 519517773}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &519599269
 GameObject:
   m_ObjectHideFlags: 0
@@ -17637,10 +17660,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -24539,6 +24569,8 @@ MonoBehaviour:
   - {fileID: 700697500}
   - {fileID: 1156617660}
   - {fileID: 1050012370}
+  statusManagementEnabled: 1
+  resetToAutoWhenDisabled: 1
 --- !u!4 &825525980
 Transform:
   m_ObjectHideFlags: 0
@@ -31198,10 +31230,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -32565,6 +32604,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 0
   valueText: {fileID: 1120257986}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &1122837852
 GameObject:
   m_ObjectHideFlags: 0
@@ -33157,7 +33199,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1145403383}
   - component: {fileID: 1145403382}
-  - component: {fileID: 1145403384}
   m_Layer: 0
   m_Name: TobiiDebug
   m_TagString: Untagged
@@ -33192,18 +33233,6 @@ Transform:
   m_Father: {fileID: 1213741280}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1145403384
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1145403381}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2dbaa578e7295df46ac04520d3d30dbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1147338253
 GameObject:
   m_ObjectHideFlags: 0
@@ -35039,6 +35068,9 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   lifMagIndex: 1
   valueText: {fileID: 1224691896}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &1229067177
 GameObject:
   m_ObjectHideFlags: 0
@@ -38667,10 +38699,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -42788,10 +42827,17 @@ MonoBehaviour:
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -45033,6 +45079,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a84bfdc413a59049a855252174a62dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  operationMode: 0
+  singleCraneIndex: 0
+  craneStatusScreen: {fileID: 0}
   inputMode: 1
   speedControlMode: 1
   speedControlUIButtons:
@@ -45699,6 +45748,11 @@ MonoBehaviour:
   boardRandomXRange: {x: 1.5, y: 7.35}
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
@@ -56693,6 +56747,8 @@ MonoBehaviour:
   tobiiGazeLogger: {fileID: 2080963385}
   workInformationLogger: {fileID: 2080963386}
   fileNameInputField: {fileID: 682514084}
+  operationUiRoots: []
+  excludeSelectables: []
 --- !u!4 &2080963383
 Transform:
   m_ObjectHideFlags: 0
@@ -56736,6 +56792,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   saveFolderPath: C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData
   logInterval: 0.02
+  flushEveryLines: 100
 --- !u!114 &2080963386
 MonoBehaviour:
   m_ObjectHideFlags: 0

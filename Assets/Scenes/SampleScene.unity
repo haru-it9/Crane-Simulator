@@ -291,6 +291,8 @@ MonoBehaviour:
     minX: 0
     maxX: 0.6791
     movable: 1
+  useJoystickStepSpeed: 0
+  joystickSpeedZeroRange: 0.1
   zSpeeds:
   - 7.5
   - 20
@@ -1549,6 +1551,8 @@ MonoBehaviour:
     minX: 0
     maxX: 0.6791
     movable: 1
+  useJoystickStepSpeed: 0
+  joystickSpeedZeroRange: 0.1
   zSpeeds:
   - 7.5
   - 20
@@ -1972,6 +1976,8 @@ MonoBehaviour:
     minX: 0
     maxX: 0.6791
     movable: 1
+  useJoystickStepSpeed: 0
+  joystickSpeedZeroRange: 0.1
   zSpeeds:
   - 7.5
   - 20
@@ -4757,10 +4763,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 3
   button: {fileID: 398063595}
   labelText: {fileID: 468231017}
+  currentValueText: {fileID: 0}
+  currentValueUnit: 
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &402821463
@@ -5373,9 +5381,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 4
   valueText: {fileID: 436344393}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &444142174
 GameObject:
   m_ObjectHideFlags: 0
@@ -5871,9 +5882,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 2
   valueText: {fileID: 492147427}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &498466574
 GameObject:
   m_ObjectHideFlags: 0
@@ -6440,9 +6454,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 3
   valueText: {fileID: 519517773}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &523458195
 GameObject:
   m_ObjectHideFlags: 0
@@ -10414,10 +10431,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 0
   button: {fileID: 924223204}
   labelText: {fileID: 694530704}
+  currentValueText: {fileID: 0}
+  currentValueUnit: 
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &928291067
@@ -11727,10 +11746,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 4
   button: {fileID: 991687543}
   labelText: {fileID: 43014163}
+  currentValueText: {fileID: 0}
+  currentValueUnit: 
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &994383518
@@ -13928,9 +13949,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 0
   valueText: {fileID: 1120257986}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &1131729631
 GameObject:
   m_ObjectHideFlags: 0
@@ -14007,7 +14031,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1145403383}
   - component: {fileID: 1145403382}
-  - component: {fileID: 1145403384}
   m_Layer: 0
   m_Name: TobiiDebug
   m_TagString: Untagged
@@ -14042,18 +14065,6 @@ Transform:
   m_Father: {fileID: 1213741280}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1145403384
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1145403381}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2dbaa578e7295df46ac04520d3d30dbb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1151417688
 GameObject:
   m_ObjectHideFlags: 0
@@ -15325,9 +15336,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38822209558fafe4b838010b7a56f0ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 1
   valueText: {fileID: 1224691896}
+  zeroText: 0.0
+  showUnitInInputMode: 1
+  currentUnit: ' A'
 --- !u!1 &1226107937
 GameObject:
   m_ObjectHideFlags: 0
@@ -16349,6 +16363,8 @@ MonoBehaviour:
     minX: 0.1791
     maxX: 0.6791
     movable: 1
+  useJoystickStepSpeed: 0
+  joystickSpeedZeroRange: 0.1
   zSpeeds:
   - 7.5
   - 20
@@ -17085,7 +17101,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90f55f0351d730e41957b9dc5410cd0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagButtons:
   - {fileID: 924223207}
   - {fileID: 1971218024}
@@ -18148,16 +18164,24 @@ MonoBehaviour:
   - {fileID: 1743662108}
   - {fileID: 1874086611}
   - {fileID: 796789747}
+  craneOperationManager: {fileID: 0}
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
   joyStick2Slider: JoyStick3Slider
   requiredMagnetCount: 1
-  useSliderAccumAttach: 1
+  liftJudgementMode: 0
   sliderSampleInterval: 0.3
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
+  boardDensity: 7850
+  minLiftCapacityKg: 0
+  maxLiftCapacityKg: 25000
+  maxCurrentAmpere: 100
+  capacityDetachMarginKg: 0
+  useRandomLiftFailure: 0
+  liftFailureProbability: 0.05
   useBoardSizeThreshold: 1
   referenceBoardSize: {x: 4.425, y: 0.045, z: 1.075}
   minThresholdMultiplier: 0.125
@@ -18687,12 +18711,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a84bfdc413a59049a855252174a62dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  operationMode: 0
+  singleCraneIndex: 0
+  craneStatusScreen: {fileID: 0}
   inputMode: 1
+  speedControlMode: 0
+  speedControlUIButtons: []
   joyStick2Horizontal: JoyStick2Horizontal
   joyStick2Vertical: JoyStick2Vertical
   joyStick3Vertical: JoyStick3Vertical
   joyStick2Trigger: JoyStick2Trigger
-  joyStick2MiniHorizontal: JoyStick2MiniHorizontal
+  joyStick3MiniVertical: JoyStick3MiniVertical
   deadZone: 0.5
   cranes:
   - {fileID: 1378636666}
@@ -18701,14 +18730,21 @@ MonoBehaviour:
   - {fileID: 1994968994}
   - {fileID: 1696454652}
   - {fileID: 5693042}
-  craneCameras:
-  - {fileID: 963194227}
-  - {fileID: 930344070}
-  - {fileID: 1998057286}
-  - {fileID: 199250833}
-  - {fileID: 994383519}
-  - {fileID: 812432744}
+  craneCameraSets: []
   currentCraneIndex: 0
+  waitingScreen: {fileID: 0}
+  craneInformationDisplay: {fileID: 0}
+  craneDisplaySets: []
+  lifMagCurrentButtons: []
+  currentCraneNameText: {fileID: 0}
+  craneStatusManager: {fileID: 0}
+  craneSelectButtons: []
+  lockUnlockButton: {fileID: 0}
+  lockUnlockButtonText: {fileID: 0}
+  normalButtonColor: {r: 1, g: 1, b: 1, a: 1}
+  selectedButtonColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  unlockColor: {r: 0.7, g: 1, b: 0.7, a: 1}
+  lockColor: {r: 1, g: 0.7, b: 0.7, a: 1}
 --- !u!114 &1612894384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19281,6 +19317,11 @@ MonoBehaviour:
   boardRandomXRange: {x: 1.5, y: 7.35}
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
@@ -20773,6 +20814,8 @@ MonoBehaviour:
     minX: 0
     maxX: 0.6791
     movable: 1
+  useJoystickStepSpeed: 0
+  joystickSpeedZeroRange: 0.1
   zSpeeds:
   - 7.5
   - 20
@@ -24519,10 +24562,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 2
   button: {fileID: 1938668574}
   labelText: {fileID: 392783329}
+  currentValueText: {fileID: 0}
+  currentValueUnit: 
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &1949393909
@@ -24752,10 +24797,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab91e65a9629c840a3d12d7c1e2fb85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lifMagSystem: {fileID: 1514171650}
+  craneOperationManager: {fileID: 0}
   lifMagIndex: 1
   button: {fileID: 1971218021}
   labelText: {fileID: 757127827}
+  currentValueText: {fileID: 0}
+  currentValueUnit: 
   offColor: {r: 1, g: 1, b: 1, a: 1}
   onColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &1982478839
@@ -25006,6 +25053,8 @@ MonoBehaviour:
     minX: 0
     maxX: 0.6791
     movable: 1
+  useJoystickStepSpeed: 0
+  joystickSpeedZeroRange: 0.1
   zSpeeds:
   - 7.5
   - 20
@@ -26040,6 +26089,8 @@ MonoBehaviour:
   tobiiGazeLogger: {fileID: 2080963385}
   workInformationLogger: {fileID: 2080963386}
   fileNameInputField: {fileID: 682514084}
+  operationUiRoots: []
+  excludeSelectables: []
 --- !u!4 &2080963383
 Transform:
   m_ObjectHideFlags: 0
@@ -26083,6 +26134,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   saveFolderPath: C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData
   logInterval: 0.02
+  flushEveryLines: 100
 --- !u!114 &2080963386
 MonoBehaviour:
   m_ObjectHideFlags: 0
