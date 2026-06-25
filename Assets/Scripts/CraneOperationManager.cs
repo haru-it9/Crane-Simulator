@@ -275,7 +275,8 @@ public class CraneOperationManager : MonoBehaviour
                 interventionScenarioManager.SetupInterventionState(
                     CurrentCrane,
                     phase,
-                    errorType
+                    errorType,
+                    craneIndex
                 );
             }
         }

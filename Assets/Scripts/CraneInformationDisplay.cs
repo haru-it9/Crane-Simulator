@@ -92,6 +92,17 @@ public class CraneInformationDisplay : MonoBehaviour
             hasReachedMaxWeight = false;
             shouldResetWeight = false;
             CurrentDisplayWeightTon = 0f;
+
+            // 介入開始時に強制吸着された板の場合は、
+            // 持ち上げ高さによる 0→重量 表示を行わず、最初から実重量を表示する
+            if (lifMagSystem.HasInterventionForcedAttachedBoard())
+            {
+                float forcedWeightKg = lifMagSystem.GetAttachedTotalWeightKgForDisplay();
+                CurrentDisplayWeightTon = forcedWeightKg / 1000f;
+                hasReachedMaxWeight = true;
+
+                weightText.text = $"{CurrentDisplayWeightTon:F2} t";
+            }
         }
 
         wasHoldingLastFrame = isHolding;
@@ -112,19 +123,27 @@ public class CraneInformationDisplay : MonoBehaviour
         }
 
         // 実重量計算
-        float actualWeightKg = 0f;
-
-        foreach (GameObject board in boards)
-        {
-            if (board == null) continue;
-
-            actualWeightKg += CalculateBoardWeight(board);
-        }
-
+        // 強制吸着板の重量計算も含め、LifMagSystem側の計算結果を使う
+        float actualWeightKg = lifMagSystem.GetAttachedTotalWeightKgForDisplay();
         float actualWeightTon = actualWeightKg / 1000f;
+
+        // 強制吸着された板は、常に実重量をそのまま表示
+        if (lifMagSystem.HasInterventionForcedAttachedBoard())
+        {
+            CurrentDisplayWeightTon = actualWeightTon;
+            weightText.text = $"{CurrentDisplayWeightTon:F2} t";
+            return;
+        }
 
         // 一度最大表示に達したら、その後は高さで減らさない
         if (hasReachedMaxWeight)
+        {
+            CurrentDisplayWeightTon = actualWeightTon;
+            weightText.text = $"{CurrentDisplayWeightTon:F2} t";
+            return;
+        }
+
+        if (targetTransform == null)
         {
             CurrentDisplayWeightTon = actualWeightTon;
             weightText.text = $"{CurrentDisplayWeightTon:F2} t";

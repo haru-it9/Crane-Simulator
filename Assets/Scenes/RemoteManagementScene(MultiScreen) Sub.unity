@@ -2818,6 +2818,43 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 98909415}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &103989285
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 103989286}
+  m_Layer: 0
+  m_Name: BoardGenerators
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &103989286
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 103989285}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1626170394}
+  - {fileID: 601278785}
+  - {fileID: 245476489}
+  - {fileID: 503473286}
+  - {fileID: 1672581710}
+  - {fileID: 1948986915}
+  m_Father: {fileID: 0}
+  m_RootOrder: 17
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &109125944
 GameObject:
   m_ObjectHideFlags: 0
@@ -4592,6 +4629,11 @@ MonoBehaviour:
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
   maxCurrentAmpere: 100
+  interventionInitialCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 40
+  isInterventionCurrentHoldMode: 0
+  useBoundsWeightForInterventionBoards: 1
+  detachCurrentEpsilonAmpere: 0.01
   capacityDetachMarginKg: 0
   useRandomLiftFailure: 0
   liftFailureProbability: 0.05
@@ -5820,6 +5862,11 @@ MonoBehaviour:
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
   maxCurrentAmpere: 100
+  interventionInitialCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 40
+  isInterventionCurrentHoldMode: 0
+  useBoundsWeightForInterventionBoards: 1
+  detachCurrentEpsilonAmpere: 0.01
   capacityDetachMarginKg: 0
   useRandomLiftFailure: 0
   liftFailureProbability: 0.05
@@ -6320,6 +6367,91 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!1 &245476488
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 245476489}
+  - component: {fileID: 245476490}
+  m_Layer: 0
+  m_Name: BoardGenerator3
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &245476489
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 245476488}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 103989286}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &245476490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 245476488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b79ebb65f1ce18345b08a5d3b3d9d8ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  generateMode: 1
+  csvFile: {fileID: 4900000, guid: 71fd7f23f6608f24fb1060c925c587e4, type: 3}
+  boardPrefab: {fileID: 2184562113649876707, guid: f71ead151aff1ee448054272a0782aab, type: 3}
+  boardStagePrefab: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+  spawnPositions:
+  - {x: 36, y: 6.1, z: 10}
+  - {x: 36, y: 6.1, z: 8}
+  - {x: 36, y: 6.1, z: 6}
+  - {x: 36, y: 6.1, z: 4}
+  - {x: 36, y: 6.1, z: 2}
+  - {x: 36, y: 6.1, z: 0}
+  - {x: 36, y: 6.1, z: -2}
+  - {x: 36, y: 6.1, z: -4}
+  - {x: 36, y: 6.1, z: -6}
+  - {x: 36, y: 6.1, z: -8}
+  - {x: 36, y: 6.1, z: -10}
+  - {x: 44, y: 6.1, z: 10}
+  - {x: 44, y: 6.1, z: 8}
+  - {x: 44, y: 6.1, z: 6}
+  - {x: 44, y: 6.1, z: 4}
+  - {x: 44, y: 6.1, z: 2}
+  - {x: 44, y: 6.1, z: 0}
+  - {x: 44, y: 6.1, z: -2}
+  - {x: 44, y: 6.1, z: -4}
+  - {x: 44, y: 6.1, z: -6}
+  - {x: 44, y: 6.1, z: -8}
+  - {x: 44, y: 6.1, z: -10}
+  boardsPerPoint: 3
+  boardRandomXRange: {x: 1.5, y: 7.35}
+  boardRandomYRange: {x: 0.0225, y: 0.0675}
+  boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
+  boardStageSizeX: 7.5
+  boardStageRandomYRange: {x: 0.05, y: 1}
+  boardStageSizeZ: 1.7
+  boardGapY: 0.05
+  parentTransform: {fileID: 313627106}
 --- !u!1 &247619495
 GameObject:
   m_ObjectHideFlags: 0
@@ -15090,6 +15222,91 @@ RectTransform:
   m_AnchoredPosition: {x: 50, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &503473285
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 503473286}
+  - component: {fileID: 503473287}
+  m_Layer: 0
+  m_Name: BoardGenerator4
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &503473286
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 503473285}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 103989286}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &503473287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 503473285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b79ebb65f1ce18345b08a5d3b3d9d8ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  generateMode: 1
+  csvFile: {fileID: 4900000, guid: 21ed192df2e760a408024fc6a61b324f, type: 3}
+  boardPrefab: {fileID: 2184562113649876707, guid: f71ead151aff1ee448054272a0782aab, type: 3}
+  boardStagePrefab: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+  spawnPositions:
+  - {x: 56, y: 6.1, z: 10}
+  - {x: 56, y: 6.1, z: 8}
+  - {x: 56, y: 6.1, z: 6}
+  - {x: 56, y: 6.1, z: 4}
+  - {x: 56, y: 6.1, z: 2}
+  - {x: 56, y: 6.1, z: 0}
+  - {x: 56, y: 6.1, z: -2}
+  - {x: 56, y: 6.1, z: -4}
+  - {x: 56, y: 6.1, z: -6}
+  - {x: 56, y: 6.1, z: -8}
+  - {x: 56, y: 6.1, z: -10}
+  - {x: 64, y: 6.1, z: 10}
+  - {x: 64, y: 6.1, z: 8}
+  - {x: 64, y: 6.1, z: 6}
+  - {x: 64, y: 6.1, z: 4}
+  - {x: 64, y: 6.1, z: 2}
+  - {x: 64, y: 6.1, z: 0}
+  - {x: 64, y: 6.1, z: -2}
+  - {x: 64, y: 6.1, z: -4}
+  - {x: 64, y: 6.1, z: -6}
+  - {x: 64, y: 6.1, z: -8}
+  - {x: 64, y: 6.1, z: -10}
+  boardsPerPoint: 3
+  boardRandomXRange: {x: 1.5, y: 7.35}
+  boardRandomYRange: {x: 0.0225, y: 0.0675}
+  boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
+  boardStageSizeX: 7.5
+  boardStageRandomYRange: {x: 0.05, y: 1}
+  boardStageSizeZ: 1.7
+  boardGapY: 0.05
+  parentTransform: {fileID: 313627106}
 --- !u!1 &503500315
 GameObject:
   m_ObjectHideFlags: 0
@@ -17668,6 +17885,11 @@ MonoBehaviour:
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
   maxCurrentAmpere: 100
+  interventionInitialCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 40
+  isInterventionCurrentHoldMode: 0
+  useBoundsWeightForInterventionBoards: 1
+  detachCurrentEpsilonAmpere: 0.01
   capacityDetachMarginKg: 0
   useRandomLiftFailure: 0
   liftFailureProbability: 0.05
@@ -17953,6 +18175,91 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!1 &601278784
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 601278785}
+  - component: {fileID: 601278786}
+  m_Layer: 0
+  m_Name: BoardGenerator2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &601278785
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 601278784}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 103989286}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &601278786
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 601278784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b79ebb65f1ce18345b08a5d3b3d9d8ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  generateMode: 1
+  csvFile: {fileID: 4900000, guid: 3cb9c1c854f6f7044827503ba8c4f1b6, type: 3}
+  boardPrefab: {fileID: 2184562113649876707, guid: f71ead151aff1ee448054272a0782aab, type: 3}
+  boardStagePrefab: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+  spawnPositions:
+  - {x: 16, y: 6.1, z: 10}
+  - {x: 16, y: 6.1, z: 8}
+  - {x: 16, y: 6.1, z: 6}
+  - {x: 16, y: 6.1, z: 4}
+  - {x: 16, y: 6.1, z: 2}
+  - {x: 16, y: 6.1, z: 0}
+  - {x: 16, y: 6.1, z: -2}
+  - {x: 16, y: 6.1, z: -4}
+  - {x: 16, y: 6.1, z: -6}
+  - {x: 16, y: 6.1, z: -8}
+  - {x: 16, y: 6.1, z: -10}
+  - {x: 24, y: 6.1, z: 10}
+  - {x: 24, y: 6.1, z: 8}
+  - {x: 24, y: 6.1, z: 6}
+  - {x: 24, y: 6.1, z: 4}
+  - {x: 24, y: 6.1, z: 2}
+  - {x: 24, y: 6.1, z: 0}
+  - {x: 24, y: 6.1, z: -2}
+  - {x: 24, y: 6.1, z: -4}
+  - {x: 24, y: 6.1, z: -6}
+  - {x: 24, y: 6.1, z: -8}
+  - {x: 24, y: 6.1, z: -10}
+  boardsPerPoint: 3
+  boardRandomXRange: {x: 1.5, y: 7.35}
+  boardRandomYRange: {x: 0.0225, y: 0.0675}
+  boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
+  boardStageSizeX: 7.5
+  boardStageRandomYRange: {x: 0.05, y: 1}
+  boardStageSizeZ: 1.7
+  boardGapY: 0.05
+  parentTransform: {fileID: 313627106}
 --- !u!1 &603533765
 GameObject:
   m_ObjectHideFlags: 0
@@ -24537,8 +24844,8 @@ MonoBehaviour:
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
-  minPlaceToTrackCycle: 5
-  maxPlaceToTrackCycle: 7
+  minPlaceToTrackCycle: 0
+  maxPlaceToTrackCycle: 1
   autoStopTexts:
   - {fileID: 728920136}
   - {fileID: 420226048}
@@ -30708,7 +31015,7 @@ Transform:
   m_GameObject: {fileID: 1044831562}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: -0.5, z: 0}
-  m_LocalScale: {x: 10, y: 6, z: 3}
+  m_LocalScale: {x: 8, y: 6, z: 2.5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1063817305}
@@ -31238,6 +31545,11 @@ MonoBehaviour:
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
   maxCurrentAmpere: 100
+  interventionInitialCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 40
+  isInterventionCurrentHoldMode: 0
+  useBoundsWeightForInterventionBoards: 1
+  detachCurrentEpsilonAmpere: 0.01
   capacityDetachMarginKg: 0
   useRandomLiftFailure: 0
   liftFailureProbability: 0.05
@@ -32730,17 +33042,83 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cranePositionMode: 0
   cranePositionCsv: {fileID: 4900000, guid: 131145c202ef33e4eb5095ac391e3745, type: 3}
-  cranePoseRanges: []
+  cranePoseRanges:
+  - errorType: 0
+    mainCraneLocalZ:
+      min: -2
+      max: 2
+    mainLifMagLocalX:
+      min: 0
+      max: 0
+    mainLifMagLocalY:
+      min: -1.5
+      max: -1
+  - errorType: 1
+    mainCraneLocalZ:
+      min: -6
+      max: 6
+    mainLifMagLocalX:
+      min: -0.2
+      max: 0.2
+    mainLifMagLocalY:
+      min: -2
+      max: -1
+  - errorType: 2
+    mainCraneLocalZ:
+      min: -8
+      max: -7
+    mainLifMagLocalX:
+      min: -0.1
+      max: 0.1
+    mainLifMagLocalY:
+      min: -4.8
+      max: -4.4
+  - errorType: 3
+    mainCraneLocalZ:
+      min: 7
+      max: 9
+    mainLifMagLocalX:
+      min: -0.1
+      max: 0.1
+    mainLifMagLocalY:
+      min: -3.8
+      max: -3.2
   platePrefab: {fileID: 2184562113649876707, guid: f71ead151aff1ee448054272a0782aab, type: 3}
   plateSizeMode: 0
   plateSizeCsv: {fileID: 4900000, guid: 7a9965be63f2f0c4493de7a6c0423086, type: 3}
-  plateSizeRanges: []
-  attachedPlateLocalPosition: {x: 0, y: -0.5, z: 0}
+  plateSizeRanges:
+  - errorType: 0
+    sizeRange:
+      min: {x: 1.5, y: 0.12, z: 4}
+      max: {x: 2.5, y: 0.18, z: 6}
+  - errorType: 1
+    sizeRange:
+      min: {x: 1.5, y: 0.12, z: 4}
+      max: {x: 2.5, y: 0.18, z: 6}
+  - errorType: 3
+    sizeRange:
+      min: {x: 2, y: 0.15, z: 5}
+      max: {x: 3, y: 0.2, z: 7}
+  attachedPlateLocalPosition: {x: 0, y: -1.565, z: 0}
   attachedPlateLocalEuler: {x: 0, y: 0, z: 0}
   humanPrefab: {fileID: 1593910168856557513, guid: 68351f07ebe98354d8e4baef315675d5, type: 3}
   humanPositionMode: 0
   humanPositionCsv: {fileID: 4900000, guid: a298ced3946439a49ac359f3f4b25690, type: 3}
-  humanPositionRanges: []
+  humanPositionRanges:
+  - errorType: 1
+    positionRange:
+      min: {x: -3, y: 0, z: -5}
+      max: {x: 3, y: 0, z: 5}
+    rotationYRange:
+      min: 0
+      max: 360
+  humanXOffsetsByCraneIndex:
+  - 0
+  - 20
+  - 40
+  - 60
+  - 80
+  - 100
   clearPreviousScenarioObjects: 1
 --- !u!4 &1123226830
 Transform:
@@ -38765,6 +39143,11 @@ MonoBehaviour:
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
   maxCurrentAmpere: 100
+  interventionInitialCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 40
+  isInterventionCurrentHoldMode: 0
+  useBoundsWeightForInterventionBoards: 1
+  detachCurrentEpsilonAmpere: 0.01
   capacityDetachMarginKg: 0
   useRandomLiftFailure: 0
   liftFailureProbability: 0.05
@@ -42893,6 +43276,11 @@ MonoBehaviour:
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
   maxCurrentAmpere: 100
+  interventionInitialCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 40
+  isInterventionCurrentHoldMode: 0
+  useBoundsWeightForInterventionBoards: 1
+  detachCurrentEpsilonAmpere: 0.01
   capacityDetachMarginKg: 0
   useRandomLiftFailure: 0
   liftFailureProbability: 0.05
@@ -45140,7 +45528,7 @@ MonoBehaviour:
   operationMode: 0
   singleCraneIndex: 0
   craneStatusScreen: {fileID: 1068331732}
-  interventionScenarioManager: {fileID: 0}
+  interventionScenarioManager: {fileID: 1123226829}
   inputMode: 1
   speedControlMode: 1
   speedControlUIButtons:
@@ -45764,7 +46152,7 @@ GameObject:
   - component: {fileID: 1626170394}
   - component: {fileID: 1626170393}
   m_Layer: 0
-  m_Name: BoardGenerator
+  m_Name: BoardGenerator1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -45830,13 +46218,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1626170392}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 17
+  m_Father: {fileID: 103989286}
+  m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1627023957
 GameObject:
@@ -46945,6 +47333,91 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1670168578}
   m_CullTransparentMesh: 1
+--- !u!1 &1672581709
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1672581710}
+  - component: {fileID: 1672581711}
+  m_Layer: 0
+  m_Name: BoardGenerator5
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1672581710
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1672581709}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 103989286}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1672581711
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1672581709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b79ebb65f1ce18345b08a5d3b3d9d8ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  generateMode: 1
+  csvFile: {fileID: 4900000, guid: 661ffe17159e9be41854e8ad4fe63858, type: 3}
+  boardPrefab: {fileID: 2184562113649876707, guid: f71ead151aff1ee448054272a0782aab, type: 3}
+  boardStagePrefab: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+  spawnPositions:
+  - {x: 76, y: 6.1, z: 10}
+  - {x: 76, y: 6.1, z: 8}
+  - {x: 76, y: 6.1, z: 6}
+  - {x: 76, y: 6.1, z: 4}
+  - {x: 76, y: 6.1, z: 2}
+  - {x: 76, y: 6.1, z: 0}
+  - {x: 76, y: 6.1, z: -2}
+  - {x: 76, y: 6.1, z: -4}
+  - {x: 76, y: 6.1, z: -6}
+  - {x: 76, y: 6.1, z: -8}
+  - {x: 76, y: 6.1, z: -10}
+  - {x: 84, y: 6.1, z: 10}
+  - {x: 84, y: 6.1, z: 8}
+  - {x: 84, y: 6.1, z: 6}
+  - {x: 84, y: 6.1, z: 4}
+  - {x: 84, y: 6.1, z: 2}
+  - {x: 84, y: 6.1, z: 0}
+  - {x: 84, y: 6.1, z: -2}
+  - {x: 84, y: 6.1, z: -4}
+  - {x: 84, y: 6.1, z: -6}
+  - {x: 84, y: 6.1, z: -8}
+  - {x: 84, y: 6.1, z: -10}
+  boardsPerPoint: 3
+  boardRandomXRange: {x: 1.5, y: 7.35}
+  boardRandomYRange: {x: 0.0225, y: 0.0675}
+  boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
+  boardStageSizeX: 7.5
+  boardStageRandomYRange: {x: 0.05, y: 1}
+  boardStageSizeZ: 1.7
+  boardGapY: 0.05
+  parentTransform: {fileID: 313627106}
 --- !u!1 &1680948911
 GameObject:
   m_ObjectHideFlags: 0
@@ -52842,7 +53315,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1917297486
 Transform:
   m_ObjectHideFlags: 0
@@ -53737,6 +54210,91 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1948255424}
   m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1948986914
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1948986915}
+  - component: {fileID: 1948986916}
+  m_Layer: 0
+  m_Name: BoardGenerator6
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1948986915
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1948986914}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 103989286}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1948986916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1948986914}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b79ebb65f1ce18345b08a5d3b3d9d8ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  generateMode: 1
+  csvFile: {fileID: 4900000, guid: 22da77a0cdf3e9b47be2f76742686c7d, type: 3}
+  boardPrefab: {fileID: 2184562113649876707, guid: f71ead151aff1ee448054272a0782aab, type: 3}
+  boardStagePrefab: {fileID: 5831165723184935169, guid: 2d9069cf81020094088a3965f2d18986, type: 3}
+  spawnPositions:
+  - {x: 96, y: 6.1, z: 10}
+  - {x: 96, y: 6.1, z: 8}
+  - {x: 96, y: 6.1, z: 6}
+  - {x: 96, y: 6.1, z: 4}
+  - {x: 96, y: 6.1, z: 2}
+  - {x: 96, y: 6.1, z: 0}
+  - {x: 96, y: 6.1, z: -2}
+  - {x: 96, y: 6.1, z: -4}
+  - {x: 96, y: 6.1, z: -6}
+  - {x: 96, y: 6.1, z: -8}
+  - {x: 96, y: 6.1, z: -10}
+  - {x: 104, y: 6.1, z: 10}
+  - {x: 104, y: 6.1, z: 8}
+  - {x: 104, y: 6.1, z: 6}
+  - {x: 104, y: 6.1, z: 4}
+  - {x: 104, y: 6.1, z: 2}
+  - {x: 104, y: 6.1, z: 0}
+  - {x: 104, y: 6.1, z: -2}
+  - {x: 104, y: 6.1, z: -4}
+  - {x: 104, y: 6.1, z: -6}
+  - {x: 104, y: 6.1, z: -8}
+  - {x: 104, y: 6.1, z: -10}
+  boardsPerPoint: 3
+  boardRandomXRange: {x: 1.5, y: 7.35}
+  boardRandomYRange: {x: 0.0225, y: 0.0675}
+  boardRandomZRange: {x: 0.5, y: 1.65}
+  boardDensity: 7850
+  roundRandomBoardSize: 1
+  boardXDecimalDigits: 1
+  boardYDecimalDigits: 4
+  boardZDecimalDigits: 1
+  boardStageSizeX: 7.5
+  boardStageRandomYRange: {x: 0.05, y: 1}
+  boardStageSizeZ: 1.7
+  boardGapY: 0.05
+  parentTransform: {fileID: 313627106}
 --- !u!1 &1949393909
 GameObject:
   m_ObjectHideFlags: 0

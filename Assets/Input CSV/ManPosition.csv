@@ -1,4 +1,11 @@
 errorType,x,y,z,rotY
-ErrorA,1.0,0.0,-3.0,90
-ErrorA,-1.5,0.0,2.0,180
-ErrorA,2.0,0.0,1.0,270
+ErrorA,4,6,1,0
+ErrorA,4,6,-1,0
+ErrorA,4,6,3,0
+ErrorA,-4,6,-3,0
+ErrorA,-4,6,5,0
+ErrorA,-4,6,-5,0
+ErrorA,4,6,7,0
+ErrorA,4,6,-7,0
+ErrorA,-4,6,9,0
+ErrorA,-4,6,-9,0

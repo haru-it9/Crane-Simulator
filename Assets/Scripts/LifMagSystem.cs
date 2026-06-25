@@ -43,11 +43,29 @@ public class LifMagSystem : MonoBehaviour
 
     [Header("入力値モード：電流値表示")]
     [SerializeField] private float maxCurrentAmpere = 100f;
+    [Header("介入開始時の仮想保持電流")]
+    [SerializeField] private float interventionInitialCurrentAmpere = 40f;
+
+    [Tooltip("介入開始時、スライダー電流がこの値以上になったら通常のスライダー制御に移行する")]
+    [SerializeField] private float interventionReleaseCurrentAmpere = 40f;
+
+    [Tooltip("介入開始時の仮想保持電流モード中かどうか")]
+    [SerializeField] private bool isInterventionCurrentHoldMode = false;
 
     public float CurrentSliderInput01 { get; private set; }
     public float CurrentElectricCurrentA { get; private set; }
     public float CurrentLiftCapacityKg { get; private set; }
     public float CurrentAttachedWeightKg { get; private set; }
+
+    public float CurrentRequiredCurrentA { get; private set; }
+
+    [Header("強制吸着板の重量・必要電流")]
+    [SerializeField] private bool useBoundsWeightForInterventionBoards = true;
+
+    [SerializeField] private float detachCurrentEpsilonAmpere = 0.01f;
+
+    private readonly HashSet<GameObject> interventionForcedAttachedBoards =
+        new HashSet<GameObject>();
 
     public bool IsInputValueLiftMode =>
         liftJudgementMode == LiftJudgementMode.CurrentSliderInputByWeight;
@@ -231,12 +249,36 @@ public class LifMagSystem : MonoBehaviour
         
         bool currentOn = IsAnyLifMagCurrentOn();
 
-        // 電流ONが1つもなければ判定しない
         if (!currentOn)
         {
+            // 現在入力値モードで板を保持している場合、
+            // 電流ONが1つもなければ保持不能として解除する
+            if (liftJudgementMode == LiftJudgementMode.CurrentSliderInputByWeight &&
+                HasAttachedBoard)
+            {
+                float attachedWeightKg = GetAttachedTotalWeightKg();
+                float requiredCurrentA = GetRequiredCurrentAmpereForWeight(attachedWeightKg);
+
+                Debug.LogWarning(
+                    $"リフマグ電流OFFのため吸着解除: " +
+                    $"requiredCurrent={requiredCurrentA:F1} A, " +
+                    $"attachedWeight={attachedWeightKg:F1} kg"
+                );
+
+                DetachAll();
+            }
+
             isAttachAccumulating = false;
             sliderAccumulatedValue = 0f;
             sliderSampleTimer = 0f;
+            isInterventionCurrentHoldMode = false;
+
+            CurrentSliderInput01 = 0f;
+            CurrentElectricCurrentA = 0f;
+            CurrentLiftCapacityKg = 0f;
+            CurrentAttachedWeightKg = 0f;
+            CurrentRequiredCurrentA = 0f;
+
             return;
         }
 
@@ -329,15 +371,53 @@ public class LifMagSystem : MonoBehaviour
     private void HandleCurrentInputByWeightAttach()
     {
         float currentInput01 = GetCurrentSliderInput01();
+        float sliderCurrentA = currentInput01 * maxCurrentAmpere;
+
+        // ================================
+        // 介入開始時の仮想保持電流モード
+        // ================================
+        if (isInterventionCurrentHoldMode)
+        {
+            if (sliderCurrentA >= interventionReleaseCurrentAmpere)
+            {
+                isInterventionCurrentHoldMode = false;
+
+                Debug.Log(
+                    $"介入開始時の仮想保持電流モードを解除: " +
+                    $"sliderCurrent={sliderCurrentA:F1} A, " +
+                    $"releaseThreshold={interventionReleaseCurrentAmpere:F1} A"
+                );
+            }
+            else
+            {
+                // まだスライダーが40A相当まで入っていないので、
+                // 板は保持したまま、通常の重量判定は行わない。
+                return;
+            }
+        }
+
         float liftCapacityKg = GetCurrentLiftCapacityKg(currentInput01);
         float attachedWeightKg = GetAttachedTotalWeightKg();
 
-        // すでに保持している板の重量を支えられなくなったら離脱
-        if (HasAttachedBoard && liftCapacityKg + capacityDetachMarginKg < attachedWeightKg)
+        CurrentAttachedWeightKg = attachedWeightKg;
+        CurrentLiftCapacityKg = liftCapacityKg;
+        CurrentElectricCurrentA = sliderCurrentA;
+        CurrentSliderInput01 = currentInput01;
+        CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(attachedWeightKg);
+
+        // ================================
+        // 表示電流値による強制吸着板の解除判定
+        // ================================
+        if (ShouldDetachByCurrent(
+            sliderCurrentA,
+            attachedWeightKg,
+            out float requiredCurrentA
+        ))
         {
             Debug.LogWarning(
-                $"つり上げ能力不足のため離脱: " +
-                $"input={currentInput01:F3}, " +
+                $"表示電流値が必要電流値を下回ったため吸着解除: " +
+                $"displayCurrent={sliderCurrentA:F1} A, " +
+                $"requiredCurrent={requiredCurrentA:F1} A, " +
                 $"capacity={liftCapacityKg:F1} kg, " +
                 $"attachedWeight={attachedWeightKg:F1} kg"
             );
@@ -347,6 +427,13 @@ public class LifMagSystem : MonoBehaviour
             isAttachAccumulating = false;
             sliderAccumulatedValue = 0f;
             sliderSampleTimer = 0f;
+            isInterventionCurrentHoldMode = false;
+
+            CurrentSliderInput01 = 0f;
+            CurrentElectricCurrentA = 0f;
+            CurrentLiftCapacityKg = 0f;
+            CurrentAttachedWeightKg = 0f;
+            CurrentRequiredCurrentA = 0f;
 
             return;
         }
@@ -366,6 +453,8 @@ public class LifMagSystem : MonoBehaviour
         {
             Debug.Log(
                 $"現在入力値モード：能力不足のため追加吸着不可, " +
+                $"current={sliderCurrentA:F1} A, " +
+                $"requiredCurrent={CurrentRequiredCurrentA:F1} A, " +
                 $"input={currentInput01:F3}, " +
                 $"capacity={liftCapacityKg:F1} kg, " +
                 $"attached={attachedWeightKg:F1} kg, " +
@@ -383,6 +472,8 @@ public class LifMagSystem : MonoBehaviour
         {
             Debug.Log(
                 $"現在入力値モード：吸着成功, " +
+                $"current={sliderCurrentA:F1} A, " +
+                $"requiredCurrent={CurrentRequiredCurrentA:F1} A, " +
                 $"input={currentInput01:F3}, " +
                 $"capacity={liftCapacityKg:F1} kg, " +
                 $"attachedBefore={attachedWeightKg:F1} kg, " +
@@ -421,6 +512,51 @@ public class LifMagSystem : MonoBehaviour
         );
     }
 
+    private float GetRequiredCurrentAmpereForWeight(float weightKg)
+    {
+        if (weightKg <= 0f)
+        {
+            return 0f;
+        }
+
+        if (maxLiftCapacityKg <= minLiftCapacityKg)
+        {
+            return maxCurrentAmpere;
+        }
+
+        // capacityDetachMarginKg がある場合は、その分だけ余裕を見た判定にする
+        float requiredCapacityKg = Mathf.Max(0f, weightKg - capacityDetachMarginKg);
+
+        float requiredInput01 =
+            (requiredCapacityKg - minLiftCapacityKg) /
+            (maxLiftCapacityKg - minLiftCapacityKg);
+
+        // ここではあえて Clamp01 しない
+        // 板が重すぎる場合、100Aを超える必要電流として表示できるようにする
+        return Mathf.Max(0f, requiredInput01 * maxCurrentAmpere);
+    }
+
+    private bool ShouldDetachByCurrent(
+        float displayedCurrentA,
+        float attachedWeightKg,
+        out float requiredCurrentA
+    )
+    {
+        requiredCurrentA = GetRequiredCurrentAmpereForWeight(attachedWeightKg);
+
+        if (!HasAttachedBoard)
+        {
+            return false;
+        }
+
+        if (attachedWeightKg <= 0f)
+        {
+            return false;
+        }
+
+        return displayedCurrentA + detachCurrentEpsilonAmpere < requiredCurrentA;
+    }
+
     private void UpdateCurrentInputDisplayValues()
     {
         if (!IsInputValueLiftMode)
@@ -442,10 +578,29 @@ public class LifMagSystem : MonoBehaviour
             return;
         }
 
+        CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
+
+        // ================================
+        // 介入開始時の仮想保持電流表示
+        // ================================
+        // 厚板吸着状態で開始した直後は、
+        // スライダーが40A相当まで入力されるまでは表示を40Aで固定する。
+        if (isInterventionCurrentHoldMode)
+        {
+            float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maxCurrentAmpere);
+
+            CurrentSliderInput01 = fixedInput01;
+            CurrentElectricCurrentA = interventionInitialCurrentAmpere;
+            CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(fixedInput01);
+            CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(CurrentAttachedWeightKg);
+
+            return;
+        }
+
         CurrentSliderInput01 = GetCurrentSliderInput01();
         CurrentElectricCurrentA = CurrentSliderInput01 * maxCurrentAmpere;
         CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(CurrentSliderInput01);
-        CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
+        CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(CurrentAttachedWeightKg);
     }
 
     private float GetAttachedTotalWeightKg()
@@ -462,22 +617,70 @@ public class LifMagSystem : MonoBehaviour
         return totalWeightKg;
     }
 
+    public float GetAttachedTotalWeightKgForDisplay()
+    {
+        return GetAttachedTotalWeightKg();
+    }
+
+    public bool HasInterventionForcedAttachedBoard()
+    {
+        return interventionForcedAttachedBoards != null &&
+            interventionForcedAttachedBoards.Count > 0;
+    }
+
     private float GetBoardWeight(GameObject board)
     {
         if (board == null) return 0f;
 
+        // 介入開始時に生成・強制吸着した板は、
+        // CSVでサイズ変更されている可能性が高いので、
+        // BoardInfoよりも実際のCollider boundsを優先する
+        if (useBoundsWeightForInterventionBoards &&
+            interventionForcedAttachedBoards.Contains(board))
+        {
+            float boundsWeight = GetBoardWeightFromBounds(board);
+
+            if (boundsWeight > 0f)
+            {
+                return boundsWeight;
+            }
+        }
+
         BoardInfo boardInfo = board.GetComponent<BoardInfo>();
 
-        if (boardInfo != null)
+        if (boardInfo != null && boardInfo.Weight > 0f)
         {
             return boardInfo.Weight;
         }
+
+        return GetBoardWeightFromBounds(board);
+    }
+
+    private float GetBoardWeightFromBounds(GameObject board)
+    {
+        if (board == null) return 0f;
 
         Collider col = board.GetComponent<Collider>();
 
         if (col == null)
         {
-            return 0f;
+            Collider[] childColliders = board.GetComponentsInChildren<Collider>();
+
+            if (childColliders == null || childColliders.Length == 0)
+            {
+                return 0f;
+            }
+
+            Bounds bounds = childColliders[0].bounds;
+
+            for (int i = 1; i < childColliders.Length; i++)
+            {
+                bounds.Encapsulate(childColliders[i].bounds);
+            }
+
+            Vector3 childSize = bounds.size;
+            float childVolume = childSize.x * childSize.y * childSize.z;
+            return childVolume * boardDensity;
         }
 
         Bounds b = col.bounds;
@@ -812,6 +1015,16 @@ public class LifMagSystem : MonoBehaviour
         attachedRigidbodies.Clear();
         attachedHoldSensors.Clear();
 
+        interventionForcedAttachedBoards.Clear();
+
+        isInterventionCurrentHoldMode = false;
+
+        CurrentSliderInput01 = 0f;
+        CurrentElectricCurrentA = 0f;
+        CurrentLiftCapacityKg = 0f;
+        CurrentAttachedWeightKg = 0f;
+        CurrentRequiredCurrentA = 0f;
+
         Debug.Log("全板を解除しました");
     }
 
@@ -1023,6 +1236,11 @@ public class LifMagSystem : MonoBehaviour
             attachedBoards.Add(board);
         }
 
+        if (!interventionForcedAttachedBoards.Contains(board))
+        {
+            interventionForcedAttachedBoards.Add(board);
+        }
+
         if (rb != null && !attachedRigidbodies.Contains(rb))
         {
             attachedRigidbodies.Add(rb);
@@ -1049,7 +1267,24 @@ public class LifMagSystem : MonoBehaviour
         sliderSampleTimer = 0f;
         lastAttachTime = Time.time;
 
-        Debug.Log($"介入開始用に強制吸着状態へ設定: {board.name}");
+        // 介入開始時に厚板を吸着している場合は、
+        // まず仮想保持電流表示モードに入る
+        isInterventionCurrentHoldMode = true;
+
+        float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maxCurrentAmpere);
+        CurrentSliderInput01 = fixedInput01;
+        CurrentElectricCurrentA = interventionInitialCurrentAmpere;
+        CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(fixedInput01);
+        CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
+        CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(CurrentAttachedWeightKg);
+
+        Debug.Log(
+            $"介入開始用に強制吸着状態へ設定: {board.name}, " +
+            $"initialCurrent={interventionInitialCurrentAmpere:F1} A, " +
+            $"releaseCurrent={interventionReleaseCurrentAmpere:F1} A, " +
+            $"attachedWeight={CurrentAttachedWeightKg:F1} kg" +
+            $"requiredCurrent={CurrentRequiredCurrentA:F1} A"
+        );
     }
 
     public void ForceDetachAllForIntervention()
@@ -1073,6 +1308,16 @@ public class LifMagSystem : MonoBehaviour
         isAttachAccumulating = false;
         sliderAccumulatedValue = 0f;
         sliderSampleTimer = 0f;
+
+        isInterventionCurrentHoldMode = false;
+
+        interventionForcedAttachedBoards.Clear();
+
+        CurrentSliderInput01 = 0f;
+        CurrentElectricCurrentA = 0f;
+        CurrentLiftCapacityKg = 0f;
+        CurrentAttachedWeightKg = 0f;
+        CurrentRequiredCurrentA = 0f;
 
         Debug.Log("介入開始用に強制吸着解除状態へ設定");
     }

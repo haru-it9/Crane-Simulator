@@ -108,6 +108,9 @@ public class CraneInterventionScenarioManager : MonoBehaviour
     [SerializeField] private TextAsset humanPositionCsv;
     [SerializeField] private HumanPositionRangeSetting[] humanPositionRanges;
 
+    [Header("Human X Offset By Crane Index")]
+    [SerializeField] private float[] humanXOffsetsByCraneIndex;
+
     [Header("Option")]
     [SerializeField] private bool clearPreviousScenarioObjects = true;
 
@@ -135,6 +138,16 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         CraneStatusManager.ErrorType errorType
     )
     {
+        SetupInterventionState(craneUnit, phase, errorType, -1);
+    }
+
+    public void SetupInterventionState(
+        CraneUnit craneUnit,
+        CraneStatusManager.WorkPhase phase,
+        CraneStatusManager.ErrorType errorType,
+        int craneIndex
+    )
+    {
         if (craneUnit == null)
         {
             Debug.LogWarning("CraneUnit が null です");
@@ -157,10 +170,10 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         );
 
         SetupPlate(craneUnit, phase, errorType);
-        SetupHuman(errorType);
+        SetupHuman(errorType, craneIndex);
 
         Debug.Log(
-            $"介入開始状態を生成: Phase={phase}, Error={errorType}, " +
+            $"介入開始状態を生成: CraneIndex={craneIndex}, Phase={phase}, Error={errorType}, " +
             $"Z={cranePose.mainCraneLocalZ}, X={cranePose.mainLifMagLocalX}, Y={cranePose.mainLifMagLocalY}"
         );
     }
@@ -207,19 +220,98 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             return;
         }
 
-        Vector3 plateSize = GetRandomPlateSize(errorType);
+        // CSVまたは範囲指定から「目標サイズ」を取得
+        Vector3 targetPlateSize = GetRandomPlateSize(errorType);
 
         currentPlate = Instantiate(platePrefab);
-        currentPlate.transform.localScale = plateSize;
 
+        // まずリフマグに吸着させる
         craneUnit.SetInterventionBoardAttached(
             currentPlate,
             attachedPlateLocalPosition,
             attachedPlateLocalEuler
         );
+
+        // その後、CSVで指定された実サイズになるように拡大縮小する
+        ResizeObjectToWorldSize(currentPlate, targetPlateSize);
+
+        Debug.Log(
+            $"厚板サイズ設定: targetSize={targetPlateSize}, " +
+            $"actualBounds={GetObjectWorldBoundsSize(currentPlate)}"
+        );
     }
 
-    private void SetupHuman(CraneStatusManager.ErrorType errorType)
+    private void ResizeObjectToWorldSize(GameObject obj, Vector3 targetWorldSize)
+    {
+        if (obj == null) return;
+
+        Vector3 currentWorldSize = GetObjectWorldBoundsSize(obj);
+
+        if (currentWorldSize.x <= 0f ||
+            currentWorldSize.y <= 0f ||
+            currentWorldSize.z <= 0f)
+        {
+            Debug.LogWarning(
+                $"サイズ調整失敗: 現在サイズが不正です。currentWorldSize={currentWorldSize}"
+            );
+            return;
+        }
+
+        Vector3 currentLocalScale = obj.transform.localScale;
+
+        Vector3 scaleRatio = new Vector3(
+            targetWorldSize.x / currentWorldSize.x,
+            targetWorldSize.y / currentWorldSize.y,
+            targetWorldSize.z / currentWorldSize.z
+        );
+
+        obj.transform.localScale = new Vector3(
+            currentLocalScale.x * scaleRatio.x,
+            currentLocalScale.y * scaleRatio.y,
+            currentLocalScale.z * scaleRatio.z
+        );
+    }
+
+    private Vector3 GetObjectWorldBoundsSize(GameObject obj)
+    {
+        if (obj == null) return Vector3.zero;
+
+        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+
+        if (renderers != null && renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            return bounds.size;
+        }
+
+        Collider[] colliders = obj.GetComponentsInChildren<Collider>();
+
+        if (colliders != null && colliders.Length > 0)
+        {
+            Bounds bounds = colliders[0].bounds;
+
+            for (int i = 1; i < colliders.Length; i++)
+            {
+                bounds.Encapsulate(colliders[i].bounds);
+            }
+
+            return bounds.size;
+        }
+
+        Debug.LogWarning($"Renderer も Collider も見つかりません: {obj.name}");
+        return Vector3.zero;
+    }
+
+    private void SetupHuman(
+        CraneStatusManager.ErrorType errorType,
+        int craneIndex
+    )
     {
         if (errorType != CraneStatusManager.ErrorType.ErrorA)
         {
@@ -234,11 +326,38 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
         HumanPose humanPose = GetRandomHumanPose(errorType);
 
+        float xOffset = GetHumanXOffsetByCraneIndex(craneIndex);
+
+        Vector3 spawnPosition = humanPose.position;
+        spawnPosition.x += xOffset;
+
         currentHuman = Instantiate(
             humanPrefab,
-            humanPose.position,
+            spawnPosition,
             Quaternion.Euler(0f, humanPose.rotationY, 0f)
         );
+
+        Debug.Log(
+            $"人オブジェクト生成: CraneIndex={craneIndex}, " +
+            $"csvPosition={humanPose.position}, " +
+            $"xOffset={xOffset:F2}, " +
+            $"spawnPosition={spawnPosition}"
+        );
+    }
+
+    private float GetHumanXOffsetByCraneIndex(int craneIndex)
+    {
+        if (humanXOffsetsByCraneIndex == null)
+        {
+            return 0f;
+        }
+
+        if (craneIndex < 0 || craneIndex >= humanXOffsetsByCraneIndex.Length)
+        {
+            return 0f;
+        }
+
+        return humanXOffsetsByCraneIndex[craneIndex];
     }
 
     private bool ShouldAttachPlate(
