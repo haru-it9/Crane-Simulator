@@ -33119,6 +33119,25 @@ MonoBehaviour:
   - 60
   - 80
   - 100
+  trailerObjectsByCraneIndex:
+  - {fileID: 1044831562}
+  - {fileID: 1449890319}
+  - {fileID: 289084925}
+  - {fileID: 414596342}
+  - {fileID: 238945942}
+  - {fileID: 1345275977}
+  trailerPoseCsv: {fileID: 4900000, guid: 0d2d9e544a0599f4e890b682c1305fff, type: 3}
+  trailerXOffsetsByCraneIndex:
+  - 0
+  - 20
+  - 40
+  - 60
+  - 80
+  - 100
+  resizeTrailerByAttachedBoardSize: 1
+  trailerSizeMarginX: 0.5
+  trailerSizeMarginZ: 0.5
+  keepTrailerYSize: 1
   clearPreviousScenarioObjects: 1
 --- !u!4 &1123226830
 Transform:

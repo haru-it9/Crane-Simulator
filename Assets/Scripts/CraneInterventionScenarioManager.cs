@@ -87,6 +87,12 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         public float rotationY;
     }
 
+    private struct TrailerPose
+    {
+        public Vector3 position;
+        public float rotationY;
+    }
+
     [Header("Crane Position Random Mode")]
     [SerializeField] private RandomSourceMode cranePositionMode = RandomSourceMode.RandomRange;
     [SerializeField] private TextAsset cranePositionCsv;
@@ -111,6 +117,22 @@ public class CraneInterventionScenarioManager : MonoBehaviour
     [Header("Human X Offset By Crane Index")]
     [SerializeField] private float[] humanXOffsetsByCraneIndex;
 
+    [Header("Trailer")]
+    [SerializeField] private GameObject[] trailerObjectsByCraneIndex;
+    [SerializeField] private TextAsset trailerPoseCsv;
+
+    [Header("Trailer X Offset By Crane Index")]
+    [SerializeField] private float[] trailerXOffsetsByCraneIndex;
+
+    [Header("Trailer Size By Attached Board")]
+    [SerializeField] private bool resizeTrailerByAttachedBoardSize = true;
+
+    [SerializeField] private float trailerSizeMarginX = 0.5f;
+    [SerializeField] private float trailerSizeMarginZ = 0.5f;
+
+    [Tooltip("トレーラのY方向サイズは変えず、X/Zのみ変更する")]
+    [SerializeField] private bool keepTrailerYSize = true;
+
     [Header("Option")]
     [SerializeField] private bool clearPreviousScenarioObjects = true;
 
@@ -126,6 +148,13 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
     private readonly List<HumanPose> humanPoseCsvRows = new List<HumanPose>();
     private readonly List<CraneStatusManager.ErrorType> humanPoseCsvErrorTypes = new List<CraneStatusManager.ErrorType>();
+
+    private readonly List<TrailerPose> trailerPoseCsvRows = new List<TrailerPose>();
+    private readonly List<CraneStatusManager.ErrorType> trailerPoseCsvErrorTypes =
+        new List<CraneStatusManager.ErrorType>();
+
+    private Vector3 currentAttachedPlateTargetSize = Vector3.zero;
+    private GameObject currentTrailer;
 
     private void Awake()
     {
@@ -171,6 +200,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
         SetupPlate(craneUnit, phase, errorType);
         SetupHuman(errorType, craneIndex);
+        SetupTrailer(errorType, craneIndex);
 
         Debug.Log(
             $"介入開始状態を生成: CraneIndex={craneIndex}, Phase={phase}, Error={errorType}, " +
@@ -209,6 +239,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         // 吸着しない場合は、厚板を生成しない
         if (!shouldAttachPlate)
         {
+            currentAttachedPlateTargetSize = Vector3.zero;
             craneUnit.ClearInterventionBoardAttachment();
             return;
         }
@@ -222,6 +253,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
         // CSVまたは範囲指定から「目標サイズ」を取得
         Vector3 targetPlateSize = GetRandomPlateSize(errorType);
+        currentAttachedPlateTargetSize = targetPlateSize;
 
         currentPlate = Instantiate(platePrefab);
 
@@ -345,6 +377,70 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         );
     }
 
+    private void SetupTrailer(
+        CraneStatusManager.ErrorType errorType,
+        int craneIndex
+    )
+    {
+        // トレーラ配置は ErrorC のときだけ
+        if (errorType != CraneStatusManager.ErrorType.ErrorC)
+        {
+            currentTrailer = null;
+            return;
+        }
+
+        GameObject trailer = GetTrailerByCraneIndex(craneIndex);
+
+        if (trailer == null)
+        {
+            Debug.LogWarning($"CraneIndex={craneIndex} のトレーラが設定されていません");
+            return;
+        }
+
+        if (!TryGetRandomTrailerPoseFromCsv(errorType, out TrailerPose trailerPose))
+        {
+            Debug.LogWarning($"TrailerPose CSV に {errorType} の候補がありません");
+            return;
+        }
+
+        float xOffset = GetTrailerXOffsetByCraneIndex(craneIndex);
+
+        Vector3 spawnPosition = trailerPose.position;
+        spawnPosition.x += xOffset;
+
+        trailer.SetActive(true);
+        trailer.transform.position = spawnPosition;
+        trailer.transform.rotation = Quaternion.Euler(0f, trailerPose.rotationY, 0f);
+
+        currentTrailer = trailer;
+
+        if (resizeTrailerByAttachedBoardSize &&
+            currentAttachedPlateTargetSize.x > 0f &&
+            currentAttachedPlateTargetSize.z > 0f)
+        {
+            Vector3 targetTrailerSize = new Vector3(
+                currentAttachedPlateTargetSize.x + trailerSizeMarginX,
+                0f,
+                currentAttachedPlateTargetSize.z + trailerSizeMarginZ
+            );
+
+            ResizeObjectWorldXZ(
+                trailer,
+                targetTrailerSize,
+                keepTrailerYSize
+            );
+        }
+
+        Debug.Log(
+            $"トレーラ配置: CraneIndex={craneIndex}, " +
+            $"csvPosition={trailerPose.position}, " +
+            $"xOffset={xOffset:F2}, " +
+            $"finalPosition={spawnPosition}, " +
+            $"rotY={trailerPose.rotationY:F1}, " +
+            $"plateSize={currentAttachedPlateTargetSize}"
+        );
+    }
+
     private float GetHumanXOffsetByCraneIndex(int craneIndex)
     {
         if (humanXOffsetsByCraneIndex == null)
@@ -358,6 +454,33 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         }
 
         return humanXOffsetsByCraneIndex[craneIndex];
+    }
+
+    private GameObject GetTrailerByCraneIndex(int craneIndex)
+    {
+        if (trailerObjectsByCraneIndex == null) return null;
+
+        if (craneIndex < 0 || craneIndex >= trailerObjectsByCraneIndex.Length)
+        {
+            return null;
+        }
+
+        return trailerObjectsByCraneIndex[craneIndex];
+    }
+
+    private float GetTrailerXOffsetByCraneIndex(int craneIndex)
+    {
+        if (trailerXOffsetsByCraneIndex == null)
+        {
+            return 0f;
+        }
+
+        if (craneIndex < 0 || craneIndex >= trailerXOffsetsByCraneIndex.Length)
+        {
+            return 0f;
+        }
+
+        return trailerXOffsetsByCraneIndex[craneIndex];
     }
 
     private bool ShouldAttachPlate(
@@ -572,6 +695,43 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         return false;
     }
 
+    private bool TryGetRandomTrailerPoseFromCsv(
+        CraneStatusManager.ErrorType errorType,
+        out TrailerPose result
+    )
+    {
+        List<TrailerPose> candidates = new List<TrailerPose>();
+
+        for (int i = 0; i < trailerPoseCsvRows.Count; i++)
+        {
+            if (trailerPoseCsvErrorTypes[i] == errorType)
+            {
+                candidates.Add(trailerPoseCsvRows[i]);
+            }
+        }
+
+        // ErrorCの候補がない場合、Noneを共通候補として使えるようにする
+        if (candidates.Count == 0)
+        {
+            for (int i = 0; i < trailerPoseCsvRows.Count; i++)
+            {
+                if (trailerPoseCsvErrorTypes[i] == CraneStatusManager.ErrorType.None)
+                {
+                    candidates.Add(trailerPoseCsvRows[i]);
+                }
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            result = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            return true;
+        }
+
+        result = default;
+        return false;
+    }
+
     private CranePoseRangeSetting FindCranePoseRange(CraneStatusManager.ErrorType errorType)
     {
         if (cranePoseRanges == null) return null;
@@ -638,6 +798,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         LoadCranePositionCsv();
         LoadPlateSizeCsv();
         LoadHumanPositionCsv();
+        LoadTrailerPoseCsv();
     }
 
     private void LoadCranePositionCsv()
@@ -736,6 +897,80 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             humanPoseCsvErrorTypes.Add(errorType);
             humanPoseCsvRows.Add(pose);
         }
+    }
+
+    private void LoadTrailerPoseCsv()
+    {
+        trailerPoseCsvRows.Clear();
+        trailerPoseCsvErrorTypes.Clear();
+
+        if (trailerPoseCsv == null) return;
+
+        string[] lines = trailerPoseCsv.text.Split('\n');
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string line = lines[i].Trim();
+            if (string.IsNullOrEmpty(line)) continue;
+
+            string[] cols = line.Split(',');
+            if (cols.Length < 5) continue;
+
+            CraneStatusManager.ErrorType errorType = ParseErrorType(cols[0]);
+
+            TrailerPose pose = new TrailerPose
+            {
+                position = new Vector3(
+                    ParseFloat(cols[1]),
+                    ParseFloat(cols[2]),
+                    ParseFloat(cols[3])
+                ),
+                rotationY = ParseFloat(cols[4])
+            };
+
+            trailerPoseCsvErrorTypes.Add(errorType);
+            trailerPoseCsvRows.Add(pose);
+        }
+
+        Debug.Log($"TrailerPose CSV 読み込み完了: {trailerPoseCsvRows.Count} 件");
+    }
+
+    private void ResizeObjectWorldXZ(
+        GameObject obj,
+        Vector3 targetWorldSizeXZ,
+        bool keepY
+    )
+    {
+        if (obj == null) return;
+
+        Vector3 currentWorldSize = GetObjectWorldBoundsSize(obj);
+
+        if (currentWorldSize.x <= 0f || currentWorldSize.z <= 0f)
+        {
+            Debug.LogWarning(
+                $"トレーラサイズ変更失敗: 現在サイズが不正です。size={currentWorldSize}"
+            );
+            return;
+        }
+
+        Vector3 currentLocalScale = obj.transform.localScale;
+
+        float scaleRatioX = targetWorldSizeXZ.x / currentWorldSize.x;
+        float scaleRatioZ = targetWorldSizeXZ.z / currentWorldSize.z;
+
+        float newScaleY = currentLocalScale.y;
+
+        obj.transform.localScale = new Vector3(
+            currentLocalScale.x * scaleRatioX,
+            keepY ? newScaleY : currentLocalScale.y,
+            currentLocalScale.z * scaleRatioZ
+        );
+
+        Debug.Log(
+            $"トレーラサイズ変更: targetXZ=({targetWorldSizeXZ.x:F2}, {targetWorldSizeXZ.z:F2}), " +
+            $"beforeBounds={currentWorldSize}, " +
+            $"afterBounds={GetObjectWorldBoundsSize(obj)}"
+        );
     }
 
     private float ParseFloat(string text)
