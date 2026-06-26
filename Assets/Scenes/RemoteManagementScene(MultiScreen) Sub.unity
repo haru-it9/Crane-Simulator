@@ -6452,6 +6452,8 @@ MonoBehaviour:
   boardStageSizeZ: 1.7
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
+  createContainerUnderThisObject: 1
+  containerName: GeneratedBoards
 --- !u!1 &247619495
 GameObject:
   m_ObjectHideFlags: 0
@@ -15307,6 +15309,8 @@ MonoBehaviour:
   boardStageSizeZ: 1.7
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
+  createContainerUnderThisObject: 1
+  containerName: GeneratedBoards
 --- !u!1 &503500315
 GameObject:
   m_ObjectHideFlags: 0
@@ -18260,6 +18264,8 @@ MonoBehaviour:
   boardStageSizeZ: 1.7
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
+  createContainerUnderThisObject: 1
+  containerName: GeneratedBoards
 --- !u!1 &603533765
 GameObject:
   m_ObjectHideFlags: 0
@@ -33134,10 +33140,18 @@ MonoBehaviour:
   - 60
   - 80
   - 100
-  resizeTrailerByAttachedBoardSize: 1
+  resizeTrailerByAttachedBoardSize: 0
   trailerSizeMarginX: 0.5
   trailerSizeMarginZ: 0.5
   keepTrailerYSize: 1
+  boardGeneratorsByCraneIndex:
+  - {fileID: 1626170393}
+  - {fileID: 601278786}
+  - {fileID: 245476490}
+  - {fileID: 503473287}
+  - {fileID: 1672581711}
+  - {fileID: 1948986916}
+  resetBoardsOnDone: 1
   clearPreviousScenarioObjects: 1
 --- !u!4 &1123226830
 Transform:
@@ -46230,6 +46244,8 @@ MonoBehaviour:
   boardStageSizeZ: 1.7
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
+  createContainerUnderThisObject: 1
+  containerName: GeneratedBoards
 --- !u!4 &1626170394
 Transform:
   m_ObjectHideFlags: 0
@@ -47437,6 +47453,8 @@ MonoBehaviour:
   boardStageSizeZ: 1.7
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
+  createContainerUnderThisObject: 1
+  containerName: GeneratedBoards
 --- !u!1 &1680948911
 GameObject:
   m_ObjectHideFlags: 0
@@ -54314,6 +54332,8 @@ MonoBehaviour:
   boardStageSizeZ: 1.7
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
+  createContainerUnderThisObject: 1
+  containerName: GeneratedBoards
 --- !u!1 &1949393909
 GameObject:
   m_ObjectHideFlags: 0

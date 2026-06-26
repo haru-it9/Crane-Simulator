@@ -93,6 +93,18 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         public float rotationY;
     }
 
+    private class InterventionScenarioState
+    {
+        public bool isInitialized;
+        public CraneUnit craneUnit;
+
+        public GameObject plate;
+        public GameObject human;
+        public GameObject trailer;
+
+        public Vector3 attachedPlateTargetSize;
+    }
+
     [Header("Crane Position Random Mode")]
     [SerializeField] private RandomSourceMode cranePositionMode = RandomSourceMode.RandomRange;
     [SerializeField] private TextAsset cranePositionCsv;
@@ -133,6 +145,11 @@ public class CraneInterventionScenarioManager : MonoBehaviour
     [Tooltip("トレーラのY方向サイズは変えず、X/Zのみ変更する")]
     [SerializeField] private bool keepTrailerYSize = true;
 
+    [Header("Board Generator By Crane Index")]
+    [SerializeField] private BoardGenerator[] boardGeneratorsByCraneIndex;
+
+    [SerializeField] private bool resetBoardsOnDone = true;
+
     [Header("Option")]
     [SerializeField] private bool clearPreviousScenarioObjects = true;
 
@@ -155,6 +172,11 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
     private Vector3 currentAttachedPlateTargetSize = Vector3.zero;
     private GameObject currentTrailer;
+
+    private readonly Dictionary<int, InterventionScenarioState> scenarioStates =
+        new Dictionary<int, InterventionScenarioState>();
+
+    private int currentScenarioCraneIndex = -1;
 
     private void Awake()
     {
@@ -183,12 +205,46 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             return;
         }
 
-        if (clearPreviousScenarioObjects)
+        currentScenarioCraneIndex = craneIndex;
+        currentCraneUnit = craneUnit;
+
+        // ================================
+        // すでにそのクレーンの介入状態がある場合
+        // ================================
+        if (scenarioStates.TryGetValue(craneIndex, out InterventionScenarioState existingState) &&
+            existingState != null &&
+            existingState.isInitialized)
         {
-            ClearCurrentScenarioObjects();
+            currentPlate = existingState.plate;
+            currentHuman = existingState.human;
+            currentTrailer = existingState.trailer;
+            currentAttachedPlateTargetSize = existingState.attachedPlateTargetSize;
+
+            Debug.Log(
+                $"既存の介入状態に復帰: CraneIndex={craneIndex}, " +
+                $"plate={(currentPlate != null ? currentPlate.name : "なし")}, " +
+                $"human={(currentHuman != null ? currentHuman.name : "なし")}, " +
+                $"trailer={(currentTrailer != null ? currentTrailer.name : "なし")}"
+            );
+
+            return;
         }
 
-        currentCraneUnit = craneUnit;
+        // ================================
+        // 初回選択時だけ新規生成
+        // ================================
+        InterventionScenarioState newState = new InterventionScenarioState
+        {
+            isInitialized = false,
+            craneUnit = craneUnit
+        };
+
+        scenarioStates[craneIndex] = newState;
+
+        currentPlate = null;
+        currentHuman = null;
+        currentTrailer = null;
+        currentAttachedPlateTargetSize = Vector3.zero;
 
         CranePose cranePose = GetRandomCranePose(errorType);
 
@@ -202,8 +258,14 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         SetupHuman(errorType, craneIndex);
         SetupTrailer(errorType, craneIndex);
 
+        newState.isInitialized = true;
+        newState.plate = currentPlate;
+        newState.human = currentHuman;
+        newState.trailer = currentTrailer;
+        newState.attachedPlateTargetSize = currentAttachedPlateTargetSize;
+
         Debug.Log(
-            $"介入開始状態を生成: CraneIndex={craneIndex}, Phase={phase}, Error={errorType}, " +
+            $"介入開始状態を新規生成: CraneIndex={craneIndex}, Phase={phase}, Error={errorType}, " +
             $"Z={cranePose.mainCraneLocalZ}, X={cranePose.mainLifMagLocalX}, Y={cranePose.mainLifMagLocalY}"
         );
     }
@@ -226,6 +288,77 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             Destroy(currentHuman);
             currentHuman = null;
         }
+    }
+
+    public void ClearScenarioByCraneIndex(int craneIndex)
+    {
+        if (!scenarioStates.TryGetValue(craneIndex, out InterventionScenarioState state))
+        {
+            Debug.Log($"削除対象の介入状態なし: CraneIndex={craneIndex}");
+
+            if (resetBoardsOnDone)
+            {
+                BoardGenerator generator = GetBoardGeneratorByCraneIndex(craneIndex);
+                if (generator != null)
+                {
+                    generator.ResetBoards();
+                }
+            }
+
+            return;
+        }
+
+        // 1. 吸着中の板を解除する
+        // BoardGenerator由来の板を把持している場合もあるため、先にLifMagSystem側をクリア
+        if (state.craneUnit != null)
+        {
+            state.craneUnit.ClearInterventionBoardAttachment();
+        }
+
+        // 2. 介入開始時に生成した強制吸着板を削除する
+        if (state.plate != null)
+        {
+            Destroy(state.plate);
+            state.plate = null;
+        }
+
+        // 3. 人オブジェクトを削除する
+        if (state.human != null)
+        {
+            Destroy(state.human);
+            state.human = null;
+        }
+
+        // 4. トレーラは既存オブジェクトなのでDestroyしない
+        state.trailer = null;
+
+        // 5. そのクレーンの板置き場を初期状態に戻す
+        if (resetBoardsOnDone)
+        {
+            BoardGenerator generator = GetBoardGeneratorByCraneIndex(craneIndex);
+
+            if (generator != null)
+            {
+                generator.ResetBoards();
+            }
+            else
+            {
+                Debug.LogWarning($"CraneIndex={craneIndex} の BoardGenerator が設定されていません");
+            }
+        }
+
+        scenarioStates.Remove(craneIndex);
+
+        if (currentScenarioCraneIndex == craneIndex)
+        {
+            currentScenarioCraneIndex = -1;
+            currentPlate = null;
+            currentHuman = null;
+            currentTrailer = null;
+            currentAttachedPlateTargetSize = Vector3.zero;
+        }
+
+        Debug.Log($"介入状態を削除し、板配置をリセット: CraneIndex={craneIndex}");
     }
 
     private void SetupPlate(
@@ -481,6 +614,21 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         }
 
         return trailerXOffsetsByCraneIndex[craneIndex];
+    }
+
+    private BoardGenerator GetBoardGeneratorByCraneIndex(int craneIndex)
+    {
+        if (boardGeneratorsByCraneIndex == null)
+        {
+            return null;
+        }
+
+        if (craneIndex < 0 || craneIndex >= boardGeneratorsByCraneIndex.Length)
+        {
+            return null;
+        }
+
+        return boardGeneratorsByCraneIndex[craneIndex];
     }
 
     private bool ShouldAttachPlate(

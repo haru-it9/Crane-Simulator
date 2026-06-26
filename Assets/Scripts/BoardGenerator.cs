@@ -52,6 +52,13 @@ public class BoardGenerator : MonoBehaviour
     [Header("生成先の親オブジェクト")]
     [SerializeField] private Transform parentTransform;
 
+    [Header("クレーン別の生成先コンテナ")]
+    [SerializeField] private bool createContainerUnderThisObject = true;
+    [SerializeField] private string containerName = "GeneratedBoards";
+
+    private Transform runtimeParentTransform;
+    private readonly List<GameObject> generatedObjects = new List<GameObject>();
+
     private class CsvBoardData
     {
         public int spawnIndex;
@@ -81,6 +88,10 @@ public class BoardGenerator : MonoBehaviour
             return;
         }
 
+        ClearGeneratedObjects();
+
+        GetSpawnParent();
+
         if (generateMode == GenerateMode.Random)
         {
             SpawnRandom();
@@ -90,7 +101,86 @@ public class BoardGenerator : MonoBehaviour
             SpawnFromCsv();
         }
 
-        Debug.Log("BoardStageと板の生成が完了しました。");
+        Debug.Log($"{name}: BoardStageと板の生成が完了しました。");
+    }
+
+    public void ResetBoards()
+    {
+        Debug.Log($"{name}: 板配置をリセットします");
+        SpawnBoardsWithStage();
+    }
+
+    public void ClearGeneratedObjects()
+    {
+        for (int i = generatedObjects.Count - 1; i >= 0; i--)
+        {
+            if (generatedObjects[i] != null)
+            {
+                SafeDestroy(generatedObjects[i]);
+            }
+        }
+
+        generatedObjects.Clear();
+
+        Transform spawnParent = GetSpawnParent();
+
+        if (spawnParent == null) return;
+
+        // 念のため、生成済みリストから外れている Board / BoardStage も削除
+        for (int i = spawnParent.childCount - 1; i >= 0; i--)
+        {
+            Transform child = spawnParent.GetChild(i);
+
+            if (child == null) continue;
+
+            if (child.name.StartsWith("Board_") ||
+                child.name.StartsWith("BoardStage_"))
+            {
+                SafeDestroy(child.gameObject);
+            }
+        }
+    }
+
+    private void SafeDestroy(GameObject obj)
+    {
+        if (obj == null) return;
+
+        if (Application.isPlaying)
+        {
+            Destroy(obj);
+        }
+        else
+        {
+            DestroyImmediate(obj);
+        }
+    }
+
+    private Transform GetSpawnParent()
+    {
+        if (!createContainerUnderThisObject)
+        {
+            return parentTransform;
+        }
+
+        if (runtimeParentTransform != null)
+        {
+            return runtimeParentTransform;
+        }
+
+        Transform existing = transform.Find(containerName);
+
+        if (existing != null)
+        {
+            runtimeParentTransform = existing;
+            return runtimeParentTransform;
+        }
+
+        GameObject container = new GameObject(containerName);
+        container.transform.SetParent(transform, false);
+
+        runtimeParentTransform = container.transform;
+
+        return runtimeParentTransform;
     }
 
     private void SpawnRandom()
@@ -186,11 +276,13 @@ public class BoardGenerator : MonoBehaviour
             boardStagePrefab,
             stageCenterPos,
             Quaternion.identity,
-            parentTransform
+            GetSpawnParent()
         );
 
         stage.transform.localScale = new Vector3(boardStageSizeX, stageY, boardStageSizeZ);
         stage.name = $"BoardStage_{index}";
+
+        generatedObjects.Add(stage);
 
         return stage;
     }
@@ -215,11 +307,12 @@ public class BoardGenerator : MonoBehaviour
             boardPrefab,
             boardPos,
             Quaternion.identity,
-            parentTransform
+            GetSpawnParent()
         );
 
         board.transform.localScale = new Vector3(boardX, boardY, boardZ);
         board.name = $"Board_{spawnIndex}_{boardIndex}";
+        generatedObjects.Add(board);
 
         BoardInfo boardInfo = board.GetComponent<BoardInfo>();
 

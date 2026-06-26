@@ -360,11 +360,12 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        // 介入開始時に生成した厚板・人オブジェクトを削除する
-        if (interventionScenarioManager != null)
-        {
-            interventionScenarioManager.ClearCurrentScenarioObjects();
-        }
+        // Waitingに戻るだけでは介入状態を消さない
+        // Doneを押したときだけ ClearScenarioByCraneIndex() で削除する
+        // if (interventionScenarioManager != null)
+        // {
+        //     interventionScenarioManager.ClearCurrentScenarioObjects();
+        // }
 
         currentCraneIndex = -1;
 
@@ -560,6 +561,11 @@ public class CraneOperationManager : MonoBehaviour
         {
             Debug.LogWarning("操作対象クレーンが未選択です");
             return;
+        }
+
+        if (interventionScenarioManager != null)
+        {
+            interventionScenarioManager.ClearScenarioByCraneIndex(currentCraneIndex);
         }
 
         craneStatusManager.CompleteErrorByCraneIndex(currentCraneIndex);
