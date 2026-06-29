@@ -45571,11 +45571,15 @@ MonoBehaviour:
   - {fileID: 148451223}
   - {fileID: 964589551}
   - {fileID: 924131503}
+  debugMode: 0
   joyStick2Horizontal: JoyStick2Horizontal
   joyStick2Vertical: JoyStick2Vertical
   joyStick3Vertical: JoyStick3Vertical
   joyStick2Trigger: JoyStick2Trigger
   joyStick3MiniVertical: JoyStick3MiniVertical
+  debugJoyStick2Horizontal: JoyStick1RightHorizontal
+  debugJoyStick2Vertical: JoyStick1RightVertical
+  debugJoyStick3Vertical: JoyStick1LeftVertical
   deadZone: 0.1
   cranes:
   - {fileID: 1378636666}
