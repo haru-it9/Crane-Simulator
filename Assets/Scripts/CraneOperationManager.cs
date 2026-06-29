@@ -57,12 +57,20 @@ public class CraneOperationManager : MonoBehaviour
     [Header("Speed Control UI Buttons")]
     [SerializeField] private GameObject[] speedControlUIButtons;
 
+    [Header("Debug Mode")]
+    [SerializeField] private bool debugMode = false;
+
     [Header("Joystick Axes")]
     [SerializeField] private string joyStick2Horizontal = "JoyStick2Horizontal";
     [SerializeField] private string joyStick2Vertical = "JoyStick2Vertical";
     [SerializeField] private string joyStick3Vertical = "JoyStick3Vertical";
     [SerializeField] private string joyStick2Trigger = "JoyStick2Trigger";
     [SerializeField] private string joyStick3MiniVertical = "JoyStick3MiniVertical";
+
+    [Header("Debug Joystick Axes")]
+    [SerializeField] private string debugJoyStick2Horizontal = "JoyStick1RightHorizontal";
+    [SerializeField] private string debugJoyStick2Vertical = "JoyStick1RightVertical";
+    [SerializeField] private string debugJoyStick3Vertical = "JoyStick1LeftVertical";
 
     [Header("Dead Zone")]
     [SerializeField] private float deadZone = 0.1f;
@@ -644,7 +652,7 @@ public class CraneOperationManager : MonoBehaviour
         }
         else
         {
-            return ApplyDeadZone(-Input.GetAxis(joyStick3Vertical));
+            return ApplyDeadZone(-Input.GetAxis(JoyStick3VerticalAxis));
         }
     }
 
@@ -659,7 +667,7 @@ public class CraneOperationManager : MonoBehaviour
         }
         else
         {
-            return ApplyDeadZone(Input.GetAxis(joyStick2Vertical));
+            return ApplyDeadZone(Input.GetAxis(JoyStick2VerticalAxis));
         }
     }
 
@@ -674,7 +682,31 @@ public class CraneOperationManager : MonoBehaviour
         }
         else
         {
-            return ApplyDeadZone(-Input.GetAxis(joyStick2Horizontal));
+            return ApplyDeadZone(-Input.GetAxis(JoyStick2HorizontalAxis));
+        }
+    }
+
+    private string JoyStick2HorizontalAxis
+    {
+        get
+        {
+            return debugMode ? debugJoyStick2Horizontal : joyStick2Horizontal;
+        }
+    }
+
+    private string JoyStick2VerticalAxis
+    {
+        get
+        {
+            return debugMode ? debugJoyStick2Vertical : joyStick2Vertical;
+        }
+    }
+
+    private string JoyStick3VerticalAxis
+    {
+        get
+        {
+            return debugMode ? debugJoyStick3Vertical : joyStick3Vertical;
         }
     }
 
