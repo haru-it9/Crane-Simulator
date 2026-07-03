@@ -24850,8 +24850,8 @@ MonoBehaviour:
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
-  minPlaceToTrackCycle: 0
-  maxPlaceToTrackCycle: 1
+  minPlaceToTrackCycle: 5
+  maxPlaceToTrackCycle: 7
   autoStopTexts:
   - {fileID: 728920136}
   - {fileID: 420226048}
@@ -24883,6 +24883,7 @@ MonoBehaviour:
   - {fileID: 1156617660}
   - {fileID: 1050012370}
   statusManagementEnabled: 1
+  waitForSimulatorStart: 1
   resetToAutoWhenDisabled: 1
 --- !u!4 &825525980
 Transform:
@@ -57412,6 +57413,7 @@ MonoBehaviour:
   cranePositionLogger: {fileID: 2080963384}
   tobiiGazeLogger: {fileID: 2080963385}
   workInformationLogger: {fileID: 2080963386}
+  craneStatusManager: {fileID: 825525979}
   fileNameInputField: {fileID: 682514084}
   operationUiRoots:
   - {fileID: 290997809}

@@ -100,6 +100,12 @@ public class CraneStatusManager : MonoBehaviour
     [Header("状態管理の有効/無効")]
     [SerializeField] private bool statusManagementEnabled = true;
 
+    [Header("SimulatorStartManagerのStart後に状態管理を開始する")]
+    [SerializeField] private bool waitForSimulatorStart = true;
+
+    private bool simulatorStarted = false;
+    private bool initialized = false;
+
     [Header("状態管理停止時に全クレーンを自動表示へ戻す")]
     [SerializeField] private bool resetToAutoWhenDisabled = true;
 
@@ -112,8 +118,11 @@ public class CraneStatusManager : MonoBehaviour
     private void Start()
     {
         InitializeCranes();
+        initialized = true;
 
-        if (statusManagementEnabled)
+        simulatorStarted = !waitForSimulatorStart;
+
+        if (statusManagementEnabled && simulatorStarted)
         {
             StartAllCranes();
         }
@@ -160,6 +169,31 @@ public class CraneStatusManager : MonoBehaviour
         }
     }
 
+    public void StartStatusManagementFromSimulator()
+    {
+        if (!initialized)
+        {
+            InitializeCranes();
+            initialized = true;
+        }
+
+        if (simulatorStarted)
+        {
+            return;
+        }
+
+        simulatorStarted = true;
+
+        if (statusManagementEnabled)
+        {
+            StartAllCranes();
+        }
+
+        UpdateStatusTexts();
+
+        Debug.Log("CraneStatusManager：シミュレータ開始後に状態管理を開始しました");
+    }
+
     private void StopAllCranes()
     {
         if (craneStates == null) return;
@@ -184,8 +218,15 @@ public class CraneStatusManager : MonoBehaviour
 
         if (statusManagementEnabled)
         {
-            StartAllCranes();
-            Debug.Log("CraneStatusManager：状態管理を再開しました");
+            if (simulatorStarted)
+            {
+                StartAllCranes();
+                Debug.Log("CraneStatusManager：状態管理を再開しました");
+            }
+            else
+            {
+                Debug.Log("CraneStatusManager：状態管理ON。ただしシミュレータ開始前なので待機中です");
+            }
         }
         else
         {

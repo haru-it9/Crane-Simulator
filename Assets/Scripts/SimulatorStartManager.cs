@@ -24,6 +24,9 @@ public class SimulatorStartManager : MonoBehaviour
     [Header("Work Information Logger")]
     [SerializeField] private WorkInformationCsvLogger workInformationLogger;
 
+    [Header("Crane Status Manager")]
+    [SerializeField] private CraneStatusManager craneStatusManager;
+
     [Header("CSVファイル名入力")]
     [SerializeField] private InputField fileNameInputField;
 
@@ -65,6 +68,11 @@ public class SimulatorStartManager : MonoBehaviour
 
         SetOperationUIInteractable(true);
 
+        if (craneStatusManager != null)
+        {
+            craneStatusManager.StartStatusManagementFromSimulator();
+        }
+
         if (inputLogger != null)
         {
             inputLogger.StartLogging(inputFileName);
@@ -103,6 +111,11 @@ public class SimulatorStartManager : MonoBehaviour
         }
 
         SetOperationUIInteractable(true);
+
+        if (craneStatusManager != null)
+        {
+            craneStatusManager.StartStatusManagementFromSimulator();
+        }
 
         Debug.Log("Debug：操作開始、CSV記録なし");
     }
