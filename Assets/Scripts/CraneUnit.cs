@@ -31,7 +31,7 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private int zSpeedIndex = 0;
 
     [Header("MainLifMag X Speed [m/min]")]
-    [SerializeField] private float[] mainLifMagXSpeeds = { 2.1f, 5.25f, 10.5f, 21f };
+    [SerializeField] private float[] mainLifMagXSpeeds = { 4.2f, 10.5f, 21f, 42f }; // 2.1f, 5.25f, 10.5f, 21f
     [SerializeField] private int mainLifMagXSpeedIndex = 0;
 
     [Header("MainLifMag Y Speed [m/min]")]

@@ -58,8 +58,8 @@ public class CraneInformationDisplay : MonoBehaviour
 
         Vector3 pos = targetTransform.position;
 
-        CurrentX = pos.x;
-        CurrentZ = pos.z;
+        CurrentX = pos.x + 20;
+        CurrentZ = pos.z * -1f + 50;
 
         if (xText != null)
         {

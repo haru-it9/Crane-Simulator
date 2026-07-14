@@ -43309,7 +43309,7 @@ MonoBehaviour:
   boardDensity: 7850
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 100
+  maxCurrentAmpere: 50
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
