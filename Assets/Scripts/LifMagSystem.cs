@@ -21,7 +21,7 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private KeyCode detachKey = KeyCode.R;
     [SerializeField] private string joyStick2RedButton = "JoyStick2RedButton";
     [SerializeField] private string joyStick2BlackButton = "JoyStick2BlackButton";
-    [SerializeField] private string joyStick2Slider = "JoyStick2Slider";
+    [SerializeField] private string joyStick2Slider = "JoyStick1LeftSlider";
 
     [Header("吸着に必要な最小接触数")]
     [SerializeField] private int requiredMagnetCount = 1;
@@ -42,7 +42,7 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float maxLiftCapacityKg = 25000f;
 
     [Header("入力値モード：電流値表示")]
-    [SerializeField] private float maxCurrentAmpere = 100f;
+    [SerializeField] private float maxCurrentAmpere = 50f;
     [Header("介入開始時の仮想保持電流")]
     [SerializeField] private float interventionInitialCurrentAmpere = 40f;
 
@@ -494,13 +494,15 @@ public class LifMagSystem : MonoBehaviour
         }
 
         // 既存仕様に合わせて、-0.8 ～ -1.0 は入力なし扱い
-        if (sliderValue <= -0.8f)
+        if (sliderValue < 0f)
         {
             return 0f;
         }
 
+        return Mathf.Clamp01(sliderValue);
+
         // -0.8 を 0、1.0 を 1 として正規化
-        return Mathf.InverseLerp(-0.8f, 1.0f, sliderValue);
+        //return Mathf.InverseLerp(0f, 1.0f, sliderValue);
     }
 
     private float GetCurrentLiftCapacityKg(float currentInput01)

@@ -250,7 +250,7 @@ MonoBehaviour:
   axis2: JoyStick2Vertical
   axis3: JoyStick3Horizontal
   axis4: JoyStick3Vertical
-  axis5: JoyStick2Slider
+  axis5: JoyStick1LeftSlider
   logThreshold: 0.01
 --- !u!4 &645818845
 Transform:

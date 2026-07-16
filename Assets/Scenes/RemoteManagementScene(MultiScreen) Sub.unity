@@ -398,7 +398,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -90}
+  m_AnchoredPosition: {x: 0, y: -100}
   m_SizeDelta: {x: 1500, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14138010
@@ -4619,7 +4619,7 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
-  joyStick2Slider: JoyStick3Slider
+  joyStick2Slider: JoyStick1LeftSlider
   requiredMagnetCount: 1
   liftJudgementMode: 1
   sliderSampleInterval: 0.3
@@ -4628,7 +4628,7 @@ MonoBehaviour:
   boardDensity: 7850
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 100
+  maxCurrentAmpere: 50
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -5852,7 +5852,7 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
-  joyStick2Slider: JoyStick3Slider
+  joyStick2Slider: JoyStick1LeftSlider
   requiredMagnetCount: 1
   liftJudgementMode: 1
   sliderSampleInterval: 0.3
@@ -5861,7 +5861,7 @@ MonoBehaviour:
   boardDensity: 7850
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 100
+  maxCurrentAmpere: 50
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -17879,7 +17879,7 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
-  joyStick2Slider: JoyStick3Slider
+  joyStick2Slider: JoyStick1LeftSlider
   requiredMagnetCount: 1
   liftJudgementMode: 1
   sliderSampleInterval: 0.3
@@ -31542,7 +31542,7 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
-  joyStick2Slider: JoyStick3Slider
+  joyStick2Slider: JoyStick1LeftSlider
   requiredMagnetCount: 1
   liftJudgementMode: 1
   sliderSampleInterval: 0.3
@@ -31551,7 +31551,7 @@ MonoBehaviour:
   boardDensity: 7850
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 100
+  maxCurrentAmpere: 50
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -39167,7 +39167,7 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
-  joyStick2Slider: JoyStick3Slider
+  joyStick2Slider: JoyStick1LeftSlider
   requiredMagnetCount: 1
   liftJudgementMode: 1
   sliderSampleInterval: 0.3
@@ -39176,7 +39176,7 @@ MonoBehaviour:
   boardDensity: 7850
   minLiftCapacityKg: 0
   maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 100
+  maxCurrentAmpere: 50
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -43300,7 +43300,7 @@ MonoBehaviour:
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
   joyStick2BlackButton: JoyStick2BlackButton
-  joyStick2Slider: JoyStick3Slider
+  joyStick2Slider: JoyStick1LeftSlider
   requiredMagnetCount: 1
   liftJudgementMode: 1
   sliderSampleInterval: 0.3
