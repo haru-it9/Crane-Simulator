@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class DisplayLayoutManager : MonoBehaviour
 {
@@ -9,159 +10,307 @@ public class DisplayLayoutManager : MonoBehaviour
         SingleDisplay
     }
 
-    [System.Serializable]
-    public class CameraLayoutSetting
+    public enum CameraNameMatchMode
     {
-        [Header("対象カメラ")]
-        public Camera targetCamera;
-
-        [Header("複数画面モード")]
-        [Tooltip("0 = Display 1、1 = Display 2")]
-        [Min(0)]
-        public int multiTargetDisplay = 0;
-
-        public Rect multiViewportRect =
-            new Rect(0f, 0f, 1f, 1f);
-
-        [Header("単一画面モード")]
-        public Rect singleViewportRect =
-            new Rect(0f, 0f, 1f, 1f);
+        Exact,
+        StartsWith,
+        Contains
     }
 
+    [Serializable]
+    public class CameraLayoutRule
+    {
+        [Header("カメラ名の検索条件")]
+        [Tooltip("Cameraコンポーネントが付いているGameObjectの名前を指定します。")]
+        public string cameraName = "Camera";
+
+        [Tooltip("完全一致、前方一致、部分一致から選択します。")]
+        public CameraNameMatchMode nameMatchMode = CameraNameMatchMode.Exact;
+
+        [Header("複数画面モード")]
+        [Tooltip("複数画面モードで、この種類のCameraを描画するかどうかです。")]
+        public bool enableInMultiDisplay = true;
+
+        [Tooltip("0 = Display 1、1 = Display 2、...、6 = Display 7")]
+        [Range(0, 7)]
+        public int multiTargetDisplay = 0;
+
+        [Tooltip("複数画面モードでのViewport Rectです。")]
+        public Rect multiViewportRect = new Rect(0f, 0f, 1f, 1f);
+
+        [Header("単一画面モード")]
+        [Tooltip("単一画面モードで、この種類のCameraを描画するかどうかです。")]
+        public bool enableInSingleDisplay = true;
+
+        [Tooltip("単一画面モードでのDisplay 1上のViewport Rectです。")]
+        public Rect singleViewportRect = new Rect(0f, 0f, 1f, 1f);
+    }
+
+    [Header("カメラ名ごとのレイアウト設定")]
+    [Tooltip("上から順に照合し、最初に一致したルールを適用します。")]
+    [SerializeField]
+    private CameraLayoutRule[] cameraLayoutRules = new CameraLayoutRule[0];
+
+    [Header("モード別UI")]
+    [Tooltip("複数画面モードのときだけ表示するUIを登録します。")]
+    [SerializeField]
+    private GameObject[] multiDisplayUIObjects = new GameObject[0];
+
+    [Tooltip("単一画面モードのときだけ表示するUIを登録します。")]
+    [SerializeField]
+    private GameObject[] singleDisplayUIObjects = new GameObject[0];
+
     [Header("複数画面設定")]
+    [Tooltip("Display 1を含む使用画面数です。Display 7まで使う場合は7です。")]
     [SerializeField]
     [Range(1, 8)]
     private int multiDisplayCount = 7;
 
-    [Header("カメラ設定")]
+    [Header("表示モード選択Dropdown")]
+    [Tooltip("StartScreenに配置した表示モード選択Dropdownです。")]
     [SerializeField]
-    private CameraLayoutSetting[] cameraLayouts;
+    private Dropdown displayModeDropdown;
 
-    [Header("複数画面専用UI")]
+    [Header("起動時設定")]
+    [Tooltip("ONの場合、Start時にSelected Modeを自動適用します。")]
     [SerializeField]
-    private GameObject[] multiDisplayUIObjects;
+    private bool applySelectedModeOnStart = false;
 
-    [Header("単一画面専用UI")]
+    [Tooltip("起動時またはStartボタンから適用する表示モードです。")]
     [SerializeField]
-    private GameObject[] singleDisplayUIObjects;
+    private DisplayLayoutMode selectedMode = DisplayLayoutMode.SingleDisplay;
 
-    [Header("モードを自動設定する場合")]
+    [Tooltip("ONの場合、表示モードが適用されるまでモード別UIを両方非表示にします。")]
     [SerializeField]
-    private bool applyDefaultModeOnStart = false;
-
-    [SerializeField]
-    private DisplayLayoutMode defaultMode =
-        DisplayLayoutMode.SingleDisplay;
+    private bool hideModeSpecificUIUntilSelected = true;
 
     public DisplayLayoutMode CurrentMode { get; private set; }
-
     public bool IsModeSelected { get; private set; }
+
+    private bool additionalDisplaysWereActivated;
 
     private void Awake()
     {
-        // モード固有UIは、選択されるまで非表示
-        SetUIObjectsActive(
-            multiDisplayUIObjects,
-            false);
+        if (displayModeDropdown != null)
+        {
+            displayModeDropdown.onValueChanged.RemoveListener(
+                SetSelectedModeFromDropdown
+            );
 
-        SetUIObjectsActive(
-            singleDisplayUIObjects,
-            false);
+            displayModeDropdown.onValueChanged.AddListener(
+                SetSelectedModeFromDropdown
+            );
+
+            // Dropdownの初期表示とselectedModeを一致させます。
+            SetSelectedModeFromDropdown(displayModeDropdown.value);
+        }
+
+        if (hideModeSpecificUIUntilSelected)
+        {
+            SetUIObjectsActive(multiDisplayUIObjects, false);
+            SetUIObjectsActive(singleDisplayUIObjects, false);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (displayModeDropdown != null)
+        {
+            displayModeDropdown.onValueChanged.RemoveListener(
+                SetSelectedModeFromDropdown
+            );
+        }
     }
 
     private void Start()
     {
-        if (applyDefaultModeOnStart)
+        if (applySelectedModeOnStart)
         {
-            ApplyMode(defaultMode);
+            ApplySelectedMode();
         }
     }
 
     /// <summary>
-    /// 複数画面ボタンから呼び出す
+    /// 現在InspectorまたはDropdownで選択されているモードを適用します。
+    /// StartボタンのOnClickから呼び出せます。
     /// </summary>
-    public void SelectMultiDisplayMode()
+    public void ApplySelectedMode()
     {
-        ApplyMode(DisplayLayoutMode.MultiDisplay);
+        ApplyMode(selectedMode);
     }
 
     /// <summary>
-    /// 単一画面ボタンから呼び出す
+    /// 複数画面モードを直ちに適用します。
+    /// </summary>
+    public void SelectMultiDisplayMode()
+    {
+        selectedMode = DisplayLayoutMode.MultiDisplay;
+        ApplySelectedMode();
+    }
+
+    /// <summary>
+    /// 単一画面モードを直ちに適用します。
     /// </summary>
     public void SelectSingleDisplayMode()
     {
-        ApplyMode(DisplayLayoutMode.SingleDisplay);
+        selectedMode = DisplayLayoutMode.SingleDisplay;
+        ApplySelectedMode();
     }
 
-    public void ApplyMode(DisplayLayoutMode mode)
+    /// <summary>
+    /// Unity UIのDropdownから選択モードだけを変更します。
+    /// 0 = 複数画面、1 = 単一画面です。この時点では適用しません。
+    /// </summary>
+    public void SetSelectedModeFromDropdown(int optionIndex)
     {
-        bool isMultiDisplay =
-            mode == DisplayLayoutMode.MultiDisplay;
+        switch (optionIndex)
+        {
+            case 0:
+                selectedMode = DisplayLayoutMode.MultiDisplay;
+                break;
+
+            case 1:
+                selectedMode = DisplayLayoutMode.SingleDisplay;
+                break;
+
+            default:
+                Debug.LogWarning($"表示モードのDropdown値が不正です: {optionIndex}");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 現在のモードを、新しく追加・生成されたCameraにも再適用します。
+    /// </summary>
+    public void RefreshCurrentLayout()
+    {
+        if (!IsModeSelected)
+        {
+            Debug.LogWarning("表示モードがまだ選択されていません。");
+            return;
+        }
+
+        ApplyCameraLayouts(CurrentMode);
+    }
+
+    private void ApplyMode(DisplayLayoutMode mode)
+    {
+        bool isMultiDisplay = mode == DisplayLayoutMode.MultiDisplay;
 
         if (isMultiDisplay)
         {
             ActivateAdditionalDisplays();
         }
+        else if (additionalDisplaysWereActivated)
+        {
+            Debug.LogWarning(
+                "実行中に有効化した追加Displayは完全には無効化できません。" +
+                "次回起動時に単一画面モードを選択してください。"
+            );
+        }
 
         ApplyCameraLayouts(mode);
 
-        SetUIObjectsActive(
-            multiDisplayUIObjects,
-            isMultiDisplay);
-
-        SetUIObjectsActive(
-            singleDisplayUIObjects,
-            !isMultiDisplay);
+        SetUIObjectsActive(multiDisplayUIObjects, isMultiDisplay);
+        SetUIObjectsActive(singleDisplayUIObjects, !isMultiDisplay);
 
         CurrentMode = mode;
         IsModeSelected = true;
 
-        Debug.Log(
-            $"Display layout mode: {CurrentMode}");
+        Debug.Log($"Display layout mode: {CurrentMode}");
     }
 
     private void ApplyCameraLayouts(DisplayLayoutMode mode)
     {
-        if (cameraLayouts == null)
-            return;
-
-        bool isMultiDisplay =
-            mode == DisplayLayoutMode.MultiDisplay;
-
-        foreach (CameraLayoutSetting setting
-                in cameraLayouts)
+        if (cameraLayoutRules == null || cameraLayoutRules.Length == 0)
         {
-            if (setting == null ||
-                setting.targetCamera == null)
-            {
+            Debug.LogWarning("Camera Layout Rulesが登録されていません。");
+            return;
+        }
+
+        // 非アクティブなクレーン配下のCameraや、BirdCameras配下のCameraも取得します。
+        Camera[] sceneCameras = FindObjectsOfType<Camera>(true);
+        int appliedCameraCount = 0;
+
+        foreach (Camera targetCamera in sceneCameras)
+        {
+            if (targetCamera == null)
                 continue;
-            }
 
-            Camera targetCamera =
-                setting.targetCamera;
+            CameraLayoutRule matchedRule = FindMatchingRule(targetCamera.gameObject.name);
 
-            if (isMultiDisplay)
+            // ルールに一致しないCameraは、現在の設定を変更しません。
+            if (matchedRule == null)
+                continue;
+
+            bool enableCamera;
+
+            if (mode == DisplayLayoutMode.MultiDisplay)
             {
-                targetCamera.targetDisplay =
-                    setting.multiTargetDisplay;
-
-                targetCamera.rect =
-                    setting.multiViewportRect;
+                targetCamera.targetDisplay = matchedRule.multiTargetDisplay;
+                targetCamera.rect = matchedRule.multiViewportRect;
+                enableCamera = matchedRule.enableInMultiDisplay;
             }
             else
             {
-                // 単一画面ではすべてDisplay 1
+                // 単一画面モードでは、対象CameraをすべてDisplay 1へ集約します。
                 targetCamera.targetDisplay = 0;
-
-                targetCamera.rect =
-                    setting.singleViewportRect;
+                targetCamera.rect = matchedRule.singleViewportRect;
+                enableCamera = matchedRule.enableInSingleDisplay;
             }
+
+            // Cameraコンポーネントだけを切り替えます。
+            // GameObjectのActive状態はCraneOperationManagerに任せます。
+            targetCamera.enabled = enableCamera;
+            appliedCameraCount++;
+        }
+
+        Debug.Log($"{appliedCameraCount}台のCameraに表示レイアウトを適用しました。");
+    }
+
+    private CameraLayoutRule FindMatchingRule(string targetCameraName)
+    {
+        foreach (CameraLayoutRule rule in cameraLayoutRules)
+        {
+            if (rule == null || string.IsNullOrWhiteSpace(rule.cameraName))
+                continue;
+
+            if (IsCameraNameMatch(targetCameraName, rule))
+                return rule;
+        }
+
+        return null;
+    }
+
+    private bool IsCameraNameMatch(string targetCameraName, CameraLayoutRule rule)
+    {
+        switch (rule.nameMatchMode)
+        {
+            case CameraNameMatchMode.Exact:
+                return string.Equals(
+                    targetCameraName,
+                    rule.cameraName,
+                    StringComparison.Ordinal
+                );
+
+            case CameraNameMatchMode.StartsWith:
+                return targetCameraName.StartsWith(
+                    rule.cameraName,
+                    StringComparison.Ordinal
+                );
+
+            case CameraNameMatchMode.Contains:
+                return targetCameraName.IndexOf(
+                    rule.cameraName,
+                    StringComparison.Ordinal
+                ) >= 0;
+
+            default:
+                return false;
         }
     }
 
-    private void SetUIObjectsActive(
-        GameObject[] uiObjects,
-        bool active)
+    private void SetUIObjectsActive(GameObject[] uiObjects, bool active)
     {
         if (uiObjects == null)
             return;
@@ -177,24 +326,20 @@ public class DisplayLayoutManager : MonoBehaviour
 
     private void ActivateAdditionalDisplays()
     {
-    #if UNITY_STANDALONE
-        int detectedDisplayCount =
-            Display.displays.Length;
+#if UNITY_STANDALONE
+        int detectedDisplayCount = Display.displays.Length;
 
         if (detectedDisplayCount < multiDisplayCount)
         {
             Debug.LogWarning(
                 $"必要なDisplay数は{multiDisplayCount}ですが、" +
-                $"認識されているDisplayは{detectedDisplayCount}台です。");
+                $"認識されているDisplayは{detectedDisplayCount}台です。"
+            );
         }
 
-        int activateCount =
-            Mathf.Min(
-                multiDisplayCount,
-                detectedDisplayCount);
+        int activateCount = Mathf.Min(multiDisplayCount, detectedDisplayCount);
 
-        // Display 1は最初から有効なので、
-        // Display 2以降を有効化する
+        // Display 1は起動時から有効なので、Display 2以降を有効化します。
         for (int i = 1; i < activateCount; i++)
         {
             if (!Display.displays[i].active)
@@ -203,11 +348,13 @@ public class DisplayLayoutManager : MonoBehaviour
             }
         }
 
+        additionalDisplaysWereActivated = activateCount > 1;
+
+        Debug.Log($"Display 1～{activateCount}を使用します。");
+#else
         Debug.Log(
-            $"Display 1～{activateCount}を使用します。");
-    #else
-        Debug.Log(
-            "追加Displayの有効化はStandaloneビルドで確認してください。");
-    #endif
+            "追加Displayの有効化はStandaloneビルドで確認してください。"
+        );
+#endif
     }
 }

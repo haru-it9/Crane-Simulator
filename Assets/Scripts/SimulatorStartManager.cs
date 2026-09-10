@@ -36,6 +36,10 @@ public class SimulatorStartManager : MonoBehaviour
     [Header("無効化対象から除外するUI")]
     [SerializeField] private Selectable[] excludeSelectables;
 
+    [Header("Crane Count Manager")]
+    [SerializeField]
+    private CraneCountManager craneCountManager;
+
     public static bool IsOperationEnabled { get; private set; } = false;
 
     private void Start()
@@ -52,6 +56,17 @@ public class SimulatorStartManager : MonoBehaviour
 
     public void OnStartButtonClicked()
     {
+        if (craneCountManager == null)
+        {
+            Debug.LogError("CraneCountManagerが設定されていません。");
+            return;
+        }
+
+        if (!craneCountManager.ApplySelectedCraneCount())
+        {
+            return;
+        }
+
         IsOperationEnabled = true;
 
         string inputFileName = "";
@@ -103,6 +118,17 @@ public class SimulatorStartManager : MonoBehaviour
 
     public void OnDebugButtonClicked()
     {
+        if (craneCountManager == null)
+        {
+            Debug.LogError("CraneCountManagerが設定されていません。");
+            return;
+        }
+
+        if (!craneCountManager.ApplySelectedCraneCount())
+        {
+            return;
+        }
+        
         IsOperationEnabled = true;
 
         if (startScreen != null)

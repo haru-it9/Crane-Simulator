@@ -68,9 +68,16 @@ public class BoardGenerator : MonoBehaviour
         public float boardZ;
     }
 
+    [Header("起動時の生成")]
+    [SerializeField]
+    private bool generateOnStart = false;
+
     private void Start()
     {
-        SpawnBoardsWithStage();
+        if (generateOnStart)
+        {
+            SpawnBoardsWithStage();
+        }
     }
 
     [ContextMenu("板とBoardStageを生成")]
