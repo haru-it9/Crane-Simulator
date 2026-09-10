@@ -87,6 +87,12 @@ public class DisplayLayoutManager : MonoBehaviour
     public DisplayLayoutMode CurrentMode { get; private set; }
     public bool IsModeSelected { get; private set; }
 
+    /// <summary>
+    /// 表示モードが実際に適用された直後に通知します。
+    /// WaitingScreenなど、表示中モードだけを有効化したい処理で使用します。
+    /// </summary>
+    public event Action<DisplayLayoutMode> LayoutModeApplied;
+
     private bool additionalDisplaysWereActivated;
 
     private void Awake()
@@ -216,6 +222,8 @@ public class DisplayLayoutManager : MonoBehaviour
 
         CurrentMode = mode;
         IsModeSelected = true;
+
+        LayoutModeApplied?.Invoke(CurrentMode);
 
         Debug.Log($"Display layout mode: {CurrentMode}");
     }

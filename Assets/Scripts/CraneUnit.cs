@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+[DisallowMultipleComponent]
 public class CraneUnit : MonoBehaviour
 {
     [System.Serializable]
@@ -46,10 +47,9 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float lifInnerSpeeds = 1.785f;
     [SerializeField] private int lifInnerSpeedIndex = 0;
 
-    [Header("Speed Display Text")]
-    [SerializeField] private Text zSpeedText;
-    [SerializeField] private Text mainLifMagXSpeedText;
-    [SerializeField] private Text mainLifMagYSpeedText;
+    public string ZSpeedDisplayText { get; private set; }
+    public string MainLifMagXSpeedDisplayText { get; private set; }
+    public string MainLifMagYSpeedDisplayText { get; private set; }
 
     [Header("MainCrane Z Range")]
     [SerializeField] private float minZ = -10f;
@@ -128,26 +128,38 @@ public class CraneUnit : MonoBehaviour
         int displayXIndex = useJoystickStepSpeed ? currentJoystickXSpeedIndex : mainLifMagXSpeedIndex;
         int displayYIndex = useJoystickStepSpeed ? currentJoystickYSpeedIndex : mainLifMagYSpeedIndex;
 
-        if (zSpeedText != null)
-            if (displayZIndex < 0) 
-                zSpeedText.text = $"0.0 ({0}/{zSpeeds.Length})";
-            else
-                zSpeedText.text = 
-                    $"{zSpeeds[displayZIndex]:0.###}" + $" ({displayZIndex + 1}/{zSpeeds.Length})";
+        ZSpeedDisplayText = FormatSpeedDisplayText(
+            displayZIndex,
+            zSpeeds
+        );
+        MainLifMagXSpeedDisplayText = FormatSpeedDisplayText(
+            displayXIndex,
+            mainLifMagXSpeeds
+        );
+        MainLifMagYSpeedDisplayText = FormatSpeedDisplayText(
+            displayYIndex,
+            mainLifMagYSpeeds
+        );
+    }
 
-        if (mainLifMagXSpeedText != null)
-            if (displayXIndex < 0) 
-                mainLifMagXSpeedText.text = $"0.0 ({0}/{mainLifMagXSpeeds.Length})";
-            else
-                mainLifMagXSpeedText.text =
-                    $"{mainLifMagXSpeeds[displayXIndex]:0.###}" + $" ({displayXIndex + 1}/{mainLifMagXSpeeds.Length})";
+    private string FormatSpeedDisplayText(
+        int displayIndex,
+        float[] speedValues
+    )
+    {
+        if (speedValues == null || speedValues.Length == 0)
+        {
+            return "0.0 (0/0)";
+        }
 
-        if (mainLifMagYSpeedText != null)
-            if (displayYIndex < 0)
-                mainLifMagYSpeedText.text = $"0.0 ({0}/{mainLifMagYSpeeds.Length})";
-            else
-                mainLifMagYSpeedText.text =
-                    $"{mainLifMagYSpeeds[displayYIndex]:0.###}" + $" ({displayYIndex + 1}/{mainLifMagYSpeeds.Length})";
+        if (displayIndex < 0 || displayIndex >= speedValues.Length)
+        {
+            return $"0.0 (0/{speedValues.Length})";
+        }
+
+        return
+            $"{speedValues[displayIndex]:0.###} " +
+            $"({displayIndex + 1}/{speedValues.Length})";
     }
 
     public void ResetSpeedLevel()

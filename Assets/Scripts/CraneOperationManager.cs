@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+[DisallowMultipleComponent]
 public class CraneOperationManager : MonoBehaviour
 {
     public enum InputMode
@@ -23,27 +24,56 @@ public class CraneOperationManager : MonoBehaviour
         SingleCrane
     }
 
+    [System.Serializable]
+    public class OperationUiSet
+    {
+        [Header("画面全体")]
+        public GameObject craneStatusScreen;
+        public GameObject waitingScreen;
+
+        [Header("操作情報")]
+        public CraneInformationDisplay craneInformationDisplay;
+        public LifMagCurrentButton[] lifMagCurrentButtons =
+            new LifMagCurrentButton[0];
+        public Text currentCraneNameText;
+
+        [Header("クレーン選択")]
+        [Tooltip("Crane ID順に登録します。")]
+        public Button[] craneSelectButtons = new Button[0];
+        public Button lockUnlockButton;
+        public Text lockUnlockButtonText;
+
+        [Header("速度操作UI")]
+        public GameObject[] speedControlUIButtons = new GameObject[0];
+
+        [Header("速度表示Text")]
+        public Text zSpeedText;
+        public Text mainLifMagXSpeedText;
+        public Text mainLifMagYSpeedText;
+    }
+
     [Header("Operation Mode")]
     [SerializeField] private OperationMode operationMode = OperationMode.MultiCraneManagement;
 
     [Tooltip("SingleCraneモードで操作するクレーン番号。Crane1なら0、Crane2なら1")]
     [SerializeField] private int singleCraneIndex = 0;
 
-    [Header("Display5")]
-    [SerializeField] private GameObject craneStatusScreen;
+    [Header("Crane Registry")]
+    [Tooltip("クレーン本体・Camera・情報表示先をCraneInstanceから取得します。")]
+    [SerializeField] private CraneRegistry craneRegistry;
 
-    [System.Serializable]
-    public class CraneCameraSet
-    {
-        public Camera[] cameras = new Camera[7];
-    }
+    [Header("Display Layout Manager")]
+    [Tooltip("Multi/Singleのうち、現在表示中のUIだけを切り替えるために使用します。")]
+    [SerializeField] private DisplayLayoutManager displayLayoutManager;
 
-    [System.Serializable]
-    public class CraneDisplaySet
-    {
-        public Transform informationTarget;
-        public LifMagSystem lifMagSystem;
-    }
+    [Header("表示モード別UI")]
+    [Tooltip("複数画面で使用するUIを登録します。")]
+    [SerializeField] private OperationUiSet multiDisplayUiSet =
+        new OperationUiSet();
+
+    [Tooltip("単一画面で使用するUIを登録します。")]
+    [SerializeField] private OperationUiSet singleDisplayUiSet =
+        new OperationUiSet();
 
     [Header("Intervention Scenario Manager")]
     [SerializeField] private CraneInterventionScenarioManager interventionScenarioManager;
@@ -53,9 +83,6 @@ public class CraneOperationManager : MonoBehaviour
 
     [Header("Speed Control Mode")]
     [SerializeField] private SpeedControlMode speedControlMode = SpeedControlMode.ButtonAndKeyboard;
-
-    [Header("Speed Control UI Buttons")]
-    [SerializeField] private GameObject[] speedControlUIButtons;
 
     [Header("Debug Mode")]
     [SerializeField] private bool debugMode = false;
@@ -75,31 +102,15 @@ public class CraneOperationManager : MonoBehaviour
     [Header("Dead Zone")]
     [SerializeField] private float deadZone = 0.1f;
     
-    [Header("Crane Settings")]
-    [SerializeField] private CraneUnit[] cranes;
-    [SerializeField] private CraneCameraSet[] craneCameraSets;
+    [Header("Current Crane")]
     [SerializeField] private int currentCraneIndex = 0;
-
-    [Header("Waiting Screen")]
-    [SerializeField] private GameObject waitingScreen;
-
-    [Header("Display2")]
-    [SerializeField] private CraneInformationDisplay craneInformationDisplay;
-    [SerializeField] private CraneDisplaySet[] craneDisplaySets;
-
-    [Header("LifMag UI")]
-    [SerializeField] private LifMagCurrentButton[] lifMagCurrentButtons;
-
-    [Header("Current Crane Display")]
-    [SerializeField] private Text currentCraneNameText;
 
     [Header("Display5 Status")]
     [SerializeField] private CraneStatusManager craneStatusManager;
 
     [Header("Crane Select UI")]
-    [SerializeField] private Button[] craneSelectButtons; // Crane1〜6のボタン
-    [SerializeField] private Button lockUnlockButton;
-    [SerializeField] private Text lockUnlockButtonText;
+    [Tooltip("選択基数より後ろのクレーン選択ボタンを非表示にします。")]
+    [SerializeField] private bool hideInactiveCraneButtons = true;
 
     [SerializeField] private Color normalButtonColor = Color.white;
     [SerializeField] private Color selectedButtonColor = Color.yellow;
@@ -108,19 +119,41 @@ public class CraneOperationManager : MonoBehaviour
 
     private bool isSelectionLocked = false;
 
+    public CraneInstance CurrentCraneInstance
+    {
+        get
+        {
+            if (!IsActiveCraneIndex(currentCraneIndex)) return null;
+            return craneRegistry.GetCraneByRuntimeIndex(currentCraneIndex);
+        }
+    }
+
     public CraneUnit CurrentCrane
     {
         get
         {
-            if (cranes == null || cranes.Length == 0) return null;
-            if (currentCraneIndex < 0 || currentCraneIndex >= cranes.Length) return null;
-
-            return cranes[currentCraneIndex];
+            CraneInstance craneInstance = CurrentCraneInstance;
+            return craneInstance != null ? craneInstance.CraneUnit : null;
         }
+    }
+
+    public int CurrentCraneIndex => currentCraneIndex;
+    public int ActiveCraneCount => GetActiveCraneCount();
+
+    private void Awake()
+    {
+        EnsureRegistryIsReady();
+        EnsureDisplayLayoutManagerIsReady();
+    }
+
+    private void OnEnable()
+    {
+        SubscribeToDisplayLayoutManager();
     }
 
     private void Start()
     {
+        SubscribeToRegistry();
         ApplyOperationMode();
         
         UpdateActiveCamera();
@@ -132,6 +165,18 @@ public class CraneOperationManager : MonoBehaviour
         UpdateSpeedControlUI();
 
         ApplySpeedControlModeToCranes();
+        UpdateSpeedDisplayTexts();
+    }
+
+    private void OnDestroy()
+    {
+        if (craneRegistry != null)
+        {
+            craneRegistry.ActiveCraneCountChanged -=
+                HandleActiveCraneCountChanged;
+        }
+
+        UnsubscribeFromDisplayLayoutManager();
     }
 
     private void Update()
@@ -143,33 +188,32 @@ public class CraneOperationManager : MonoBehaviour
         if (SimulatorStartManager.IsInputFieldFocused()) return;
 
         HandleSpeedSwitch();
+        UpdateSpeedDisplayTexts();
     }
 
     private void ApplyOperationMode()
     {
         if (operationMode == OperationMode.SingleCrane)
         {
-            if (cranes == null || cranes.Length == 0)
+            int activeCraneCount = GetActiveCraneCount();
+
+            if (activeCraneCount == 0)
             {
                 currentCraneIndex = -1;
             }
             else
             {
-                singleCraneIndex = Mathf.Clamp(singleCraneIndex, 0, cranes.Length - 1);
+                singleCraneIndex = Mathf.Clamp(
+                    singleCraneIndex,
+                    0,
+                    activeCraneCount - 1
+                );
                 currentCraneIndex = singleCraneIndex;
             }
 
-            // 単一モードではDisplay1 WaitingScreenを表示しない
-            if (waitingScreen != null)
-            {
-                waitingScreen.SetActive(false);
-            }
-
-            // 単一モードではDisplay5 CraneStatusScreenを表示しない
-            if (craneStatusScreen != null)
-            {
-                craneStatusScreen.SetActive(false);
-            }
+            // 1基固定操作モードでは両レイアウトの待機・状態画面を隠します。
+            SetWaitingScreensActive(false);
+            SetStatusScreensActive(false);
 
             // ★追加：単一モードではCraneStatusManagerを停止
             if (craneStatusManager != null)
@@ -185,11 +229,9 @@ public class CraneOperationManager : MonoBehaviour
             // 複数台管理モードは従来通り、最初は未選択
             currentCraneIndex = -1;
 
-            // 複数台管理モードではDisplay5を表示
-            if (craneStatusScreen != null)
-            {
-                craneStatusScreen.SetActive(true);
-            }
+            // 複数台管理モードでは両方を有効にしておきます。
+            // 実際に見える側はDisplayLayoutManagerが親Rootで切り替えます。
+            SetStatusScreensActive(true);
 
             // ★追加：複数台管理モードではCraneStatusManagerを再開
             if (craneStatusManager != null)
@@ -201,6 +243,8 @@ public class CraneOperationManager : MonoBehaviour
 
             SetSelectionLock(false);
         }
+
+        UpdateCraneButtonVisibility();
     }
 
     private void FixedUpdate()
@@ -215,6 +259,7 @@ public class CraneOperationManager : MonoBehaviour
         }
 
         HandleMovement();
+        UpdateSpeedDisplayTexts();
     }
 
     public void HandleCraneSelection(int craneIndex)
@@ -233,11 +278,14 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        if (cranes == null || cranes.Length == 0) return;
+        int activeCraneCount = GetActiveCraneCount();
 
-        if (craneIndex < 0 || craneIndex >= cranes.Length)
+        if (craneIndex < 0 || craneIndex >= activeCraneCount)
         {
-            Debug.LogWarning($"存在しないクレーン番号です: {craneIndex}");
+            Debug.LogWarning(
+                $"使用対象外のクレーン番号です: {craneIndex} " +
+                $"（有効基数: {activeCraneCount}）"
+            );
             return;
         }
 
@@ -295,13 +343,14 @@ public class CraneOperationManager : MonoBehaviour
         UpdateDisplay2();
         UpdateLifMagButtonViews();
         UpdateCurrentCraneNameText();
+        UpdateSpeedDisplayTexts();
 
         SetSelectionLock(true);
     }
 
     private void UpdateActiveCamera()
     {
-        if (craneCameraSets == null || craneCameraSets.Length == 0) return;
+        if (!EnsureRegistryIsReady()) return;
 
         // 未選択状態ではカメラ状態を変更しない
         if (currentCraneIndex < 0)
@@ -309,19 +358,26 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < craneCameraSets.Length; i++)
+        for (int runtimeIndex = 0;
+             runtimeIndex < craneRegistry.TotalCraneCount;
+             runtimeIndex++)
         {
-            bool isActiveCrane = i == currentCraneIndex;
+            CraneInstance crane =
+                craneRegistry.GetCraneByRuntimeIndex(runtimeIndex);
 
-            if (craneCameraSets[i] == null || craneCameraSets[i].cameras == null) continue;
+            if (crane == null) continue;
 
-            for (int j = 0; j < craneCameraSets[i].cameras.Length; j++)
+            bool isActiveCrane =
+                runtimeIndex == currentCraneIndex &&
+                craneRegistry.IsRuntimeIndexActive(runtimeIndex);
+
+            Camera[] cameras = crane.GetAllCameras();
+
+            foreach (Camera camera in cameras)
             {
-                Camera cam = craneCameraSets[i].cameras[j];
-
-                if (cam != null)
+                if (camera != null)
                 {
-                    cam.gameObject.SetActive(isActiveCrane);
+                    camera.gameObject.SetActive(isActiveCrane);
                 }
             }
         }
@@ -331,31 +387,27 @@ public class CraneOperationManager : MonoBehaviour
     {
         if (operationMode == OperationMode.SingleCrane)
         {
-            if (waitingScreen != null)
-            {
-                waitingScreen.SetActive(false);
-            }
+            SetWaitingScreensActive(false);
             return;
         }
 
-        if (waitingScreen != null)
-        {
-            waitingScreen.SetActive(CurrentCrane == null);
-        }
+        SetWaitingScreensActive(CurrentCrane == null);
     }
 
     private void UpdateDisplay2()
     {
-        if (craneInformationDisplay == null) return;
-        if (craneDisplaySets == null) return;
-        if (currentCraneIndex < 0 || currentCraneIndex >= craneDisplaySets.Length) return;
+        CraneInstance crane = CurrentCraneInstance;
+        if (crane == null) return;
 
-        CraneDisplaySet set = craneDisplaySets[currentCraneIndex];
+        foreach (OperationUiSet uiSet in GetUiSets())
+        {
+            if (uiSet.craneInformationDisplay == null) continue;
 
-        craneInformationDisplay.SetTarget(
-            set.informationTarget,
-            set.lifMagSystem
-        );
+            uiSet.craneInformationDisplay.SetTarget(
+                crane.InformationTarget,
+                crane.LifMagSystem
+            );
+        }
     }
 
     public void EnterWaitingMode()
@@ -391,13 +443,49 @@ public class CraneOperationManager : MonoBehaviour
     {
         bool showButtons = speedControlMode == SpeedControlMode.ButtonAndKeyboard;
 
-        if (speedControlUIButtons == null) return;
-
-        foreach (GameObject obj in speedControlUIButtons)
+        foreach (OperationUiSet uiSet in GetUiSets())
         {
-            if (obj != null)
+            if (uiSet.speedControlUIButtons == null) continue;
+
+            foreach (GameObject obj in uiSet.speedControlUIButtons)
             {
-                obj.SetActive(showButtons);
+                if (obj != null)
+                {
+                    obj.SetActive(showButtons);
+                }
+            }
+        }
+    }
+
+    private void UpdateSpeedDisplayTexts()
+    {
+        CraneUnit crane = CurrentCrane;
+
+        string zValue = crane != null
+            ? crane.ZSpeedDisplayText
+            : "";
+        string xValue = crane != null
+            ? crane.MainLifMagXSpeedDisplayText
+            : "";
+        string yValue = crane != null
+            ? crane.MainLifMagYSpeedDisplayText
+            : "";
+
+        foreach (OperationUiSet uiSet in GetUiSets())
+        {
+            if (uiSet.zSpeedText != null)
+            {
+                uiSet.zSpeedText.text = zValue;
+            }
+
+            if (uiSet.mainLifMagXSpeedText != null)
+            {
+                uiSet.mainLifMagXSpeedText.text = xValue;
+            }
+
+            if (uiSet.mainLifMagYSpeedText != null)
+            {
+                uiSet.mainLifMagYSpeedText.text = yValue;
             }
         }
     }
@@ -481,30 +569,44 @@ public class CraneOperationManager : MonoBehaviour
     {
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
-        if (lifMagCurrentButtons == null) return;
 
-        for (int i = 0; i < lifMagCurrentButtons.Length; i++)
+        foreach (OperationUiSet uiSet in GetUiSets())
         {
-            if (lifMagCurrentButtons[i] == null) continue;
+            if (uiSet.lifMagCurrentButtons == null) continue;
 
-            bool isOn = CurrentCrane.LifMagSystem.GetLifMagCurrent(i);
-            float currentValue = CurrentCrane.LifMagSystem.GetLifMagDisplayAccumValue(i);
+            for (int i = 0; i < uiSet.lifMagCurrentButtons.Length; i++)
+            {
+                LifMagCurrentButton button =
+                    uiSet.lifMagCurrentButtons[i];
 
-            lifMagCurrentButtons[i].SetViewOnly(isOn);
-            lifMagCurrentButtons[i].SetCurrentValueView(currentValue);
+                if (button == null) continue;
+
+                bool isOn =
+                    CurrentCrane.LifMagSystem.GetLifMagCurrent(i);
+                float currentValue =
+                    CurrentCrane.LifMagSystem
+                        .GetLifMagDisplayAccumValue(i);
+
+                button.SetViewOnly(isOn);
+                button.SetCurrentValueView(currentValue);
+            }
         }
     }
 
     private void UpdateCurrentCraneNameText()
     {
-        if (currentCraneNameText == null) return;
-        
-        if (currentCraneIndex < 0 || cranes == null || currentCraneIndex >= cranes.Length)
+        CraneInstance crane = CurrentCraneInstance;
+        string displayName = crane != null
+            ? crane.DisplayName
+            : "未選択";
+
+        foreach (OperationUiSet uiSet in GetUiSets())
         {
-            currentCraneNameText.text = "未選択";
-            return;
+            if (uiSet.currentCraneNameText != null)
+            {
+                uiSet.currentCraneNameText.text = displayName;
+            }
         }
-        currentCraneNameText.text = $"Crane {currentCraneIndex + 1}";;
     }
 
     public void ToggleSelectionLock()
@@ -518,38 +620,75 @@ public class CraneOperationManager : MonoBehaviour
     {
         isSelectionLocked = locked;
 
-        if (lockUnlockButtonText != null)
+        foreach (OperationUiSet uiSet in GetUiSets())
         {
-            lockUnlockButtonText.text = isSelectionLocked ? "Lock" : "Unlock";
-        }
-
-        if (lockUnlockButton != null)
-        {
-            Image buttonImage = lockUnlockButton.GetComponent<Image>();
-
-            if (buttonImage != null)
+            if (uiSet.lockUnlockButtonText != null)
             {
-                buttonImage.color = isSelectionLocked
-                    ? lockColor
-                    : unlockColor;
+                uiSet.lockUnlockButtonText.text =
+                    isSelectionLocked ? "Lock" : "Unlock";
+            }
+
+            if (uiSet.lockUnlockButton != null)
+            {
+                Image buttonImage =
+                    uiSet.lockUnlockButton.GetComponent<Image>();
+
+                if (buttonImage != null)
+                {
+                    buttonImage.color = isSelectionLocked
+                        ? lockColor
+                        : unlockColor;
+                }
             }
         }
     }
 
     private void UpdateCraneButtonColors()
     {
-        if (craneSelectButtons == null) return;
-
-        for (int i = 0; i < craneSelectButtons.Length; i++)
+        foreach (OperationUiSet uiSet in GetUiSets())
         {
-            if (craneSelectButtons[i] == null) continue;
+            if (uiSet.craneSelectButtons == null) continue;
 
-            Image buttonImage = craneSelectButtons[i].GetComponent<Image>();
-            if (buttonImage == null) continue;
+            for (int i = 0; i < uiSet.craneSelectButtons.Length; i++)
+            {
+                Button button = uiSet.craneSelectButtons[i];
+                if (button == null) continue;
 
-            buttonImage.color = (i == currentCraneIndex)
-                ? selectedButtonColor
-                : normalButtonColor;
+                Image buttonImage = button.GetComponent<Image>();
+                if (buttonImage == null) continue;
+
+                buttonImage.color = (i == currentCraneIndex)
+                    ? selectedButtonColor
+                    : normalButtonColor;
+            }
+        }
+    }
+
+    private void UpdateCraneButtonVisibility()
+    {
+        int activeCraneCount = GetActiveCraneCount();
+
+        foreach (OperationUiSet uiSet in GetUiSets())
+        {
+            if (uiSet.craneSelectButtons == null) continue;
+
+            for (int i = 0; i < uiSet.craneSelectButtons.Length; i++)
+            {
+                Button button = uiSet.craneSelectButtons[i];
+
+                if (button == null) continue;
+
+                bool isActiveCrane = i < activeCraneCount;
+
+                if (hideInactiveCraneButtons)
+                {
+                    button.gameObject.SetActive(isActiveCrane);
+                }
+                else
+                {
+                    button.interactable = isActiveCrane;
+                }
+            }
         }
     }
 
@@ -726,17 +865,217 @@ public class CraneOperationManager : MonoBehaviour
 
     private void ApplySpeedControlModeToCranes()
     {
-        if (cranes == null) return;
+        if (!EnsureRegistryIsReady()) return;
 
         bool useJoystickStep = speedControlMode == SpeedControlMode.JoystickStep;
 
-        foreach (CraneUnit crane in cranes)
+        for (int runtimeIndex = 0;
+             runtimeIndex < craneRegistry.ActiveCraneCount;
+             runtimeIndex++)
         {
-            if (crane != null)
+            CraneInstance craneInstance =
+                craneRegistry.GetCraneByRuntimeIndex(runtimeIndex);
+
+            if (craneInstance != null && craneInstance.CraneUnit != null)
             {
-                crane.SetJoystickStepSpeedMode(useJoystickStep);
+                craneInstance.CraneUnit.SetJoystickStepSpeedMode(
+                    useJoystickStep
+                );
             }
         }
+    }
+
+    private void SubscribeToRegistry()
+    {
+        if (!EnsureRegistryIsReady()) return;
+
+        // 二重登録を防ぎます。
+        craneRegistry.ActiveCraneCountChanged -=
+            HandleActiveCraneCountChanged;
+        craneRegistry.ActiveCraneCountChanged +=
+            HandleActiveCraneCountChanged;
+    }
+
+    private IEnumerable<OperationUiSet> GetUiSets()
+    {
+        if (multiDisplayUiSet != null)
+        {
+            yield return multiDisplayUiSet;
+        }
+
+        if (singleDisplayUiSet != null)
+        {
+            yield return singleDisplayUiSet;
+        }
+    }
+
+    private void SetWaitingScreensActive(bool active)
+    {
+        // 一度両方をOFFにし、現在の表示モード側だけをONにします。
+        SetWaitingScreenActive(multiDisplayUiSet, false);
+        SetWaitingScreenActive(singleDisplayUiSet, false);
+
+        if (!active) return;
+
+        OperationUiSet activeUiSet = GetActiveDisplayUiSet();
+        SetWaitingScreenActive(activeUiSet, true);
+    }
+
+    private void SetWaitingScreenActive(OperationUiSet uiSet, bool active)
+    {
+        if (uiSet != null && uiSet.waitingScreen != null)
+        {
+            uiSet.waitingScreen.SetActive(active);
+        }
+    }
+
+    private void SetStatusScreensActive(bool active)
+    {
+        // WaitingScreenと同様、非表示側の画面を直接再有効化しません。
+        SetStatusScreenActive(multiDisplayUiSet, false);
+        SetStatusScreenActive(singleDisplayUiSet, false);
+
+        if (!active) return;
+
+        OperationUiSet activeUiSet = GetActiveDisplayUiSet();
+        SetStatusScreenActive(activeUiSet, true);
+    }
+
+    private void SetStatusScreenActive(OperationUiSet uiSet, bool active)
+    {
+        if (uiSet != null && uiSet.craneStatusScreen != null)
+        {
+            uiSet.craneStatusScreen.SetActive(active);
+        }
+    }
+
+    private OperationUiSet GetActiveDisplayUiSet()
+    {
+        if (!EnsureDisplayLayoutManagerIsReady() ||
+            !displayLayoutManager.IsModeSelected)
+        {
+            return null;
+        }
+
+        return displayLayoutManager.CurrentMode ==
+               DisplayLayoutManager.DisplayLayoutMode.MultiDisplay
+            ? multiDisplayUiSet
+            : singleDisplayUiSet;
+    }
+
+    private bool EnsureDisplayLayoutManagerIsReady()
+    {
+        if (displayLayoutManager == null)
+        {
+            displayLayoutManager =
+                FindObjectOfType<DisplayLayoutManager>(true);
+        }
+
+        return displayLayoutManager != null;
+    }
+
+    private void SubscribeToDisplayLayoutManager()
+    {
+        if (!EnsureDisplayLayoutManagerIsReady()) return;
+
+        displayLayoutManager.LayoutModeApplied -=
+            HandleDisplayLayoutModeApplied;
+        displayLayoutManager.LayoutModeApplied +=
+            HandleDisplayLayoutModeApplied;
+    }
+
+    private void UnsubscribeFromDisplayLayoutManager()
+    {
+        if (displayLayoutManager == null) return;
+
+        displayLayoutManager.LayoutModeApplied -=
+            HandleDisplayLayoutModeApplied;
+    }
+
+    private void HandleDisplayLayoutModeApplied(
+        DisplayLayoutManager.DisplayLayoutMode mode
+    )
+    {
+        bool showStatusScreen =
+            operationMode == OperationMode.MultiCraneManagement;
+
+        SetStatusScreensActive(showStatusScreen);
+        UpdateWaitingScreen();
+    }
+
+    private void HandleActiveCraneCountChanged(int activeCraneCount)
+    {
+        if (operationMode == OperationMode.SingleCrane)
+        {
+            if (activeCraneCount <= 0)
+            {
+                currentCraneIndex = -1;
+            }
+            else
+            {
+                singleCraneIndex = Mathf.Clamp(
+                    singleCraneIndex,
+                    0,
+                    activeCraneCount - 1
+                );
+                currentCraneIndex = singleCraneIndex;
+            }
+        }
+        else if (!IsActiveCraneIndex(currentCraneIndex))
+        {
+            currentCraneIndex = -1;
+            SetSelectionLock(false);
+        }
+
+        UpdateCraneButtonVisibility();
+        UpdateActiveCamera();
+        UpdateCraneButtonColors();
+        UpdateWaitingScreen();
+        UpdateDisplay2();
+        UpdateLifMagButtonViews();
+        UpdateCurrentCraneNameText();
+        UpdateSpeedDisplayTexts();
+        ApplySpeedControlModeToCranes();
+
+        Debug.Log(
+            $"CraneOperationManager：操作対象を{activeCraneCount}基に更新しました。"
+        );
+    }
+
+    private int GetActiveCraneCount()
+    {
+        if (!EnsureRegistryIsReady()) return 0;
+        return craneRegistry.ActiveCraneCount;
+    }
+
+    private bool IsActiveCraneIndex(int craneIndex)
+    {
+        if (!EnsureRegistryIsReady()) return false;
+        return craneRegistry.IsRuntimeIndexActive(craneIndex);
+    }
+
+    private bool EnsureRegistryIsReady()
+    {
+        if (craneRegistry == null)
+        {
+            craneRegistry = FindObjectOfType<CraneRegistry>(true);
+        }
+
+        if (craneRegistry == null)
+        {
+            Debug.LogError(
+                "CraneOperationManagerにCraneRegistryが設定されていません。",
+                this
+            );
+            return false;
+        }
+
+        if (craneRegistry.TotalCraneCount == 0)
+        {
+            craneRegistry.RefreshRegistry();
+        }
+
+        return craneRegistry.TotalCraneCount > 0;
     }
 
     private float GetAxisFromKeys(KeyCode positive, KeyCode negative)

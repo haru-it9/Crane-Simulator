@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
+[DisallowMultipleComponent]
 public class CraneInterventionScenarioManager : MonoBehaviour
 {
     public enum RandomSourceMode
@@ -105,6 +106,14 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         public Vector3 attachedPlateTargetSize;
     }
 
+    [Header("Crane Registry")]
+    [Tooltip(
+        "クレーン別の位置補正・トレーラ・BoardGeneratorを" +
+        "CraneInstanceから取得します。"
+    )]
+    [SerializeField]
+    private CraneRegistry craneRegistry;
+
     [Header("Crane Position Random Mode")]
     [SerializeField] private RandomSourceMode cranePositionMode = RandomSourceMode.RandomRange;
     [SerializeField] private TextAsset cranePositionCsv;
@@ -126,15 +135,8 @@ public class CraneInterventionScenarioManager : MonoBehaviour
     [SerializeField] private TextAsset humanPositionCsv;
     [SerializeField] private HumanPositionRangeSetting[] humanPositionRanges;
 
-    [Header("Human X Offset By Crane Index")]
-    [SerializeField] private float[] humanXOffsetsByCraneIndex;
-
     [Header("Trailer")]
-    [SerializeField] private GameObject[] trailerObjectsByCraneIndex;
     [SerializeField] private TextAsset trailerPoseCsv;
-
-    [Header("Trailer X Offset By Crane Index")]
-    [SerializeField] private float[] trailerXOffsetsByCraneIndex;
 
     [Header("Trailer Size By Attached Board")]
     [SerializeField] private bool resizeTrailerByAttachedBoardSize = true;
@@ -145,9 +147,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
     [Tooltip("トレーラのY方向サイズは変えず、X/Zのみ変更する")]
     [SerializeField] private bool keepTrailerYSize = true;
 
-    [Header("Board Generator By Crane Index")]
-    [SerializeField] private BoardGenerator[] boardGeneratorsByCraneIndex;
-
+    [Header("Done時の板配置リセット")]
     [SerializeField] private bool resetBoardsOnDone = true;
 
     [Header("Option")]
@@ -180,6 +180,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
     private void Awake()
     {
+        EnsureRegistryIsReady();
         LoadCsvData();
     }
 
@@ -204,6 +205,19 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             Debug.LogWarning("CraneUnit が null です");
             return;
         }
+
+        if (!TryResolveCraneInstance(
+                craneUnit,
+                craneIndex,
+                out CraneInstance craneInstance,
+                out int resolvedCraneIndex
+            ))
+        {
+            return;
+        }
+
+        craneIndex = resolvedCraneIndex;
+        craneUnit = craneInstance.CraneUnit;
 
         currentScenarioCraneIndex = craneIndex;
         currentCraneUnit = craneUnit;
@@ -492,9 +506,11 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         HumanPose humanPose = GetRandomHumanPose(errorType);
 
         float xOffset = GetHumanXOffsetByCraneIndex(craneIndex);
+        float zOffset = GetHumanZOffsetByCraneIndex(craneIndex);
 
         Vector3 spawnPosition = humanPose.position;
         spawnPosition.x += xOffset;
+        spawnPosition.z += zOffset;
 
         currentHuman = Instantiate(
             humanPrefab,
@@ -537,9 +553,11 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         }
 
         float xOffset = GetTrailerXOffsetByCraneIndex(craneIndex);
+        float zOffset = GetTrailerZOffsetByCraneIndex(craneIndex);
 
         Vector3 spawnPosition = trailerPose.position;
         spawnPosition.x += xOffset;
+        spawnPosition.z += zOffset;
 
         trailer.SetActive(true);
         trailer.transform.position = spawnPosition;
@@ -576,59 +594,158 @@ public class CraneInterventionScenarioManager : MonoBehaviour
 
     private float GetHumanXOffsetByCraneIndex(int craneIndex)
     {
-        if (humanXOffsetsByCraneIndex == null)
-        {
-            return 0f;
-        }
+        CraneInstance crane = GetActiveCraneInstance(craneIndex);
+        return crane != null ? crane.HumanXOffset : 0f;
+    }
 
-        if (craneIndex < 0 || craneIndex >= humanXOffsetsByCraneIndex.Length)
-        {
-            return 0f;
-        }
-
-        return humanXOffsetsByCraneIndex[craneIndex];
+    private float GetHumanZOffsetByCraneIndex(int craneIndex)
+    {
+        CraneInstance crane = GetActiveCraneInstance(craneIndex);
+        return crane != null ? crane.HumanZOffset : 0f;
     }
 
     private GameObject GetTrailerByCraneIndex(int craneIndex)
     {
-        if (trailerObjectsByCraneIndex == null) return null;
-
-        if (craneIndex < 0 || craneIndex >= trailerObjectsByCraneIndex.Length)
-        {
-            return null;
-        }
-
-        return trailerObjectsByCraneIndex[craneIndex];
+        CraneInstance crane = GetActiveCraneInstance(craneIndex);
+        return crane != null ? crane.TrailerObject : null;
     }
 
     private float GetTrailerXOffsetByCraneIndex(int craneIndex)
     {
-        if (trailerXOffsetsByCraneIndex == null)
-        {
-            return 0f;
-        }
+        CraneInstance crane = GetActiveCraneInstance(craneIndex);
+        return crane != null ? crane.TrailerXOffset : 0f;
+    }
 
-        if (craneIndex < 0 || craneIndex >= trailerXOffsetsByCraneIndex.Length)
-        {
-            return 0f;
-        }
-
-        return trailerXOffsetsByCraneIndex[craneIndex];
+    private float GetTrailerZOffsetByCraneIndex(int craneIndex)
+    {
+        CraneInstance crane = GetActiveCraneInstance(craneIndex);
+        return crane != null ? crane.TrailerZOffset : 0f;
     }
 
     private BoardGenerator GetBoardGeneratorByCraneIndex(int craneIndex)
     {
-        if (boardGeneratorsByCraneIndex == null)
+        CraneInstance crane = GetActiveCraneInstance(craneIndex);
+        return crane != null ? crane.BoardGenerator : null;
+    }
+
+    private CraneInstance GetActiveCraneInstance(int craneIndex)
+    {
+        if (!EnsureRegistryIsReady())
         {
             return null;
         }
 
-        if (craneIndex < 0 || craneIndex >= boardGeneratorsByCraneIndex.Length)
+        if (!craneRegistry.IsRuntimeIndexActive(craneIndex))
         {
             return null;
         }
 
-        return boardGeneratorsByCraneIndex[craneIndex];
+        return craneRegistry.GetCraneByRuntimeIndex(craneIndex);
+    }
+
+    private bool TryResolveCraneInstance(
+        CraneUnit requestedCraneUnit,
+        int requestedCraneIndex,
+        out CraneInstance craneInstance,
+        out int resolvedCraneIndex
+    )
+    {
+        craneInstance = null;
+        resolvedCraneIndex = -1;
+
+        if (!EnsureRegistryIsReady())
+        {
+            return false;
+        }
+
+        if (requestedCraneIndex >= 0)
+        {
+            if (!craneRegistry.IsRuntimeIndexActive(requestedCraneIndex))
+            {
+                Debug.LogWarning(
+                    $"CraneIndex={requestedCraneIndex} は今回の使用対象外です。" +
+                    $"有効基数は{craneRegistry.ActiveCraneCount}基です。",
+                    this
+                );
+                return false;
+            }
+
+            craneInstance = craneRegistry.GetCraneByRuntimeIndex(
+                requestedCraneIndex
+            );
+
+            if (craneInstance == null)
+            {
+                Debug.LogWarning(
+                    $"CraneIndex={requestedCraneIndex} に対応する" +
+                    "CraneInstanceが見つかりません。",
+                    this
+                );
+                return false;
+            }
+
+            if (craneInstance.CraneUnit != requestedCraneUnit)
+            {
+                Debug.LogWarning(
+                    $"CraneIndex={requestedCraneIndex} とCraneUnitの対応が" +
+                    "CraneRegistryの登録内容と一致しません。",
+                    this
+                );
+                return false;
+            }
+
+            resolvedCraneIndex = requestedCraneIndex;
+            return true;
+        }
+
+        // craneIndexを指定しない旧形式の呼び出しにも対応します。
+        for (int runtimeIndex = 0;
+             runtimeIndex < craneRegistry.ActiveCraneCount;
+             runtimeIndex++)
+        {
+            CraneInstance candidate =
+                craneRegistry.GetCraneByRuntimeIndex(runtimeIndex);
+
+            if (candidate != null &&
+                candidate.CraneUnit == requestedCraneUnit)
+            {
+                craneInstance = candidate;
+                resolvedCraneIndex = runtimeIndex;
+                return true;
+            }
+        }
+
+        Debug.LogWarning(
+            $"{requestedCraneUnit.name}に対応する有効なCraneInstanceが" +
+            "見つかりません。",
+            requestedCraneUnit
+        );
+        return false;
+    }
+
+    private bool EnsureRegistryIsReady()
+    {
+        if (craneRegistry == null)
+        {
+            craneRegistry = FindObjectOfType<CraneRegistry>(true);
+        }
+
+        if (craneRegistry == null)
+        {
+            Debug.LogError(
+                "CraneInterventionScenarioManagerに" +
+                "CraneRegistryが設定されていません。",
+                this
+            );
+            return false;
+        }
+
+        if (craneRegistry.TotalCraneCount == 0)
+        {
+            craneRegistry.RefreshRegistry();
+        }
+
+        return craneRegistry.TotalCraneCount > 0;
     }
 
     private bool ShouldAttachPlate(

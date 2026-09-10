@@ -49,7 +49,8 @@ public class CraneStatusManager : MonoBehaviour
         public int cycleCount;
         public int nextPlaceToTrackCycle;
 
-        [HideInInspector] public Coroutine routine;
+        [HideInInspector]
+        public Coroutine routine;
 
         public string AutoStopText
         {
@@ -67,64 +68,105 @@ public class CraneStatusManager : MonoBehaviour
         ErrorC
     }
 
-    [Header("クレーン台数")]
-    [SerializeField] private int craneCount = 6;
+    [System.Serializable]
+    public class StatusUiSet
+    {
+        [Header("自動／停止表示")]
+        public Text[] autoStopTexts = new Text[0];
+        public RawImage[] autoStopImages = new RawImage[0];
+
+        [Header("フェーズ・停止要因表示")]
+        public Text[] phaseTexts = new Text[0];
+        public Text[] errorTypeTexts = new Text[0];
+
+        [Header("クレーン別UIの親（任意）")]
+        [Tooltip("Crane ID順に登録します。選択基数より後ろを非表示にします。")]
+        public GameObject[] craneStatusUiRoots = new GameObject[0];
+    }
+
+    [Header("クレーン登録情報")]
+    [Tooltip("使用基数はCraneRegistryのActive Crane Countから取得します。")]
+    [SerializeField]
+    private CraneRegistry craneRegistry;
 
     [Header("フェーズ設定")]
-    [SerializeField] private List<PhaseSetting> phaseSettings = new List<PhaseSetting>();
+    [SerializeField]
+    private List<PhaseSetting> phaseSettings = new List<PhaseSetting>();
 
-    [Header("各クレーンの現在状態")]
-    [SerializeField] private List<CraneState> craneStates = new List<CraneState>();
+    [Header("各クレーンの現在状態（実行時に自動生成）")]
+    [SerializeField]
+    private List<CraneState> craneStates = new List<CraneState>();
 
     [Header("PlaceToTrack発生サイクル範囲")]
-    [SerializeField] private int minPlaceToTrackCycle = 3;
-    [SerializeField] private int maxPlaceToTrackCycle = 6;
+    [SerializeField]
+    private int minPlaceToTrackCycle = 3;
 
-    [Header("状態表示Text")]
-    [SerializeField] private Text[] autoStopTexts;
-
-    [Header("状態表示RawImage")]
-    [SerializeField] private RawImage[] autoStopImages;
+    [SerializeField]
+    private int maxPlaceToTrackCycle = 6;
 
     [Header("状態色")]
-    [SerializeField] private Color autoColor = new Color(0.3f, 0.7f, 1.0f);
+    [SerializeField]
+    private Color autoColor = new Color(0.3f, 0.7f, 1.0f);
 
-    [SerializeField] private Color stopColor = Color.red;
+    [SerializeField]
+    private Color stopColor = Color.red;
 
-    [Header("フェーズ表示Text")]
-    [SerializeField] private Text[] phaseTexts;
+    [Header("表示モード別ステータスUI")]
+    [SerializeField]
+    private StatusUiSet multiDisplayUiSet = new StatusUiSet();
 
-    [Header("エラー種別表示Text")]
-    [SerializeField] private Text[] errorTypeTexts;
+    [SerializeField]
+    private StatusUiSet singleDisplayUiSet = new StatusUiSet();
 
     [Header("状態管理の有効/無効")]
-    [SerializeField] private bool statusManagementEnabled = true;
+    [SerializeField]
+    private bool statusManagementEnabled = true;
 
     [Header("SimulatorStartManagerのStart後に状態管理を開始する")]
-    [SerializeField] private bool waitForSimulatorStart = true;
-
-    private bool simulatorStarted = false;
-    private bool initialized = false;
+    [SerializeField]
+    private bool waitForSimulatorStart = true;
 
     [Header("状態管理停止時に全クレーンを自動表示へ戻す")]
-    [SerializeField] private bool resetToAutoWhenDisabled = true;
+    [SerializeField]
+    private bool resetToAutoWhenDisabled = true;
+
+    private bool simulatorStarted;
+    private bool initialized;
 
     public bool IsStatusManagementEnabled
     {
         get { return statusManagementEnabled; }
     }
-    
+
+    public int ActiveCraneCount
+    {
+        get { return craneStates != null ? craneStates.Count : 0; }
+    }
+
+    private void Awake()
+    {
+        if (craneRegistry == null)
+        {
+            craneRegistry = FindObjectOfType<CraneRegistry>(true);
+        }
+    }
 
     private void Start()
     {
-        InitializeCranes();
-        initialized = true;
-
         simulatorStarted = !waitForSimulatorStart;
 
-        if (statusManagementEnabled && simulatorStarted)
+        if (simulatorStarted)
         {
-            StartAllCranes();
+            if (InitializeCranesFromRegistry() && statusManagementEnabled)
+            {
+                StartAllCranes();
+            }
+        }
+        else
+        {
+            // 準備画面で基数が確定する前には状態を作成しません。
+            craneStates.Clear();
+            initialized = false;
         }
 
         UpdateStatusTexts();
@@ -135,31 +177,90 @@ public class CraneStatusManager : MonoBehaviour
         UpdateStatusTexts();
     }
 
-    private void InitializeCranes()
+    /// <summary>
+    /// CraneRegistryで確定した使用基数に合わせて状態を作成します。
+    /// </summary>
+    private bool InitializeCranesFromRegistry()
     {
+        if (!EnsureRegistryIsReady())
+        {
+            initialized = false;
+            return false;
+        }
+
+        int activeCraneCount = craneRegistry.ActiveCraneCount;
+
+        if (activeCraneCount <= 0)
+        {
+            Debug.LogError(
+                "CraneRegistryのActive Crane Countが0です。" +
+                "先にCraneCountManagerで基数を適用してください。",
+                this
+            );
+            initialized = false;
+            return false;
+        }
+
+        StopAllCranes();
         craneStates.Clear();
 
-        for (int i = 0; i < craneCount; i++)
+        for (int runtimeIndex = 0;
+             runtimeIndex < activeCraneCount;
+             runtimeIndex++)
         {
+            CraneInstance crane =
+                craneRegistry.GetCraneByRuntimeIndex(runtimeIndex);
+
             CraneState state = new CraneState();
-            state.craneName = "Crane_" + (i + 1);
+
+            if (crane != null &&
+                !string.IsNullOrWhiteSpace(crane.DisplayName))
+            {
+                state.craneName = crane.DisplayName;
+            }
+            else
+            {
+                state.craneName = "Crane_" + (runtimeIndex + 1);
+            }
+
             state.currentPhase = WorkPhase.Move1;
+            state.remainingTime = 0f;
             state.hasError = false;
             state.isStopped = false;
+            state.currentErrorType = ErrorType.None;
             state.cycleCount = 0;
-            state.nextPlaceToTrackCycle = Random.Range(minPlaceToTrackCycle, maxPlaceToTrackCycle + 1);
+            state.nextPlaceToTrackCycle = Random.Range(
+                minPlaceToTrackCycle,
+                maxPlaceToTrackCycle + 1
+            );
 
             craneStates.Add(state);
         }
+
+        initialized = true;
+        UpdateStatusUiVisibility(activeCraneCount);
+        UpdateStatusTexts();
+
+        Debug.Log(
+            $"CraneStatusManager：{activeCraneCount}基分の状態を初期化しました。"
+        );
+
+        return true;
     }
 
     private void StartAllCranes()
     {
-        if (craneStates == null) return;
+        if (craneStates == null)
+        {
+            return;
+        }
 
         foreach (CraneState state in craneStates)
         {
-            if (state == null) continue;
+            if (state == null)
+            {
+                continue;
+            }
 
             // 二重起動防止
             if (state.routine == null)
@@ -171,14 +272,19 @@ public class CraneStatusManager : MonoBehaviour
 
     public void StartStatusManagementFromSimulator()
     {
-        if (!initialized)
-        {
-            InitializeCranes();
-            initialized = true;
-        }
-
         if (simulatorStarted)
         {
+            return;
+        }
+
+        // SimulatorStartManagerでは、これより前に
+        // CraneCountManager.ApplySelectedCraneCount()を実行します。
+        if (!InitializeCranesFromRegistry())
+        {
+            Debug.LogError(
+                "CraneStatusManager：状態管理を開始できませんでした。",
+                this
+            );
             return;
         }
 
@@ -191,16 +297,24 @@ public class CraneStatusManager : MonoBehaviour
 
         UpdateStatusTexts();
 
-        Debug.Log("CraneStatusManager：シミュレータ開始後に状態管理を開始しました");
+        Debug.Log(
+            $"CraneStatusManager：{ActiveCraneCount}基の状態管理を開始しました。"
+        );
     }
 
     private void StopAllCranes()
     {
-        if (craneStates == null) return;
+        if (craneStates == null)
+        {
+            return;
+        }
 
         foreach (CraneState state in craneStates)
         {
-            if (state == null) continue;
+            if (state == null)
+            {
+                continue;
+            }
 
             if (state.routine != null)
             {
@@ -212,7 +326,10 @@ public class CraneStatusManager : MonoBehaviour
 
     public void SetStatusManagementEnabled(bool enabled)
     {
-        if (statusManagementEnabled == enabled) return;
+        if (statusManagementEnabled == enabled)
+        {
+            return;
+        }
 
         statusManagementEnabled = enabled;
 
@@ -220,12 +337,20 @@ public class CraneStatusManager : MonoBehaviour
         {
             if (simulatorStarted)
             {
+                if (!initialized && !InitializeCranesFromRegistry())
+                {
+                    return;
+                }
+
                 StartAllCranes();
                 Debug.Log("CraneStatusManager：状態管理を再開しました");
             }
             else
             {
-                Debug.Log("CraneStatusManager：状態管理ON。ただしシミュレータ開始前なので待機中です");
+                Debug.Log(
+                    "CraneStatusManager：状態管理ON。" +
+                    "ただしシミュレータ開始前なので待機中です"
+                );
             }
         }
         else
@@ -245,11 +370,17 @@ public class CraneStatusManager : MonoBehaviour
 
     private void ResetAllCraneStatusToAuto()
     {
-        if (craneStates == null) return;
+        if (craneStates == null)
+        {
+            return;
+        }
 
         foreach (CraneState state in craneStates)
         {
-            if (state == null) continue;
+            if (state == null)
+            {
+                continue;
+            }
 
             state.hasError = false;
             state.isStopped = false;
@@ -265,12 +396,19 @@ public class CraneStatusManager : MonoBehaviour
 
             if (setting == null)
             {
-                Debug.LogWarning(state.craneName + " のフェーズ設定が見つかりません: " + state.currentPhase);
+                Debug.LogWarning(
+                    state.craneName +
+                    " のフェーズ設定が見つかりません: " +
+                    state.currentPhase
+                );
                 state.routine = null;
                 yield break;
             }
 
-            float duration = Random.Range(setting.minDuration, setting.maxDuration);
+            float duration = Random.Range(
+                setting.minDuration,
+                setting.maxDuration
+            );
             state.remainingTime = duration;
 
             bool errorA = Random.value < setting.errorAProbability;
@@ -295,7 +433,8 @@ public class CraneStatusManager : MonoBehaviour
                 state.currentErrorType = ErrorType.None;
             }
 
-            state.hasError = state.currentErrorType != ErrorType.None;
+            state.hasError =
+                state.currentErrorType != ErrorType.None;
             state.isStopped = state.hasError;
 
             Debug.Log(
@@ -365,9 +504,10 @@ public class CraneStatusManager : MonoBehaviour
 
             case WorkPhase.PlaceToTrack:
                 state.cycleCount = 0;
-                state.nextPlaceToTrackCycle =
-                    Random.Range(minPlaceToTrackCycle, maxPlaceToTrackCycle + 1);
-
+                state.nextPlaceToTrackCycle = Random.Range(
+                    minPlaceToTrackCycle,
+                    maxPlaceToTrackCycle + 1
+                );
                 state.currentPhase = WorkPhase.Move1;
                 break;
         }
@@ -376,69 +516,143 @@ public class CraneStatusManager : MonoBehaviour
     // UIボタンなどから呼び出してエラー解除
     public void ResolveError(int craneIndex)
     {
-        if (!statusManagementEnabled) return;
+        if (!statusManagementEnabled)
+        {
+            return;
+        }
 
-        if (craneIndex < 0 || craneIndex >= craneStates.Count) return;
+        if (craneIndex < 0 || craneIndex >= craneStates.Count)
+        {
+            return;
+        }
 
         craneStates[craneIndex].hasError = false;
         craneStates[craneIndex].isStopped = false;
-
         craneStates[craneIndex].currentErrorType = ErrorType.None;
 
         UpdateStatusTexts();
 
-        Debug.Log(craneStates[craneIndex].craneName + " を自動に復帰しました");
+        Debug.Log(
+            craneStates[craneIndex].craneName +
+            " を自動に復帰しました"
+        );
     }
 
     public CraneState GetCraneState(int craneIndex)
     {
-        if (craneIndex < 0 || craneIndex >= craneStates.Count) return null;
+        if (craneIndex < 0 || craneIndex >= craneStates.Count)
+        {
+            return null;
+        }
+
         return craneStates[craneIndex];
     }
 
     private void UpdateStatusTexts()
     {
+        if (craneStates == null)
+        {
+            return;
+        }
+
+        foreach (StatusUiSet uiSet in GetUiSets())
+        {
+            UpdateStatusTexts(uiSet);
+        }
+    }
+
+    private void UpdateStatusTexts(StatusUiSet uiSet)
+    {
+        if (uiSet == null) return;
+
         for (int i = 0; i < craneStates.Count; i++)
         {
-            if (autoStopTexts != null && i < autoStopTexts.Length && autoStopTexts[i] != null)
+            CraneState state = craneStates[i];
+
+            if (uiSet.autoStopTexts != null &&
+                i < uiSet.autoStopTexts.Length &&
+                uiSet.autoStopTexts[i] != null)
             {
-                autoStopTexts[i].text = craneStates[i].AutoStopText;
+                uiSet.autoStopTexts[i].text = state.AutoStopText;
             }
 
-            if (phaseTexts != null && i < phaseTexts.Length && phaseTexts[i] != null)
+            if (uiSet.phaseTexts != null &&
+                i < uiSet.phaseTexts.Length &&
+                uiSet.phaseTexts[i] != null)
             {
-                phaseTexts[i].text = GetPhaseDisplayName(craneStates[i].currentPhase);
+                uiSet.phaseTexts[i].text =
+                    GetPhaseDisplayName(state.currentPhase);
             }
 
-            // RawImage色更新
-            if (autoStopImages != null &&
-                i < autoStopImages.Length &&
-                autoStopImages[i] != null)
+            if (uiSet.autoStopImages != null &&
+                i < uiSet.autoStopImages.Length &&
+                uiSet.autoStopImages[i] != null)
             {
-                autoStopImages[i].color =
-                    craneStates[i].isStopped ? stopColor : autoColor;
+                uiSet.autoStopImages[i].color =
+                    state.isStopped ? stopColor : autoColor;
             }
 
-            if (errorTypeTexts != null && i < errorTypeTexts.Length && errorTypeTexts[i] != null)
+            if (uiSet.errorTypeTexts != null &&
+                i < uiSet.errorTypeTexts.Length &&
+                uiSet.errorTypeTexts[i] != null)
             {
-                if (craneStates[i].isStopped)
+                uiSet.errorTypeTexts[i].text = state.isStopped
+                    ? GetErrorDisplayName(state.currentErrorType)
+                    : "";
+            }
+        }
+    }
+
+    /// <summary>
+    /// 登録されているクレーン別UIのうち、使用基数分だけを表示します。
+    /// </summary>
+    private void UpdateStatusUiVisibility(int activeCraneCount)
+    {
+        foreach (StatusUiSet uiSet in GetUiSets())
+        {
+            if (uiSet.craneStatusUiRoots == null) continue;
+
+            for (int i = 0; i < uiSet.craneStatusUiRoots.Length; i++)
+            {
+                GameObject uiRoot = uiSet.craneStatusUiRoots[i];
+
+                if (uiRoot != null)
                 {
-                    errorTypeTexts[i].text = GetErrorDisplayName(craneStates[i].currentErrorType);
-                }
-                else
-                {
-                    errorTypeTexts[i].text = "";
+                    uiRoot.SetActive(i < activeCraneCount);
                 }
             }
         }
     }
 
+    private IEnumerable<StatusUiSet> GetUiSets()
+    {
+        if (multiDisplayUiSet != null)
+        {
+            yield return multiDisplayUiSet;
+        }
+
+        if (singleDisplayUiSet != null)
+        {
+            yield return singleDisplayUiSet;
+        }
+    }
+
     public void CompleteErrorByCraneIndex(int craneIndex)
     {
-        if (!statusManagementEnabled) return;
+        if (!statusManagementEnabled)
+        {
+            return;
+        }
 
-        if (craneStates == null) return;
-        if (craneIndex < 0 || craneIndex >= craneStates.Count) return;
+        if (craneStates == null)
+        {
+            return;
+        }
+
+        if (craneIndex < 0 || craneIndex >= craneStates.Count)
+        {
+            return;
+        }
 
         CraneState state = craneStates[craneIndex];
 
@@ -491,7 +705,7 @@ public class CraneStatusManager : MonoBehaviour
         }
     }
 
-   public bool TryGetCraneInterventionInfo(
+    public bool TryGetCraneInterventionInfo(
         int craneIndex,
         out WorkPhase phase,
         out ErrorType errorType
@@ -500,8 +714,15 @@ public class CraneStatusManager : MonoBehaviour
         phase = WorkPhase.Move1;
         errorType = ErrorType.None;
 
-        if (craneStates == null) return false;
-        if (craneIndex < 0 || craneIndex >= craneStates.Count) return false;
+        if (craneStates == null)
+        {
+            return false;
+        }
+
+        if (craneIndex < 0 || craneIndex >= craneStates.Count)
+        {
+            return false;
+        }
 
         CraneState state = craneStates[craneIndex];
 
@@ -509,5 +730,52 @@ public class CraneStatusManager : MonoBehaviour
         errorType = state.currentErrorType;
 
         return true;
+    }
+
+    private bool EnsureRegistryIsReady()
+    {
+        if (craneRegistry == null)
+        {
+            craneRegistry = FindObjectOfType<CraneRegistry>(true);
+        }
+
+        if (craneRegistry == null)
+        {
+            Debug.LogError(
+                "CraneStatusManagerにCraneRegistryが設定されていません。",
+                this
+            );
+            return false;
+        }
+
+        if (craneRegistry.TotalCraneCount == 0)
+        {
+            craneRegistry.RefreshRegistry();
+        }
+
+        if (craneRegistry.TotalCraneCount == 0)
+        {
+            Debug.LogError(
+                "CraneStatusManager：CraneInstanceが見つかりません。",
+                this
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    private void OnDisable()
+    {
+        StopAllCranes();
+    }
+
+    private void OnValidate()
+    {
+        minPlaceToTrackCycle = Mathf.Max(1, minPlaceToTrackCycle);
+        maxPlaceToTrackCycle = Mathf.Max(
+            minPlaceToTrackCycle,
+            maxPlaceToTrackCycle
+        );
     }
 }

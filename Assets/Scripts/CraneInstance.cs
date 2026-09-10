@@ -46,7 +46,13 @@ public class CraneInstance : MonoBehaviour
     private float humanXOffset;
 
     [SerializeField]
+    private float humanZOffset;
+
+    [SerializeField]
     private float trailerXOffset;
+
+    [SerializeField]
+    private float trailerZOffset;
 
     public int CraneId => craneId;
     public string DisplayName => displayName;
@@ -56,8 +62,9 @@ public class CraneInstance : MonoBehaviour
     public Transform InformationTarget => informationTarget;
     public LifMagSystem LifMagSystem => lifMagSystem;
     public float HumanXOffset => humanXOffset;
+    public float HumanZOffset => humanZOffset;
     public float TrailerXOffset => trailerXOffset;
-
+    public float TrailerZOffset => trailerZOffset;
     /// <summary>
     /// MainCrane・MainLifMag配下のCameraと、外部Cameraをまとめて返します。
     /// 重複して登録されているCameraは1台にまとめます。
