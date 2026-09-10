@@ -42,6 +42,7 @@ public class CraneStatusManager : MonoBehaviour
         public string craneName = "Crane";
 
         public WorkPhase currentPhase;
+        public float phaseDuration;
         public float remainingTime;
         public bool hasError;
         public bool isStopped;
@@ -409,6 +410,7 @@ public class CraneStatusManager : MonoBehaviour
                 setting.minDuration,
                 setting.maxDuration
             );
+            state.phaseDuration = duration;
             state.remainingTime = duration;
 
             bool errorA = Random.value < setting.errorAProbability;
