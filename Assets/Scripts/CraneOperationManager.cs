@@ -29,6 +29,11 @@ public class CraneOperationManager : MonoBehaviour
     {
         [Header("画面全体")]
         public GameObject craneStatusScreen;
+
+        [Tooltip("Display 6など、同じモードで同時表示する追加のStatus Screenです。")]
+        public GameObject[] additionalCraneStatusScreens =
+            new GameObject[0];
+
         public GameObject waitingScreen;
 
         [Header("操作情報")]
@@ -42,6 +47,14 @@ public class CraneOperationManager : MonoBehaviour
         public Button[] craneSelectButtons = new Button[0];
         public Button lockUnlockButton;
         public Text lockUnlockButtonText;
+
+        [Tooltip("Display 6などに置いた追加のLock/Unlockボタンです。")]
+        public Button[] additionalLockUnlockButtons =
+            new Button[0];
+
+        [Tooltip("追加のLock/Unlockボタンに対応するTextです。")]
+        public Text[] additionalLockUnlockButtonTexts =
+            new Text[0];
 
         [Header("速度操作UI")]
         public GameObject[] speedControlUIButtons = new GameObject[0];
@@ -622,24 +635,50 @@ public class CraneOperationManager : MonoBehaviour
 
         foreach (OperationUiSet uiSet in GetUiSets())
         {
-            if (uiSet.lockUnlockButtonText != null)
-            {
-                uiSet.lockUnlockButtonText.text =
-                    isSelectionLocked ? "Lock" : "Unlock";
-            }
+            UpdateLockButtonText(uiSet.lockUnlockButtonText);
+            UpdateLockButtonAppearance(uiSet.lockUnlockButton);
 
-            if (uiSet.lockUnlockButton != null)
+            if (uiSet.additionalLockUnlockButtonTexts != null)
             {
-                Image buttonImage =
-                    uiSet.lockUnlockButton.GetComponent<Image>();
-
-                if (buttonImage != null)
+                foreach (Text buttonText in
+                         uiSet.additionalLockUnlockButtonTexts)
                 {
-                    buttonImage.color = isSelectionLocked
-                        ? lockColor
-                        : unlockColor;
+                    UpdateLockButtonText(buttonText);
                 }
             }
+
+            if (uiSet.additionalLockUnlockButtons != null)
+            {
+                foreach (Button button in
+                         uiSet.additionalLockUnlockButtons)
+                {
+                    UpdateLockButtonAppearance(button);
+                }
+            }
+        }
+    }
+
+    private void UpdateLockButtonText(Text buttonText)
+    {
+        if (buttonText != null)
+        {
+            buttonText.text = isSelectionLocked
+                ? "Lock"
+                : "Unlock";
+        }
+    }
+
+    private void UpdateLockButtonAppearance(Button button)
+    {
+        if (button == null) return;
+
+        Image buttonImage = button.GetComponent<Image>();
+
+        if (buttonImage != null)
+        {
+            buttonImage.color = isSelectionLocked
+                ? lockColor
+                : unlockColor;
         }
     }
 
@@ -943,9 +982,25 @@ public class CraneOperationManager : MonoBehaviour
 
     private void SetStatusScreenActive(OperationUiSet uiSet, bool active)
     {
-        if (uiSet != null && uiSet.craneStatusScreen != null)
+        if (uiSet == null) return;
+
+        if (uiSet.craneStatusScreen != null)
         {
             uiSet.craneStatusScreen.SetActive(active);
+        }
+
+        if (uiSet.additionalCraneStatusScreens == null)
+        {
+            return;
+        }
+
+        foreach (GameObject statusScreen in
+                 uiSet.additionalCraneStatusScreens)
+        {
+            if (statusScreen != null)
+            {
+                statusScreen.SetActive(active);
+            }
         }
     }
 

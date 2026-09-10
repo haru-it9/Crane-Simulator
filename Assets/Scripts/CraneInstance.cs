@@ -41,6 +41,11 @@ public class CraneInstance : MonoBehaviour
     [SerializeField]
     private LifMagSystem lifMagSystem;
 
+    [Header("板ストック")]
+    [Tooltip("このクレーンに対応するストック生成位置と判定範囲です。")]
+    [SerializeField]
+    private CraneStockLocation stockLocation;
+
     [Header("介入シナリオ用位置補正")]
     [SerializeField]
     private float humanXOffset;
@@ -61,10 +66,12 @@ public class CraneInstance : MonoBehaviour
     public GameObject TrailerObject => trailerObject;
     public Transform InformationTarget => informationTarget;
     public LifMagSystem LifMagSystem => lifMagSystem;
+    public CraneStockLocation StockLocation => stockLocation;
     public float HumanXOffset => humanXOffset;
     public float HumanZOffset => humanZOffset;
     public float TrailerXOffset => trailerXOffset;
     public float TrailerZOffset => trailerZOffset;
+
     /// <summary>
     /// MainCrane・MainLifMag配下のCameraと、外部Cameraをまとめて返します。
     /// 重複して登録されているCameraは1台にまとめます。
@@ -122,6 +129,11 @@ public class CraneInstance : MonoBehaviour
         if (lifMagSystem == null)
         {
             lifMagSystem = GetComponentInChildren<LifMagSystem>(true);
+        }
+
+        if (stockLocation == null)
+        {
+            stockLocation = GetComponentInChildren<CraneStockLocation>(true);
         }
 
         displayName = $"Crane {craneId}";
