@@ -356,6 +356,7 @@ public class CraneSchematicDisplay : MonoBehaviour
         Vector2 iconPosition = craneIcon.anchoredPosition;
         float nearestSqrDistance = float.PositiveInfinity;
         bool foundSegment = false;
+        float craneGroupZOffset = GetCraneGroupZOffset();
 
         for (int pointIndex = FirstInterventionPointIndex;
              pointIndex < lastPointIndex;
@@ -404,7 +405,7 @@ public class CraneSchematicDisplay : MonoBehaviour
                 BasePointTargetZValues[pointIndex],
                 BasePointTargetZValues[nextPointIndex],
                 interpolation
-            );
+            ) + craneGroupZOffset;
             foundSegment = true;
         }
 
@@ -434,10 +435,19 @@ public class CraneSchematicDisplay : MonoBehaviour
 
             nearestSqrDistance = sqrDistance;
             mainCraneLocalZ =
-                BasePointTargetZValues[pointIndex];
+                BasePointTargetZValues[pointIndex] +
+                craneGroupZOffset;
         }
 
         return !float.IsPositiveInfinity(nearestSqrDistance);
+    }
+
+    private float GetCraneGroupZOffset()
+    {
+        int validCraneIndex = Mathf.Max(0, craneIndex);
+        int craneGroupIndex = validCraneIndex / CranesPerGroup;
+
+        return craneGroupIndex * CraneGroupZInterval;
     }
 
     private void SelectTargetPosition(int pointIndex)

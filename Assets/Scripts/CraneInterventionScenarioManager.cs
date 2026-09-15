@@ -220,6 +220,10 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         craneIndex = resolvedCraneIndex;
         craneUnit = craneInstance.CraneUnit;
 
+        // Crane7～12ではZ範囲を180～225へ設定します。
+        // Crane13以降も6基ごとに+200して自動拡張します。
+        craneUnit.ConfigureZRangeForCraneIndex(craneIndex);
+
         currentScenarioCraneIndex = craneIndex;
         currentCraneUnit = craneUnit;
 

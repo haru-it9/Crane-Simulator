@@ -6,6 +6,11 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class CraneUnit : MonoBehaviour
 {
+    private const int CranesPerZGroup = 6;
+    private const float CraneGroupZInterval = 200f;
+    private const float BaseMinZ = -20f;
+    private const float BaseMaxZ = 25f;
+
     [System.Serializable]
     public class LifMagSetting
     {
@@ -28,15 +33,15 @@ public class CraneUnit : MonoBehaviour
     [SerializeField] private float joystickSpeedZeroRange = 0.1f;
 
     [Header("Z Speed (MainCrane) [m/min]")]
-    [SerializeField] private float[] zSpeeds = { 7.5f, 20f, 37.5f, 70f };
+    private float[] zSpeeds = { 7.5f, 20f, 37.5f, 70f };
     [SerializeField] private int zSpeedIndex = 0;
 
     [Header("MainLifMag X Speed [m/min]")]
-    [SerializeField] private float[] mainLifMagXSpeeds = { 4.2f, 10.5f, 21f, 42f }; // 2.1f, 5.25f, 10.5f, 21f
+    private float[] mainLifMagXSpeeds = { 4.2f, 10.5f, 21f, 42f }; // 2.1f, 5.25f, 10.5f, 21f
     [SerializeField] private int mainLifMagXSpeedIndex = 0;
 
     [Header("MainLifMag Y Speed [m/min]")]
-    [SerializeField] private float[] mainLifMagYSpeeds = { 0.8f, 2f, 4f, 8f };
+    private float[] mainLifMagYSpeeds = { 1.2f, 3f, 6f, 12f }; // 0.8f, 2f, 4f, 8f
     [SerializeField] private int mainLifMagYSpeedIndex = 0;
 
     [Header("LifMag Outer Speed (lif0, lif4) [m/min]")]
@@ -52,8 +57,8 @@ public class CraneUnit : MonoBehaviour
     public string MainLifMagYSpeedDisplayText { get; private set; }
 
     [Header("MainCrane Z Range")]
-    [SerializeField] private float minZ = -10f;
-    [SerializeField] private float maxZ = 10f;
+    [SerializeField] private float minZ = -20f;
+    [SerializeField] private float maxZ = 25f;
 
     [Header("MainLifMag X Range")]
     [SerializeField] private float minMainX = -0.368f;
@@ -722,6 +727,22 @@ public class CraneUnit : MonoBehaviour
     // ================================
     // 介入開始状態の再現用
     // ================================
+
+    /// <summary>
+    /// Crane1～6、Crane7～12のグループに合わせて、
+    /// MainCraneの操作可能Z範囲を-20～25基準で自動設定します。
+    /// </summary>
+    public void ConfigureZRangeForCraneIndex(int craneIndex)
+    {
+        int validCraneIndex = Mathf.Max(0, craneIndex);
+        int craneGroupIndex =
+            validCraneIndex / CranesPerZGroup;
+        float zOffset =
+            craneGroupIndex * CraneGroupZInterval;
+
+        minZ = BaseMinZ + zOffset;
+        maxZ = BaseMaxZ + zOffset;
+    }
 
     public void SetInterventionPose(
         float mainCraneLocalZ,
