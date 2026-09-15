@@ -118,6 +118,12 @@ public class CraneOperationManager : MonoBehaviour
     [Header("Current Crane")]
     [SerializeField] private int currentCraneIndex = 0;
 
+    [Header("Single・Mix時のリフマグ電流")]
+    [Tooltip("SingleまたはMixで強制ONにするリフマグ数です。通常は5です。")]
+    [SerializeField]
+    [Min(1)]
+    private int lifMagCurrentCount = 5;
+
     [Header("Display5 Status")]
     [SerializeField] private CraneStatusManager craneStatusManager;
 
@@ -240,6 +246,7 @@ public class CraneOperationManager : MonoBehaviour
         else
         {
             // 複数台管理モードは従来通り、最初は未選択
+            ReleaseCurrentCraneSelectionPause();
             currentCraneIndex = -1;
 
             // 複数台管理モードでは両方を有効にしておきます。
@@ -302,7 +309,27 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
+        int previousCraneIndex = currentCraneIndex;
+
+        if (previousCraneIndex >= 0 &&
+            previousCraneIndex != craneIndex &&
+            craneStatusManager != null)
+        {
+            craneStatusManager.SetCraneSelectionPaused(
+                previousCraneIndex,
+                false
+            );
+        }
+
         currentCraneIndex = craneIndex;
+
+        if (craneStatusManager != null)
+        {
+            craneStatusManager.SetCraneSelectionPaused(
+                currentCraneIndex,
+                true
+            );
+        }
 
         if (CurrentCrane == null)
         {
@@ -440,6 +467,7 @@ public class CraneOperationManager : MonoBehaviour
         //     interventionScenarioManager.ClearCurrentScenarioObjects();
         // }
 
+        ReleaseCurrentCraneSelectionPause();
         currentCraneIndex = -1;
 
         UpdateWaitingScreen();
@@ -564,7 +592,14 @@ public class CraneOperationManager : MonoBehaviour
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
 
+        // Single・MixではOFF操作を受け付けず、常にONにします。
+        if (ShouldForceCurrentCraneLifMagOn())
+        {
+            isOn = true;
+        }
+
         CurrentCrane.LifMagSystem.SetLifMagCurrent(index, isOn);
+        UpdateLifMagButtonViews();
     }
 
     public void ResetCurrentCraneLifMag()
@@ -582,6 +617,8 @@ public class CraneOperationManager : MonoBehaviour
     {
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
+
+        ForceCurrentCraneLifMagOnIfNeeded();
 
         foreach (OperationUiSet uiSet in GetUiSets())
         {
@@ -603,6 +640,34 @@ public class CraneOperationManager : MonoBehaviour
                 button.SetViewOnly(isOn);
                 button.SetCurrentValueView(currentValue);
             }
+        }
+    }
+
+    private bool ShouldForceCurrentCraneLifMagOn()
+    {
+        if (!EnsureDisplayLayoutManagerIsReady() ||
+            !displayLayoutManager.IsModeSelected)
+        {
+            return false;
+        }
+
+        DisplayLayoutManager.DisplayLayoutMode mode =
+            displayLayoutManager.CurrentMode;
+
+        return
+            mode == DisplayLayoutManager.DisplayLayoutMode.SingleDisplay ||
+            mode == DisplayLayoutManager.DisplayLayoutMode.MixDisplay;
+    }
+
+    private void ForceCurrentCraneLifMagOnIfNeeded()
+    {
+        if (!ShouldForceCurrentCraneLifMagOn()) return;
+        if (CurrentCrane == null) return;
+        if (CurrentCrane.LifMagSystem == null) return;
+
+        for (int i = 0; i < lifMagCurrentCount; i++)
+        {
+            CurrentCrane.LifMagSystem.SetLifMagCurrent(i, true);
         }
     }
 
@@ -956,7 +1021,7 @@ public class CraneOperationManager : MonoBehaviour
 
         if (!active) return;
 
-        OperationUiSet activeUiSet = GetActiveDisplayUiSet();
+        OperationUiSet activeUiSet = GetActiveWaitingUiSet();
         SetWaitingScreenActive(activeUiSet, true);
     }
 
@@ -976,7 +1041,7 @@ public class CraneOperationManager : MonoBehaviour
 
         if (!active) return;
 
-        OperationUiSet activeUiSet = GetActiveDisplayUiSet();
+        OperationUiSet activeUiSet = GetActiveStatusUiSet();
         SetStatusScreenActive(activeUiSet, true);
     }
 
@@ -1004,7 +1069,10 @@ public class CraneOperationManager : MonoBehaviour
         }
     }
 
-    private OperationUiSet GetActiveDisplayUiSet()
+    /// <summary>
+    /// WaitingScreenや操作UIは、MixではSingle側を使用します。
+    /// </summary>
+    private OperationUiSet GetActiveWaitingUiSet()
     {
         if (!EnsureDisplayLayoutManagerIsReady() ||
             !displayLayoutManager.IsModeSelected)
@@ -1016,6 +1084,23 @@ public class CraneOperationManager : MonoBehaviour
                DisplayLayoutManager.DisplayLayoutMode.MultiDisplay
             ? multiDisplayUiSet
             : singleDisplayUiSet;
+    }
+
+    /// <summary>
+    /// CraneStatusScreenは、MixではMulti側を使用します。
+    /// </summary>
+    private OperationUiSet GetActiveStatusUiSet()
+    {
+        if (!EnsureDisplayLayoutManagerIsReady() ||
+            !displayLayoutManager.IsModeSelected)
+        {
+            return null;
+        }
+
+        return displayLayoutManager.CurrentMode ==
+               DisplayLayoutManager.DisplayLayoutMode.SingleDisplay
+            ? singleDisplayUiSet
+            : multiDisplayUiSet;
     }
 
     private bool EnsureDisplayLayoutManagerIsReady()
@@ -1056,6 +1141,7 @@ public class CraneOperationManager : MonoBehaviour
 
         SetStatusScreensActive(showStatusScreen);
         UpdateWaitingScreen();
+        UpdateLifMagButtonViews();
     }
 
     private void HandleActiveCraneCountChanged(int activeCraneCount)
@@ -1078,6 +1164,7 @@ public class CraneOperationManager : MonoBehaviour
         }
         else if (!IsActiveCraneIndex(currentCraneIndex))
         {
+            ReleaseCurrentCraneSelectionPause();
             currentCraneIndex = -1;
             SetSelectionLock(false);
         }
@@ -1094,6 +1181,19 @@ public class CraneOperationManager : MonoBehaviour
 
         Debug.Log(
             $"CraneOperationManager：操作対象を{activeCraneCount}基に更新しました。"
+        );
+    }
+
+    private void ReleaseCurrentCraneSelectionPause()
+    {
+        if (craneStatusManager == null || currentCraneIndex < 0)
+        {
+            return;
+        }
+
+        craneStatusManager.SetCraneSelectionPaused(
+            currentCraneIndex,
+            false
         );
     }
 

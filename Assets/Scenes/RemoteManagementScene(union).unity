@@ -14075,6 +14075,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 5
   craneIcon: {fileID: 854775169}
   positionCandidates:
@@ -17333,6 +17334,8 @@ MonoBehaviour:
       m_Image: {fileID: 0}
     - m_Text: Single Display
       m_Image: {fileID: 0}
+    - m_Text: Mix Display
+      m_Image: {fileID: 0}
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -17784,7 +17787,7 @@ RectTransform:
   - {fileID: 603641282}
   - {fileID: 583749663}
   - {fileID: 72346805}
-  m_Father: {fileID: 827076651}
+  m_Father: {fileID: 266821442}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -22806,6 +22809,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 266313247}
   m_CullTransparentMesh: 1
+--- !u!1 &266821441
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 266821442}
+  m_Layer: 0
+  m_Name: MultiCraneStatusRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &266821442
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 266821441}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1068331736}
+  - {fileID: 211843918}
+  m_Father: {fileID: 0}
+  m_RootOrder: 5
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &267965823
 GameObject:
   m_ObjectHideFlags: 0
@@ -24679,6 +24715,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 6
   craneIcon: {fileID: 636022885}
   positionCandidates:
@@ -24891,7 +24928,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -25010,7 +25047,7 @@ Transform:
   - {fileID: 40909890}
   - {fileID: 892156639}
   m_Father: {fileID: 0}
-  m_RootOrder: 20
+  m_RootOrder: 22
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &293669982
 GameObject:
@@ -26757,7 +26794,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 31
+  m_RootOrder: 33
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &313659679
 GameObject:
@@ -27275,7 +27312,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -27394,7 +27431,7 @@ Transform:
   - {fileID: 736139850}
   - {fileID: 2133242777}
   m_Father: {fileID: 0}
-  m_RootOrder: 18
+  m_RootOrder: 20
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &319887195
 GameObject:
@@ -32279,6 +32316,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 11
   craneIcon: {fileID: 1575298350}
   positionCandidates:
@@ -34642,6 +34680,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 4
   craneIcon: {fileID: 247129840}
   positionCandidates:
@@ -39887,7 +39926,7 @@ Transform:
   - {fileID: 110828390}
   - {fileID: 663707077}
   m_Father: {fileID: 0}
-  m_RootOrder: 5
+  m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &450621778
 GameObject:
@@ -43986,7 +44025,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 32
+  m_RootOrder: 34
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &500227274
 GameObject:
@@ -50534,7 +50573,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 26
+  m_RootOrder: 28
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &565197928
 MonoBehaviour:
@@ -54061,6 +54100,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 9
   craneIcon: {fileID: 1124574422}
   positionCandidates:
@@ -54402,15 +54442,13 @@ MonoBehaviour:
       width: 0.3
       height: 0.3
   multiDisplayUIObjects:
-  - {fileID: 290997809}
-  - {fileID: 1068331732}
-  - {fileID: 211843917}
-  - {fileID: 1034056408}
+  - {fileID: 827076650}
   singleDisplayUIObjects:
-  - {fileID: 761439249}
-  - {fileID: 1924374619}
-  - {fileID: 651052080}
-  - {fileID: 1237738884}
+  - {fileID: 1564791259}
+  multiCraneStatusUIObjects:
+  - {fileID: 266821441}
+  singleCraneStatusUIObjects:
+  - {fileID: 1384457869}
   multiDisplayCount: 8
   displayModeDropdown: {fileID: 204999233}
   applySelectedModeOnStart: 0
@@ -54429,7 +54467,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 23
+  m_RootOrder: 25
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &606633783
 GameObject:
@@ -55503,7 +55541,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 24
+  m_RootOrder: 26
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &624014169
 GameObject:
@@ -57865,6 +57903,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 1
   craneIcon: {fileID: 908706982}
   positionCandidates:
@@ -58578,7 +58617,7 @@ RectTransform:
   - {fileID: 293837878}
   - {fileID: 1174296851}
   - {fileID: 1146304427}
-  m_Father: {fileID: 1564791260}
+  m_Father: {fileID: 1384457870}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -72464,6 +72503,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 2
   craneIcon: {fileID: 1118120813}
   positionCandidates:
@@ -72736,6 +72776,7 @@ MonoBehaviour:
     remainingTime: 0
     hasError: 0
     isStopped: 0
+    isPausedBySelection: 0
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
@@ -72745,6 +72786,7 @@ MonoBehaviour:
     remainingTime: 0
     hasError: 0
     isStopped: 0
+    isPausedBySelection: 0
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
@@ -72754,6 +72796,7 @@ MonoBehaviour:
     remainingTime: 0
     hasError: 0
     isStopped: 0
+    isPausedBySelection: 0
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
@@ -72763,6 +72806,7 @@ MonoBehaviour:
     remainingTime: 0
     hasError: 0
     isStopped: 0
+    isPausedBySelection: 0
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
@@ -72772,6 +72816,7 @@ MonoBehaviour:
     remainingTime: 0
     hasError: 0
     isStopped: 0
+    isPausedBySelection: 0
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
@@ -72781,6 +72826,7 @@ MonoBehaviour:
     remainingTime: 0
     hasError: 0
     isStopped: 0
+    isPausedBySelection: 0
     cycleCount: 0
     nextPlaceToTrackCycle: 0
     currentErrorType: 0
@@ -72936,7 +72982,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 27
+  m_RootOrder: 29
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &827044138
 GameObject:
@@ -73007,8 +73053,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 290997810}
-  - {fileID: 1068331736}
-  - {fileID: 211843918}
   - {fileID: 1034056412}
   m_Father: {fileID: 0}
   m_RootOrder: 3
@@ -78150,6 +78194,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 9
   craneIcon: {fileID: 1990352863}
   positionCandidates:
@@ -83734,7 +83779,7 @@ Transform:
   - {fileID: 1406641798}
   - {fileID: 590306173}
   m_Father: {fileID: 0}
-  m_RootOrder: 12
+  m_RootOrder: 14
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &968091382
 MonoBehaviour:
@@ -83801,7 +83846,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -85445,6 +85490,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 1
   craneIcon: {fileID: 1308811772}
   positionCandidates:
@@ -86646,7 +86692,7 @@ Transform:
   - {fileID: 1430922239}
   - {fileID: 1369304103}
   m_Father: {fileID: 0}
-  m_RootOrder: 14
+  m_RootOrder: 16
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &995693974
 MonoBehaviour:
@@ -86713,7 +86759,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -89979,7 +90025,7 @@ Transform:
   - {fileID: 241542058}
   - {fileID: 1063165987}
   m_Father: {fileID: 0}
-  m_RootOrder: 13
+  m_RootOrder: 15
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1033601252
 MonoBehaviour:
@@ -90046,7 +90092,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -93719,7 +93765,7 @@ RectTransform:
   - {fileID: 590695828}
   - {fileID: 54619298}
   - {fileID: 817746200}
-  m_Father: {fileID: 827076651}
+  m_Father: {fileID: 266821442}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -97761,6 +97807,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 5
   craneIcon: {fileID: 2127757644}
   positionCandidates:
@@ -97903,7 +97950,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 28
+  m_RootOrder: 30
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1124056809
 GameObject:
@@ -99197,6 +99244,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 6
   craneIcon: {fileID: 1708548467}
   positionCandidates:
@@ -104880,7 +104928,7 @@ Transform:
   - {fileID: 222060727}
   - {fileID: 1145403383}
   m_Father: {fileID: 0}
-  m_RootOrder: 33
+  m_RootOrder: 35
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1214442839
 GameObject:
@@ -105572,6 +105620,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 0
   craneIcon: {fileID: 2055133967}
   positionCandidates:
@@ -106436,7 +106485,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -106484,7 +106533,7 @@ Transform:
   - {fileID: 1527192082}
   - {fileID: 220821730}
   m_Father: {fileID: 0}
-  m_RootOrder: 10
+  m_RootOrder: 12
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &1229067180
 BoxCollider:
@@ -110866,7 +110915,7 @@ Transform:
   - {fileID: 1588221947}
   - {fileID: 705507995}
   m_Father: {fileID: 0}
-  m_RootOrder: 35
+  m_RootOrder: 37
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1288024544
 GameObject:
@@ -115016,7 +115065,7 @@ Transform:
   - {fileID: 1587488588}
   - {fileID: 174874423}
   m_Father: {fileID: 0}
-  m_RootOrder: 11
+  m_RootOrder: 13
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1343052237
 MonoBehaviour:
@@ -115083,7 +115132,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -116034,7 +116083,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -116153,7 +116202,7 @@ Transform:
   - {fileID: 1484407857}
   - {fileID: 541386137}
   m_Father: {fileID: 0}
-  m_RootOrder: 19
+  m_RootOrder: 21
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1353118729
 GameObject:
@@ -118427,7 +118476,7 @@ Transform:
   - {fileID: 419320453}
   - {fileID: 1514171645}
   m_Father: {fileID: 0}
-  m_RootOrder: 9
+  m_RootOrder: 11
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1378636666
 MonoBehaviour:
@@ -118494,7 +118543,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -118822,6 +118871,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1383975555}
   m_CullTransparentMesh: 1
+--- !u!1 &1384457869
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1384457870}
+  m_Layer: 0
+  m_Name: SingleCraneStatusRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1384457870
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1384457869}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1924374620}
+  - {fileID: 651052081}
+  m_Father: {fileID: 0}
+  m_RootOrder: 6
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1386763331
 GameObject:
   m_ObjectHideFlags: 0
@@ -126997,7 +127079,7 @@ Transform:
   - {fileID: 1294345029}
   - {fileID: 1183452744}
   m_Father: {fileID: 0}
-  m_RootOrder: 7
+  m_RootOrder: 9
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1484407856
 GameObject:
@@ -129353,6 +129435,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 7
   craneIcon: {fileID: 473476439}
   positionCandidates:
@@ -130677,7 +130760,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -130796,7 +130879,7 @@ Transform:
   - {fileID: 937161135}
   - {fileID: 5649965}
   m_Father: {fileID: 0}
-  m_RootOrder: 17
+  m_RootOrder: 19
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1533084605
 GameObject:
@@ -131445,6 +131528,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 10
   craneIcon: {fileID: 841131661}
   positionCandidates:
@@ -133392,8 +133476,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 761439250}
-  - {fileID: 1924374620}
-  - {fileID: 651052081}
   - {fileID: 1237738888}
   m_Father: {fileID: 0}
   m_RootOrder: 4
@@ -136180,7 +136262,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -136299,7 +136381,7 @@ Transform:
   - {fileID: 1180590661}
   - {fileID: 695873557}
   m_Father: {fileID: 0}
-  m_RootOrder: 15
+  m_RootOrder: 17
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1602192854
 GameObject:
@@ -136918,7 +137000,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 21
+  m_RootOrder: 23
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1612894383
 MonoBehaviour:
@@ -136992,20 +137074,20 @@ MonoBehaviour:
     - {fileID: 1960657911}
     currentCraneNameText: {fileID: 831352259}
     craneSelectButtons:
-    - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
+    - {fileID: 1839139294}
+    - {fileID: 187658669}
+    - {fileID: 107792166}
+    - {fileID: 595471140}
+    - {fileID: 1242709780}
+    - {fileID: 1433660646}
     - {fileID: 842688603}
     - {fileID: 1049795026}
     - {fileID: 1535814760}
     - {fileID: 1486463096}
     - {fileID: 155655314}
     - {fileID: 1194740084}
-    lockUnlockButton: {fileID: 0}
-    lockUnlockButtonText: {fileID: 0}
+    lockUnlockButton: {fileID: 1492964734}
+    lockUnlockButtonText: {fileID: 213188416}
     additionalLockUnlockButtons:
     - {fileID: 1262123277}
     additionalLockUnlockButtonTexts:
@@ -137034,6 +137116,7 @@ MonoBehaviour:
   debugJoyStick3Vertical: JoyStick1LeftVertical
   deadZone: 0.1
   currentCraneIndex: 0
+  lifMagCurrentCount: 5
   craneStatusManager: {fileID: 825525979}
   hideInactiveCraneButtons: 1
   normalButtonColor: {r: 1, g: 1, b: 1, a: 1}
@@ -138053,7 +138136,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 30
+  m_RootOrder: 32
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1625565776
 GameObject:
@@ -138812,6 +138895,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 7
   craneIcon: {fileID: 2084676208}
   positionCandidates:
@@ -145306,7 +145390,7 @@ Transform:
   - {fileID: 97951062}
   - {fileID: 1592277114}
   m_Father: {fileID: 0}
-  m_RootOrder: 8
+  m_RootOrder: 10
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1705505981
 GameObject:
@@ -146986,6 +147070,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 0
   craneIcon: {fileID: 2112485271}
   positionCandidates:
@@ -151092,7 +151177,7 @@ MonoBehaviour:
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
   minZ: -20
-  maxZ: 10
+  maxZ: 25
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -151211,7 +151296,7 @@ Transform:
   - {fileID: 1620685124}
   - {fileID: 2071617259}
   m_Father: {fileID: 0}
-  m_RootOrder: 16
+  m_RootOrder: 18
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1783149579
 GameObject:
@@ -151741,7 +151826,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 29
+  m_RootOrder: 31
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1792736602
 GameObject:
@@ -153107,7 +153192,7 @@ RectTransform:
   - {fileID: 1253123846}
   - {fileID: 1804951095}
   m_Father: {fileID: 0}
-  m_RootOrder: 6
+  m_RootOrder: 8
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -154277,6 +154362,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 3
   craneIcon: {fileID: 472617959}
   positionCandidates:
@@ -155677,6 +155763,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 10
   craneIcon: {fileID: 490196284}
   positionCandidates:
@@ -158715,6 +158802,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 8
   craneIcon: {fileID: 827044139}
   positionCandidates:
@@ -160485,7 +160573,7 @@ Transform:
   - {fileID: 828500249}
   - {fileID: 2104899905}
   m_Father: {fileID: 0}
-  m_RootOrder: 34
+  m_RootOrder: 36
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1918269632
 GameObject:
@@ -160932,7 +161020,7 @@ RectTransform:
   - {fileID: 1039259844}
   - {fileID: 818590740}
   - {fileID: 604902637}
-  m_Father: {fileID: 1564791260}
+  m_Father: {fileID: 1384457870}
   m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -163838,6 +163926,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 8
   craneIcon: {fileID: 1638877773}
   positionCandidates:
@@ -165627,6 +165716,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 3
   craneIcon: {fileID: 1965266740}
   positionCandidates:
@@ -171191,6 +171281,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 11
   craneIcon: {fileID: 429695842}
   positionCandidates:
@@ -173324,7 +173415,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 25
+  m_RootOrder: 27
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2080963384
 MonoBehaviour:
@@ -175042,6 +175133,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 2
   craneIcon: {fileID: 1169825618}
   positionCandidates:
@@ -176253,7 +176345,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 22
+  m_RootOrder: 24
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2125242054
 GameObject:
@@ -176801,6 +176893,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  craneOperationManager: {fileID: 1612894383}
   craneIndex: 4
   craneIcon: {fileID: 1478801307}
   positionCandidates:

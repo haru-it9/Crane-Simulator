@@ -47,6 +47,9 @@ public class CraneStatusManager : MonoBehaviour
         public bool hasError;
         public bool isStopped;
 
+        [HideInInspector]
+        public bool isPausedBySelection;
+
         public int cycleCount;
         public int nextPlaceToTrackCycle;
 
@@ -55,7 +58,14 @@ public class CraneStatusManager : MonoBehaviour
 
         public string AutoStopText
         {
+            // 操作対象としての一時停止は、自動操業表示を変えません。
+            // 実際に異常停止している場合だけ「停止」と表示します。
             get { return isStopped ? "停止" : "自動"; }
+        }
+
+        public bool IsProgressPaused
+        {
+            get { return isStopped || isPausedBySelection; }
         }
 
         public ErrorType currentErrorType = ErrorType.None;
@@ -225,9 +235,11 @@ public class CraneStatusManager : MonoBehaviour
             }
 
             state.currentPhase = WorkPhase.Move1;
+            state.phaseDuration = 0f;
             state.remainingTime = 0f;
             state.hasError = false;
             state.isStopped = false;
+            state.isPausedBySelection = false;
             state.currentErrorType = ErrorType.None;
             state.cycleCount = 0;
             state.nextPlaceToTrackCycle = Random.Range(
@@ -385,6 +397,7 @@ public class CraneStatusManager : MonoBehaviour
 
             state.hasError = false;
             state.isStopped = false;
+            state.isPausedBySelection = false;
             state.currentErrorType = ErrorType.None;
         }
     }
@@ -447,7 +460,7 @@ public class CraneStatusManager : MonoBehaviour
             );
 
             // エラーが出た場合は外部から解除されるまで停止
-            while (state.isStopped)
+            while (state.IsProgressPaused)
             {
                 yield return null;
             }
@@ -455,12 +468,51 @@ public class CraneStatusManager : MonoBehaviour
             // 通常進行
             while (state.remainingTime > 0f)
             {
-                state.remainingTime -= Time.deltaTime;
+                if (!state.IsProgressPaused)
+                {
+                    state.remainingTime -= Time.deltaTime;
+                }
+
+                yield return null;
+            }
+
+            // 残り時間が0になった瞬間に選択された場合も、
+            // 選択解除までは次フェーズへ進めません。
+            while (state.IsProgressPaused)
+            {
                 yield return null;
             }
 
             GoToNextPhase(state);
         }
+    }
+
+    /// <summary>
+    /// 遠隔操作対象として選択されている間だけ、自動操業の進行を止めます。
+    /// 異常停止状態とは別に管理するため、解除時に元の異常状態を保持できます。
+    /// </summary>
+    public void SetCraneSelectionPaused(int craneIndex, bool paused)
+    {
+        if (craneStates == null ||
+            craneIndex < 0 ||
+            craneIndex >= craneStates.Count)
+        {
+            return;
+        }
+
+        CraneState state = craneStates[craneIndex];
+        if (state == null || state.isPausedBySelection == paused)
+        {
+            return;
+        }
+
+        state.isPausedBySelection = paused;
+        UpdateStatusTexts();
+
+        Debug.Log(
+            $"{state.craneName}: 操作選択による自動操業" +
+            (paused ? "一時停止" : "再開")
+        );
     }
 
     private PhaseSetting GetPhaseSetting(WorkPhase phase)

@@ -15,6 +15,10 @@ public class CraneSchematicDisplay : MonoBehaviour
     [SerializeField]
     private CraneStockManager craneStockManager;
 
+    [Tooltip("現在選択されているクレーン番号の取得に使用します。未設定時は自動検索します。")]
+    [SerializeField]
+    private CraneOperationManager craneOperationManager;
+
     [Tooltip("Crane1なら0、Crane2なら1")]
     [SerializeField]
     private int craneIndex;
@@ -53,6 +57,15 @@ public class CraneSchematicDisplay : MonoBehaviour
     private CraneStatusManager.WorkPhase previousPhase;
     private CraneStatusManager.CraneState observedState;
 
+    private void Awake()
+    {
+        if (craneOperationManager == null)
+        {
+            craneOperationManager =
+                FindObjectOfType<CraneOperationManager>(true);
+        }
+    }
+
     private void Update()
     {
         if (craneStatusManager == null || craneIcon == null)
@@ -72,6 +85,17 @@ public class CraneSchematicDisplay : MonoBehaviour
         {
             observedState = state;
             InitializeSchematic(state);
+        }
+
+        // 操作対象として選択されているクレーンは直接停止します。
+        // CraneStatusManager側の一時停止フラグも併用します。
+        bool isSelectedCrane =
+            craneOperationManager != null &&
+            craneOperationManager.CurrentCraneIndex == craneIndex;
+
+        if (isSelectedCrane || state.IsProgressPaused)
+        {
+            return;
         }
 
         if (!hasPreviousPhase ||

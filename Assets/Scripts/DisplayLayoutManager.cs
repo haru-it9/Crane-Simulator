@@ -7,7 +7,8 @@ public class DisplayLayoutManager : MonoBehaviour
     public enum DisplayLayoutMode
     {
         MultiDisplay,
-        SingleDisplay
+        SingleDisplay,
+        MixDisplay
     }
 
     public enum CameraNameMatchMode
@@ -52,13 +53,22 @@ public class DisplayLayoutManager : MonoBehaviour
     private CameraLayoutRule[] cameraLayoutRules = new CameraLayoutRule[0];
 
     [Header("モード別UI")]
-    [Tooltip("複数画面モードのときだけ表示するUIを登録します。")]
+    [Tooltip("Multiでのみ使用する通常UIを登録します。CraneStatusScreenは除外してください。")]
     [SerializeField]
     private GameObject[] multiDisplayUIObjects = new GameObject[0];
 
-    [Tooltip("単一画面モードのときだけ表示するUIを登録します。")]
+    [Tooltip("SingleとMixで使用する通常UIを登録します。CraneStatusScreenは除外してください。")]
     [SerializeField]
     private GameObject[] singleDisplayUIObjects = new GameObject[0];
+
+    [Header("CraneStatusScreen")]
+    [Tooltip("MultiとMixで使用するDisplay 5・6側のCraneStatusScreenを登録します。")]
+    [SerializeField]
+    private GameObject[] multiCraneStatusUIObjects = new GameObject[0];
+
+    [Tooltip("Singleでのみ使用するDisplay 1側のCraneStatusScreenを登録します。")]
+    [SerializeField]
+    private GameObject[] singleCraneStatusUIObjects = new GameObject[0];
 
     [Header("複数画面設定")]
     [Tooltip("Display 1を含む使用画面数です。Display 7まで使う場合は7です。")]
@@ -80,7 +90,7 @@ public class DisplayLayoutManager : MonoBehaviour
     [SerializeField]
     private DisplayLayoutMode selectedMode = DisplayLayoutMode.SingleDisplay;
 
-    [Tooltip("ONの場合、表示モードが適用されるまでモード別UIを両方非表示にします。")]
+    [Tooltip("ONの場合、表示モードが適用されるまでモード別UIを非表示にします。")]
     [SerializeField]
     private bool hideModeSpecificUIUntilSelected = true;
 
@@ -115,6 +125,8 @@ public class DisplayLayoutManager : MonoBehaviour
         {
             SetUIObjectsActive(multiDisplayUIObjects, false);
             SetUIObjectsActive(singleDisplayUIObjects, false);
+            SetUIObjectsActive(multiCraneStatusUIObjects, false);
+            SetUIObjectsActive(singleCraneStatusUIObjects, false);
         }
     }
 
@@ -164,8 +176,18 @@ public class DisplayLayoutManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Mixモードを直ちに適用します。
+    /// カメラと操作UIはSingle、CraneStatusScreenはMultiの配置を使います。
+    /// </summary>
+    public void SelectMixDisplayMode()
+    {
+        selectedMode = DisplayLayoutMode.MixDisplay;
+        ApplySelectedMode();
+    }
+
+    /// <summary>
     /// Unity UIのDropdownから選択モードだけを変更します。
-    /// 0 = 複数画面、1 = 単一画面です。この時点では適用しません。
+    /// 0 = 複数画面、1 = 単一画面、2 = Mixです。この時点では適用しません。
     /// </summary>
     public void SetSelectedModeFromDropdown(int optionIndex)
     {
@@ -177,6 +199,10 @@ public class DisplayLayoutManager : MonoBehaviour
 
             case 1:
                 selectedMode = DisplayLayoutMode.SingleDisplay;
+                break;
+
+            case 2:
+                selectedMode = DisplayLayoutMode.MixDisplay;
                 break;
 
             default:
@@ -202,10 +228,16 @@ public class DisplayLayoutManager : MonoBehaviour
     private void ApplyMode(DisplayLayoutMode mode)
     {
         bool isMultiDisplay = mode == DisplayLayoutMode.MultiDisplay;
+        bool isSingleDisplay = mode == DisplayLayoutMode.SingleDisplay;
+        bool isMixDisplay = mode == DisplayLayoutMode.MixDisplay;
 
         if (isMultiDisplay)
         {
-            ActivateAdditionalDisplays();
+            ActivateMultiDisplays();
+        }
+        else if (isMixDisplay)
+        {
+            ActivateMixDisplays();
         }
         else if (additionalDisplaysWereActivated)
         {
@@ -217,8 +249,25 @@ public class DisplayLayoutManager : MonoBehaviour
 
         ApplyCameraLayouts(mode);
 
-        SetUIObjectsActive(multiDisplayUIObjects, isMultiDisplay);
-        SetUIObjectsActive(singleDisplayUIObjects, !isMultiDisplay);
+        // 通常UI：MixではSingle側を使用します。
+        SetUIObjectsActive(
+            multiDisplayUIObjects,
+            isMultiDisplay
+        );
+        SetUIObjectsActive(
+            singleDisplayUIObjects,
+            isSingleDisplay || isMixDisplay
+        );
+
+        // CraneStatusScreen：MixではMulti側を使用します。
+        SetUIObjectsActive(
+            multiCraneStatusUIObjects,
+            isMultiDisplay || isMixDisplay
+        );
+        SetUIObjectsActive(
+            singleCraneStatusUIObjects,
+            isSingleDisplay
+        );
 
         CurrentMode = mode;
         IsModeSelected = true;
@@ -261,7 +310,7 @@ public class DisplayLayoutManager : MonoBehaviour
             }
             else
             {
-                // 単一画面モードでは、対象CameraをすべてDisplay 1へ集約します。
+                // SingleとMixでは、対象CameraをDisplay 1へ集約します。
                 targetCamera.targetDisplay = 0;
                 targetCamera.rect = matchedRule.singleViewportRect;
                 enableCamera = matchedRule.enableInSingleDisplay;
@@ -332,7 +381,7 @@ public class DisplayLayoutManager : MonoBehaviour
         }
     }
 
-    private void ActivateAdditionalDisplays()
+    private void ActivateMultiDisplays()
     {
 #if UNITY_STANDALONE
         int detectedDisplayCount = Display.displays.Length;
@@ -359,6 +408,45 @@ public class DisplayLayoutManager : MonoBehaviour
         additionalDisplaysWereActivated = activateCount > 1;
 
         Debug.Log($"Display 1～{activateCount}を使用します。");
+#else
+        Debug.Log(
+            "追加Displayの有効化はStandaloneビルドで確認してください。"
+        );
+#endif
+    }
+
+    private void ActivateMixDisplays()
+    {
+#if UNITY_STANDALONE
+        // Display配列は0始まりです。
+        // Display 5 = index 4、Display 6 = index 5です。
+        int[] requiredDisplayIndices = { 4, 5 };
+        int detectedDisplayCount = Display.displays.Length;
+        bool activatedAnyAdditionalDisplay = false;
+
+        foreach (int displayIndex in requiredDisplayIndices)
+        {
+            if (displayIndex >= detectedDisplayCount)
+            {
+                Debug.LogWarning(
+                    $"MixDisplayではDisplay {displayIndex + 1}が必要ですが、" +
+                    $"認識されているDisplayは{detectedDisplayCount}台です。"
+                );
+                continue;
+            }
+
+            if (!Display.displays[displayIndex].active)
+            {
+                Display.displays[displayIndex].Activate();
+            }
+
+            activatedAnyAdditionalDisplay = true;
+        }
+
+        additionalDisplaysWereActivated |=
+            activatedAnyAdditionalDisplay;
+
+        Debug.Log("MixDisplay：Display 1・5・6を使用します。");
 #else
         Debug.Log(
             "追加Displayの有効化はStandaloneビルドで確認してください。"
