@@ -6,6 +6,11 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class TargetInformationDisplay : MonoBehaviour
 {
+    // CraneSchematicDisplayで決定された内部座標を、
+    // 操作画面に表示する座標へ変換するための値です。
+    private const float TargetXDisplayOffset = 20f;
+    private const float TargetZDisplayOffset = 250f;
+
     private enum GenerateMode
     {
         CSV,
@@ -56,6 +61,9 @@ public class TargetInformationDisplay : MonoBehaviour
     private readonly List<TargetData> targetDataList =
         new List<TargetData>();
     private int currentIndex;
+
+    public float CurrentTargetX { get; private set; }
+    public float CurrentTargetZ { get; private set; }
 
     private void Start()
     {
@@ -138,6 +146,9 @@ public class TargetInformationDisplay : MonoBehaviour
     {
         if (data == null) return;
 
+        CurrentTargetX = data.targetX;
+        CurrentTargetZ = data.targetZ;
+
         foreach (TargetTextSet textSet in GetTextSets())
         {
             if (textSet.targetXText != null)
@@ -154,6 +165,37 @@ public class TargetInformationDisplay : MonoBehaviour
             {
                 textSet.targetWeightText.text =
                     data.targetWeight.ToString("F2") + weightUnit;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 選択されたクレーンの模式図から、現在の目標X・Zだけを反映します。
+    /// 目標重量は既存の表示値を変更しません。
+    /// </summary>
+    public void ShowPositionTarget(float targetX, float targetZ)
+    {
+        float displayTargetX =
+            targetX + TargetXDisplayOffset;
+
+        float displayTargetZ =
+            -targetZ + TargetZDisplayOffset;
+
+        CurrentTargetX = displayTargetX;
+        CurrentTargetZ = displayTargetZ;
+
+        foreach (TargetTextSet textSet in GetTextSets())
+        {
+            if (textSet.targetXText != null)
+            {
+                textSet.targetXText.text =
+                    displayTargetX.ToString("F2");
+            }
+
+            if (textSet.targetZText != null)
+            {
+                textSet.targetZText.text =
+                    displayTargetZ.ToString("F2");
             }
         }
     }

@@ -197,7 +197,8 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         CraneUnit craneUnit,
         CraneStatusManager.WorkPhase phase,
         CraneStatusManager.ErrorType errorType,
-        int craneIndex
+        int craneIndex,
+        float? mainCraneLocalZOverride = null
     )
     {
         if (craneUnit == null)
@@ -261,6 +262,15 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         currentAttachedPlateTargetSize = Vector3.zero;
 
         CranePose cranePose = GetRandomCranePose(errorType);
+
+        // 模式図から開始Zを取得できた場合は、
+        // ランダム／CSVで決めたZだけを置き換えます。
+        // リフマグのX・Yは従来どおりの設定を使用します。
+        if (mainCraneLocalZOverride.HasValue)
+        {
+            cranePose.mainCraneLocalZ =
+                mainCraneLocalZOverride.Value;
+        }
 
         craneUnit.SetInterventionPose(
             cranePose.mainCraneLocalZ,
@@ -522,6 +532,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             $"人オブジェクト生成: CraneIndex={craneIndex}, " +
             $"csvPosition={humanPose.position}, " +
             $"xOffset={xOffset:F2}, " +
+            $"zOffset={zOffset:F2}, " +
             $"spawnPosition={spawnPosition}"
         );
     }
@@ -586,6 +597,7 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             $"トレーラ配置: CraneIndex={craneIndex}, " +
             $"csvPosition={trailerPose.position}, " +
             $"xOffset={xOffset:F2}, " +
+            $"zOffset={zOffset:F2}, " +
             $"finalPosition={spawnPosition}, " +
             $"rotY={trailerPose.rotationY:F1}, " +
             $"plateSize={currentAttachedPlateTargetSize}"

@@ -74,7 +74,7 @@ public class CraneInformationDisplay : MonoBehaviour
         Vector3 pos = targetTransform.position;
 
         CurrentX = pos.x + 20f;
-        CurrentZ = pos.z * -1f + 50f;
+        CurrentZ = pos.z * -1f + 250f;
 
         foreach (InformationTextSet textSet in GetTextSets())
         {

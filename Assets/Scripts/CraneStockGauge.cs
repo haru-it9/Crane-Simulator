@@ -111,7 +111,9 @@ public class CraneStockGauge : MonoBehaviour
             ? Mathf.MoveTowards(
                 currentHeight,
                 targetHeight,
-                heightChangeSpeed * Time.deltaTime
+                // クレーンの自動操業停止やTime.timeScaleに関係なく、
+                // ストック表示は更新を継続します。
+                heightChangeSpeed * Time.unscaledDeltaTime
             )
             : targetHeight;
 

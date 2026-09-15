@@ -79,6 +79,11 @@ public class CraneOperationManager : MonoBehaviour
     [Tooltip("Multi/Singleのうち、現在表示中のUIだけを切り替えるために使用します。")]
     [SerializeField] private DisplayLayoutManager displayLayoutManager;
 
+    [Header("目標値表示")]
+    [Tooltip("選択したクレーンの模式図から現在の目標X・Zを表示します。")]
+    [SerializeField]
+    private TargetInformationDisplay targetInformationDisplay;
+
     [Header("表示モード別UI")]
     [Tooltip("複数画面で使用するUIを登録します。")]
     [SerializeField] private OperationUiSet multiDisplayUiSet =
@@ -356,6 +361,32 @@ public class CraneOperationManager : MonoBehaviour
             }
             else
             {
+                float? interventionStartLocalZ = null;
+
+                CraneSchematicDisplay schematicDisplay =
+                    FindSchematicDisplayForCrane(craneIndex);
+
+                if (schematicDisplay != null &&
+                    schematicDisplay.TryGetCurrentInterventionLocalZ(
+                        out float schematicLocalZ
+                    ))
+                {
+                    interventionStartLocalZ = schematicLocalZ;
+
+                    Debug.Log(
+                        $"Crane {craneIndex + 1} 介入開始Z: " +
+                        $"{schematicLocalZ:F2}"
+                    );
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"Crane {craneIndex + 1}の模式図から" +
+                        "介入開始Zを取得できませんでした。" +
+                        "従来のCSV／ランダムZを使用します。"
+                    );
+                }
+
                 bool gotInfo = craneStatusManager.TryGetCraneInterventionInfo(
                     craneIndex,
                     out CraneStatusManager.WorkPhase phase,
@@ -372,7 +403,8 @@ public class CraneOperationManager : MonoBehaviour
                     CurrentCrane,
                     phase,
                     errorType,
-                    craneIndex
+                    craneIndex,
+                    interventionStartLocalZ
                 );
             }
         }
@@ -381,6 +413,7 @@ public class CraneOperationManager : MonoBehaviour
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
+        UpdateSelectedCraneTargetInformation();
         UpdateLifMagButtonViews();
         UpdateCurrentCraneNameText();
         UpdateSpeedDisplayTexts();
@@ -448,6 +481,94 @@ public class CraneOperationManager : MonoBehaviour
                 crane.LifMagSystem
             );
         }
+    }
+
+    private CraneSchematicDisplay FindSchematicDisplayForCrane(
+        int targetCraneIndex
+    )
+    {
+        CraneSchematicDisplay[] schematicDisplays =
+            FindObjectsOfType<CraneSchematicDisplay>(true);
+
+        CraneSchematicDisplay inactiveFallback = null;
+
+        foreach (CraneSchematicDisplay schematicDisplay in
+                 schematicDisplays)
+        {
+            if (schematicDisplay == null ||
+                schematicDisplay.CraneIndex != targetCraneIndex)
+            {
+                continue;
+            }
+
+            if (schematicDisplay.gameObject.activeInHierarchy)
+            {
+                return schematicDisplay;
+            }
+
+            if (inactiveFallback == null)
+            {
+                inactiveFallback = schematicDisplay;
+            }
+        }
+
+        return inactiveFallback;
+    }
+
+    private void UpdateSelectedCraneTargetInformation()
+    {
+        if (currentCraneIndex < 0) return;
+
+        if (targetInformationDisplay == null)
+        {
+            targetInformationDisplay =
+                FindObjectOfType<TargetInformationDisplay>(true);
+        }
+
+        if (targetInformationDisplay == null)
+        {
+            Debug.LogWarning(
+                "TargetInformationDisplayが設定されていません。",
+                this
+            );
+            return;
+        }
+
+        CraneSchematicDisplay selectedDisplay =
+            FindSchematicDisplayForCrane(currentCraneIndex);
+
+        if (selectedDisplay == null)
+        {
+            Debug.LogWarning(
+                $"Crane {currentCraneIndex + 1}の" +
+                "CraneSchematicDisplayが見つかりません。",
+                this
+            );
+            return;
+        }
+
+        if (!selectedDisplay.TryGetCurrentTargetPosition(
+                out float targetX,
+                out float targetZ
+            ))
+        {
+            Debug.LogWarning(
+                $"Crane {currentCraneIndex + 1}の目標座標が" +
+                "まだ確定していません。",
+                selectedDisplay
+            );
+            return;
+        }
+
+        targetInformationDisplay.ShowPositionTarget(
+            targetX,
+            targetZ
+        );
+
+        Debug.Log(
+            $"Crane {currentCraneIndex + 1} 目標座標表示: " +
+            $"X={targetX:F2}, Z={targetZ:F2}"
+        );
     }
 
     public void EnterWaitingMode()

@@ -260,7 +260,9 @@ public class CraneStockManager : MonoBehaviour
             CraneStockState state = stockStates[craneIndex];
             if (state == null) continue;
 
-            state.remainingUntilNextStock -= Time.deltaTime;
+            // クレーンが操作対象として一時停止していても、
+            // ストックの入荷は実時間で継続させます。
+            state.remainingUntilNextStock -= Time.unscaledDeltaTime;
 
             if (state.remainingUntilNextStock > 0f)
             {

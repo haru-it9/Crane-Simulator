@@ -8,6 +8,21 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class CraneSchematicDisplay : MonoBehaviour
 {
+    // Crane1を基準としたPoint0～Point12の目標Z座標です。
+    private static readonly float[] BasePointTargetZValues =
+    {
+        19f, 10f, 8f, 6f, 4f, 2f, 0f,
+        -2f, -4f, -6f, -8f, -10f, -15f
+    };
+
+    private const int CranesPerGroup = 6;
+    private const float CraneXInterval = 20f;
+    private const float CraneGroupZInterval = 200f;
+    private const float FirstXCandidate = -4f;
+    private const float SecondXCandidate = 4f;
+    private const int FirstInterventionPointIndex = 1;
+    private const int LastInterventionPointIndex = 11;
+
     [Header("状態取得")]
     [SerializeField]
     private CraneStatusManager craneStatusManager;
@@ -57,6 +72,15 @@ public class CraneSchematicDisplay : MonoBehaviour
     private CraneStatusManager.WorkPhase previousPhase;
     private CraneStatusManager.CraneState observedState;
 
+    private bool hasCurrentTargetPosition;
+    private float currentTargetX;
+    private float currentTargetZ;
+
+    public int CraneIndex => craneIndex;
+    public int CurrentPointIndex => currentPointIndex;
+    public float CurrentTargetX => currentTargetX;
+    public float CurrentTargetZ => currentTargetZ;
+
     private void Awake()
     {
         if (craneOperationManager == null)
@@ -87,28 +111,36 @@ public class CraneSchematicDisplay : MonoBehaviour
             InitializeSchematic(state);
         }
 
-        // 操作対象として選択されているクレーンは直接停止します。
-        // CraneStatusManager側の一時停止フラグも併用します。
-        bool isSelectedCrane =
-            craneOperationManager != null &&
-            craneOperationManager.CurrentCraneIndex == craneIndex;
-
-        if (isSelectedCrane || state.IsProgressPaused)
-        {
-            return;
-        }
-
         if (!hasPreviousPhase ||
             state.currentPhase != previousPhase)
         {
             HandlePhaseChanged(state.currentPhase, state);
         }
 
-        if (!IsMovingPhase(state.currentPhase))
-        {
-            return;
-        }
+        // 停止するのは模式図のクレーンアイコンだけです。
+        // CraneStockManagerやCraneStockGaugeの更新は止めません。
+        bool isSelectedCrane =
+            craneOperationManager != null &&
+            craneOperationManager.CurrentCraneIndex == craneIndex;
 
+        bool shouldPauseCraneIcon =
+            isSelectedCrane || state.IsProgressPaused;
+
+        if (IsMovingPhase(state.currentPhase) &&
+            !shouldPauseCraneIcon)
+        {
+            UpdateCraneIconPosition(state);
+        }
+    }
+
+    /// <summary>
+    /// 模式図のクレーンアイコンだけを更新します。
+    /// ストック数・ストック板・ゲージは別スクリプトで常時更新されます。
+    /// </summary>
+    private void UpdateCraneIconPosition(
+        CraneStatusManager.CraneState state
+    )
+    {
         float progress = state.phaseDuration > 0f
             ? Mathf.Clamp01(
                 1f - state.remainingTime / state.phaseDuration
@@ -144,6 +176,10 @@ public class CraneSchematicDisplay : MonoBehaviour
         moveStartPosition = initialPosition;
         moveEndPosition = initialPosition;
         hasPreviousPhase = false;
+
+        // 開始直後が移動フェーズでなかった場合にも、
+        // 現在地点に対応する目標値を取得できるようにします。
+        SelectTargetPosition(currentPointIndex);
 
         HandlePhaseChanged(state.currentPhase, state);
     }
@@ -225,13 +261,226 @@ public class CraneSchematicDisplay : MonoBehaviour
         moveEndPosition = GetCandidatePosition(endPointIndex);
         currentPointIndex = endPointIndex;
 
+        // この移動で使用する目標座標を一度だけ確定します。
+        // ZはEnd Point、Xは候補リストから抽選します。
+        SelectTargetPosition(endPointIndex);
+
         UpdateStartEndMarkers();
 
         Debug.Log(
             $"{name}: {phase} " +
             $"Start=Point{startPointIndex}, " +
-            $"End=Point{endPointIndex}"
+            $"End=Point{endPointIndex}, " +
+            $"TargetX={currentTargetX:F2}, " +
+            $"TargetZ={currentTargetZ:F2}"
         );
+    }
+
+    /// <summary>
+    /// 現在の移動先に対応する目標X・Zを返します。
+    /// クレーンが選択された瞬間にCraneOperationManagerから呼び出します。
+    /// </summary>
+    public bool TryGetCurrentTargetPosition(
+        out float targetX,
+        out float targetZ
+    )
+    {
+        // 選択イベントがUpdateより先に呼ばれた場合にも、
+        // 最新フェーズの移動先を取得できるよう同期します。
+        if (craneStatusManager != null)
+        {
+            CraneStatusManager.CraneState state =
+                craneStatusManager.GetCraneState(craneIndex);
+
+            if (state != null)
+            {
+                if (state != observedState)
+                {
+                    observedState = state;
+                    InitializeSchematic(state);
+                }
+                else if (!hasPreviousPhase ||
+                         state.currentPhase != previousPhase)
+                {
+                    HandlePhaseChanged(state.currentPhase, state);
+                }
+            }
+        }
+
+        targetX = currentTargetX;
+        targetZ = currentTargetZ;
+        return hasCurrentTargetPosition;
+    }
+
+    /// <summary>
+    /// 現在の模式図アイコン位置をPoint1～11の区間へ投影し、
+    /// 介入開始時に使用するmainCrane.localPosition.zを返します。
+    /// Point間にいる場合は、両PointのZ座標を線形補間します。
+    /// </summary>
+    public bool TryGetCurrentInterventionLocalZ(
+        out float mainCraneLocalZ
+    )
+    {
+        mainCraneLocalZ = 0f;
+
+        if (craneIcon == null || positionCandidates == null)
+        {
+            return false;
+        }
+
+        // 選択イベントが最初のUpdateより先に発生した場合にも、
+        // 模式図の初期位置を確定させます。
+        if (craneStatusManager != null)
+        {
+            CraneStatusManager.CraneState state =
+                craneStatusManager.GetCraneState(craneIndex);
+
+            if (state != null && state != observedState)
+            {
+                observedState = state;
+                InitializeSchematic(state);
+            }
+        }
+
+        int lastPointIndex = Mathf.Min(
+            LastInterventionPointIndex,
+            positionCandidates.Count - 1,
+            BasePointTargetZValues.Length - 1
+        );
+
+        if (lastPointIndex < FirstInterventionPointIndex)
+        {
+            return false;
+        }
+
+        Vector2 iconPosition = craneIcon.anchoredPosition;
+        float nearestSqrDistance = float.PositiveInfinity;
+        bool foundSegment = false;
+
+        for (int pointIndex = FirstInterventionPointIndex;
+             pointIndex < lastPointIndex;
+             pointIndex++)
+        {
+            int nextPointIndex = pointIndex + 1;
+
+            if (!IsValidPointIndex(pointIndex) ||
+                !IsValidPointIndex(nextPointIndex))
+            {
+                continue;
+            }
+
+            Vector2 segmentStart =
+                GetCandidatePosition(pointIndex);
+            Vector2 segmentEnd =
+                GetCandidatePosition(nextPointIndex);
+            Vector2 segment = segmentEnd - segmentStart;
+
+            float segmentLengthSqr = segment.sqrMagnitude;
+            float interpolation = segmentLengthSqr > 0.000001f
+                ? Mathf.Clamp01(
+                    Vector2.Dot(
+                        iconPosition - segmentStart,
+                        segment
+                    ) / segmentLengthSqr
+                )
+                : 0f;
+
+            Vector2 closestPosition = Vector2.Lerp(
+                segmentStart,
+                segmentEnd,
+                interpolation
+            );
+
+            float sqrDistance =
+                (iconPosition - closestPosition).sqrMagnitude;
+
+            if (sqrDistance >= nearestSqrDistance)
+            {
+                continue;
+            }
+
+            nearestSqrDistance = sqrDistance;
+            mainCraneLocalZ = Mathf.Lerp(
+                BasePointTargetZValues[pointIndex],
+                BasePointTargetZValues[nextPointIndex],
+                interpolation
+            );
+            foundSegment = true;
+        }
+
+        if (foundSegment)
+        {
+            return true;
+        }
+
+        // 連続する有効Pointがない場合は、最も近い有効Pointを使います。
+        for (int pointIndex = FirstInterventionPointIndex;
+             pointIndex <= lastPointIndex;
+             pointIndex++)
+        {
+            if (!IsValidPointIndex(pointIndex))
+            {
+                continue;
+            }
+
+            float sqrDistance = (
+                iconPosition - GetCandidatePosition(pointIndex)
+            ).sqrMagnitude;
+
+            if (sqrDistance >= nearestSqrDistance)
+            {
+                continue;
+            }
+
+            nearestSqrDistance = sqrDistance;
+            mainCraneLocalZ =
+                BasePointTargetZValues[pointIndex];
+        }
+
+        return !float.IsPositiveInfinity(nearestSqrDistance);
+    }
+
+    private void SelectTargetPosition(int pointIndex)
+    {
+        hasCurrentTargetPosition = false;
+
+        if (pointIndex < 0 ||
+            pointIndex >= BasePointTargetZValues.Length)
+        {
+            Debug.LogWarning(
+                $"{name}: Point{pointIndex}に対応する目標Z座標がありません。",
+                this
+            );
+            return;
+        }
+
+        if (craneIndex < 0)
+        {
+            Debug.LogWarning(
+                $"{name}: Crane Indexが不正です: {craneIndex}",
+                this
+            );
+            return;
+        }
+
+        // Crane1～6を第1グループ、Crane7～12を第2グループとして扱います。
+        // Crane13以降も6基ごとに同じ規則で自動拡張されます。
+        int craneGroupIndex = craneIndex / CranesPerGroup;
+        int craneIndexWithinGroup = craneIndex % CranesPerGroup;
+
+        float craneXOffset =
+            craneIndexWithinGroup * CraneXInterval;
+
+        float selectedBaseX = Random.Range(0, 2) == 0
+            ? FirstXCandidate
+            : SecondXCandidate;
+
+        currentTargetX = selectedBaseX + craneXOffset;
+        currentTargetZ =
+            BasePointTargetZValues[pointIndex] +
+            craneGroupIndex * CraneGroupZInterval;
+
+        hasCurrentTargetPosition = true;
     }
 
     private int GetRandomNormalDestinationIndex(int startPointIndex)

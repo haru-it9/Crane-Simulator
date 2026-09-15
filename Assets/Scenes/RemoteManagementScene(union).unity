@@ -14092,6 +14092,8 @@ MonoBehaviour:
   - {fileID: 1227148806}
   - {fileID: 1784875737}
   - {fileID: 773010125}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 520188132}
   endMarker: {fileID: 224071251}
   stockPointIndex: 0
@@ -24732,6 +24734,8 @@ MonoBehaviour:
   - {fileID: 2015038089}
   - {fileID: 1959443288}
   - {fileID: 1623616389}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 871520279}
   endMarker: {fileID: 1282067156}
   stockPointIndex: 0
@@ -24927,8 +24931,8 @@ MonoBehaviour:
   lifOuterSpeedIndex: 0
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
-  minZ: -20
-  maxZ: 25
+  minZ: 180
+  maxZ: 225
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -27311,8 +27315,8 @@ MonoBehaviour:
   lifOuterSpeedIndex: 0
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
-  minZ: -20
-  maxZ: 25
+  minZ: 180
+  maxZ: 225
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -32333,6 +32337,8 @@ MonoBehaviour:
   - {fileID: 1653079848}
   - {fileID: 1211241773}
   - {fileID: 882805190}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 227558973}
   endMarker: {fileID: 314113969}
   stockPointIndex: 0
@@ -34697,6 +34703,8 @@ MonoBehaviour:
   - {fileID: 1993074572}
   - {fileID: 2007037252}
   - {fileID: 672895948}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1098131642}
   endMarker: {fileID: 662428715}
   stockPointIndex: 0
@@ -54117,6 +54125,8 @@ MonoBehaviour:
   - {fileID: 1830047689}
   - {fileID: 382575624}
   - {fileID: 1126679954}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1205919738}
   endMarker: {fileID: 1867169254}
   stockPointIndex: 0
@@ -57920,6 +57930,19 @@ MonoBehaviour:
   - {fileID: 703685777}
   - {fileID: 511004043}
   - {fileID: 198602463}
+  pointTargetZValues:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  targetXCandidates: []
   startMarker: {fileID: 1137899773}
   endMarker: {fileID: 24078656}
   stockPointIndex: 0
@@ -72520,6 +72543,8 @@ MonoBehaviour:
   - {fileID: 2005901614}
   - {fileID: 1698774965}
   - {fileID: 2139210797}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 127897560}
   endMarker: {fileID: 773077453}
   stockPointIndex: 0
@@ -78211,6 +78236,8 @@ MonoBehaviour:
   - {fileID: 1298606303}
   - {fileID: 13323706}
   - {fileID: 706398046}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1438824825}
   endMarker: {fileID: 531040338}
   stockPointIndex: 0
@@ -85507,6 +85534,8 @@ MonoBehaviour:
   - {fileID: 1333923812}
   - {fileID: 810591939}
   - {fileID: 532115278}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 210863940}
   endMarker: {fileID: 1202075296}
   stockPointIndex: 0
@@ -97824,6 +97853,8 @@ MonoBehaviour:
   - {fileID: 816517440}
   - {fileID: 87834584}
   - {fileID: 1789560518}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 2077629713}
   endMarker: {fileID: 995294732}
   stockPointIndex: 0
@@ -99261,6 +99292,8 @@ MonoBehaviour:
   - {fileID: 1874971556}
   - {fileID: 2045047788}
   - {fileID: 425590644}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 194948402}
   endMarker: {fileID: 658158717}
   stockPointIndex: 0
@@ -105637,6 +105670,21 @@ MonoBehaviour:
   - {fileID: 992411268}
   - {fileID: 1276965641}
   - {fileID: 1280531261}
+  pointTargetZValues:
+  - 10
+  - 8
+  - 6
+  - 4
+  - 2
+  - 0
+  - -2
+  - -4
+  - -6
+  - -8
+  - -10
+  targetXCandidates:
+  - -4
+  - 4
   startMarker: {fileID: 2013138090}
   endMarker: {fileID: 1178823686}
   stockPointIndex: 0
@@ -116082,8 +116130,8 @@ MonoBehaviour:
   lifOuterSpeedIndex: 0
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
-  minZ: -20
-  maxZ: 25
+  minZ: 180
+  maxZ: 225
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -129452,6 +129500,8 @@ MonoBehaviour:
   - {fileID: 793873465}
   - {fileID: 416076008}
   - {fileID: 231221317}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1438468847}
   endMarker: {fileID: 877646737}
   stockPointIndex: 0
@@ -130759,8 +130809,8 @@ MonoBehaviour:
   lifOuterSpeedIndex: 0
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
-  minZ: -20
-  maxZ: 25
+  minZ: 180
+  maxZ: 225
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -131545,6 +131595,8 @@ MonoBehaviour:
   - {fileID: 1888077459}
   - {fileID: 1200107961}
   - {fileID: 1946998843}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 148388263}
   endMarker: {fileID: 880838380}
   stockPointIndex: 0
@@ -136261,8 +136313,8 @@ MonoBehaviour:
   lifOuterSpeedIndex: 0
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
-  minZ: -20
-  maxZ: 25
+  minZ: 180
+  maxZ: 225
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -137018,6 +137070,7 @@ MonoBehaviour:
   singleCraneIndex: 0
   craneRegistry: {fileID: 2123578659}
   displayLayoutManager: {fileID: 605867915}
+  targetInformationDisplay: {fileID: 0}
   multiDisplayUiSet:
     craneStatusScreen: {fileID: 1068331732}
     additionalCraneStatusScreens:
@@ -138912,6 +138965,8 @@ MonoBehaviour:
   - {fileID: 317383062}
   - {fileID: 582324432}
   - {fileID: 718741557}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 908959114}
   endMarker: {fileID: 1953614170}
   stockPointIndex: 0
@@ -147087,6 +147142,8 @@ MonoBehaviour:
   - {fileID: 1056556717}
   - {fileID: 1853996718}
   - {fileID: 642879773}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 746561684}
   endMarker: {fileID: 56745519}
   stockPointIndex: 0
@@ -151176,8 +151233,8 @@ MonoBehaviour:
   lifOuterSpeedIndex: 0
   lifInnerSpeeds: 1.785
   lifInnerSpeedIndex: 0
-  minZ: -20
-  maxZ: 25
+  minZ: 180
+  maxZ: 225
   minMainX: -0.368
   maxMainX: 0.368
   minMainY: -5.31
@@ -154379,6 +154436,8 @@ MonoBehaviour:
   - {fileID: 1319754803}
   - {fileID: 1621029747}
   - {fileID: 788730865}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1387866692}
   endMarker: {fileID: 1217814856}
   stockPointIndex: 0
@@ -155780,6 +155839,8 @@ MonoBehaviour:
   - {fileID: 477159475}
   - {fileID: 642204958}
   - {fileID: 1644654212}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 196072141}
   endMarker: {fileID: 1922716035}
   stockPointIndex: 0
@@ -158819,6 +158880,8 @@ MonoBehaviour:
   - {fileID: 2133576806}
   - {fileID: 370961265}
   - {fileID: 1665249725}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 644373393}
   endMarker: {fileID: 1668866782}
   stockPointIndex: 0
@@ -163943,6 +164006,8 @@ MonoBehaviour:
   - {fileID: 682741624}
   - {fileID: 1922928815}
   - {fileID: 1586290429}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1745870864}
   endMarker: {fileID: 231726333}
   stockPointIndex: 0
@@ -165733,6 +165798,8 @@ MonoBehaviour:
   - {fileID: 97393076}
   - {fileID: 316381822}
   - {fileID: 1413677427}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1369664120}
   endMarker: {fileID: 1940416310}
   stockPointIndex: 0
@@ -171298,6 +171365,8 @@ MonoBehaviour:
   - {fileID: 1007256628}
   - {fileID: 390644456}
   - {fileID: 1928468034}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 286268324}
   endMarker: {fileID: 246201431}
   stockPointIndex: 0
@@ -175150,6 +175219,8 @@ MonoBehaviour:
   - {fileID: 1024560198}
   - {fileID: 1371761432}
   - {fileID: 12636714}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 1479191016}
   endMarker: {fileID: 418476300}
   stockPointIndex: 0
@@ -176910,6 +176981,8 @@ MonoBehaviour:
   - {fileID: 155824890}
   - {fileID: 552439333}
   - {fileID: 1948433504}
+  pointTargetZValues: []
+  targetXCandidates: []
   startMarker: {fileID: 650030349}
   endMarker: {fileID: 1737422964}
   stockPointIndex: 0
