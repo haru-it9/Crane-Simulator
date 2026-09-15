@@ -5,6 +5,9 @@ using UnityEngine.UI;
 
 public class CraneStatusManager : MonoBehaviour
 {
+    private const float SecondsPerPointInterval = 5f;
+    private const float MinimumMovementDuration = 5f;
+
     public enum WorkPhase
     {
         Move1,
@@ -49,6 +52,9 @@ public class CraneStatusManager : MonoBehaviour
 
         [HideInInspector]
         public bool isPausedBySelection;
+
+        [HideInInspector]
+        public bool movementDurationPrepared;
 
         public int cycleCount;
         public int nextPlaceToTrackCycle;
@@ -240,6 +246,7 @@ public class CraneStatusManager : MonoBehaviour
             state.hasError = false;
             state.isStopped = false;
             state.isPausedBySelection = false;
+            state.movementDurationPrepared = false;
             state.currentErrorType = ErrorType.None;
             state.cycleCount = 0;
             state.nextPlaceToTrackCycle = Random.Range(
@@ -419,10 +426,46 @@ public class CraneStatusManager : MonoBehaviour
                 yield break;
             }
 
-            float duration = Random.Range(
-                setting.minDuration,
-                setting.maxDuration
-            );
+            float duration;
+
+            if (IsMovingPhase(state.currentPhase))
+            {
+                // 移動先PointはCraneSchematicDisplay側で抽選されるため、
+                // その結果から計算した時間が渡されるまで1フレーム待ちます。
+                state.movementDurationPrepared = false;
+                state.phaseDuration = 0f;
+                state.remainingTime = 0f;
+
+                yield return null;
+
+                if (state.movementDurationPrepared)
+                {
+                    duration = state.phaseDuration;
+                }
+                else
+                {
+                    // 模式図が未設定・非アクティブの場合の予備値です。
+                    duration = Random.Range(
+                        setting.minDuration,
+                        setting.maxDuration
+                    );
+
+                    Debug.LogWarning(
+                        state.craneName +
+                        "：移動Pointから時間を取得できなかったため、" +
+                        "Phase Settingの時間を使用します。"
+                    );
+                }
+            }
+            else
+            {
+                state.movementDurationPrepared = false;
+                duration = Random.Range(
+                    setting.minDuration,
+                    setting.maxDuration
+                );
+            }
+
             state.phaseDuration = duration;
             state.remainingTime = duration;
 
@@ -513,6 +556,57 @@ public class CraneStatusManager : MonoBehaviour
             $"{state.craneName}: 操作選択による自動操業" +
             (paused ? "一時停止" : "再開")
         );
+    }
+
+    /// <summary>
+    /// CraneSchematicDisplayで決定した開始Point・終了Pointから、
+    /// Move1／Move2の所要時間を設定します。
+    /// 移動時間 = Point番号の差 × 5秒 + 5秒です。
+    /// </summary>
+    public float SetMovementDurationFromPointInterval(
+        int craneIndex,
+        int startPointIndex,
+        int endPointIndex
+    )
+    {
+        CraneState state = GetCraneState(craneIndex);
+
+        if (state == null)
+        {
+            Debug.LogWarning(
+                $"移動時間を設定できません。Crane Index={craneIndex}",
+                this
+            );
+            return 0f;
+        }
+
+        // 同じ移動フェーズに複数の模式図が存在する場合も、
+        // 最初に決定した時間を共通して使用します。
+        if (state.movementDurationPrepared)
+        {
+            return state.phaseDuration;
+        }
+
+        int pointInterval = Mathf.Abs(
+            endPointIndex - startPointIndex
+        );
+
+        float movementDuration =
+            pointInterval * SecondsPerPointInterval +
+            MinimumMovementDuration;
+
+        state.phaseDuration = movementDuration;
+        state.remainingTime = movementDuration;
+        state.movementDurationPrepared = true;
+
+        return movementDuration;
+    }
+
+    private bool IsMovingPhase(WorkPhase phase)
+    {
+        return
+            phase == WorkPhase.Move1 ||
+            phase == WorkPhase.Move2;
     }
 
     private PhaseSetting GetPhaseSetting(WorkPhase phase)

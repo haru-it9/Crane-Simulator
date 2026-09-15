@@ -257,6 +257,15 @@ public class CraneSchematicDisplay : MonoBehaviour
             return;
         }
 
+        // Pointの抽選結果をCraneStatusManagerへ渡し、
+        // 自動操業フェーズと模式図で同じ移動時間を使用します。
+        float movementDuration =
+            craneStatusManager.SetMovementDurationFromPointInterval(
+                craneIndex,
+                startPointIndex,
+                endPointIndex
+            );
+
         moveStartPosition = craneIcon.anchoredPosition;
         moveEndPosition = GetCandidatePosition(endPointIndex);
         currentPointIndex = endPointIndex;
@@ -271,6 +280,7 @@ public class CraneSchematicDisplay : MonoBehaviour
             $"{name}: {phase} " +
             $"Start=Point{startPointIndex}, " +
             $"End=Point{endPointIndex}, " +
+            $"Duration={movementDuration:F1}s, " +
             $"TargetX={currentTargetX:F2}, " +
             $"TargetZ={currentTargetZ:F2}"
         );

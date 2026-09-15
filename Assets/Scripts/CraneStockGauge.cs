@@ -53,11 +53,36 @@ public class CraneStockGauge : MonoBehaviour
     {
         FindReferences();
 
+        if (craneStockManager != null)
+        {
+            craneStockManager.StockCountChanged -= OnStockCountChanged;
+            craneStockManager.StockCountChanged += OnStockCountChanged;
+        }
+
         if (!layoutCaptured)
         {
             CaptureMaximumLayout();
         }
 
+        UpdateGauge(false);
+    }
+
+    private void OnDisable()
+    {
+        if (craneStockManager != null)
+        {
+            craneStockManager.StockCountChanged -= OnStockCountChanged;
+        }
+    }
+
+    private void OnStockCountChanged(int changedCraneIndex, int newStockCount)
+    {
+        if (changedCraneIndex != craneIndex)
+        {
+            return;
+        }
+
+        // 管理値が変わったフレームで、ゲージを即時更新します。
         UpdateGauge(false);
     }
 

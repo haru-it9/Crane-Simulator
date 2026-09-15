@@ -9,6 +9,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class CraneStockManager : MonoBehaviour
 {
+    private const float MaterializedBoardDetectionGraceSeconds = 0.5f;
+
     [Serializable]
     public class CraneStockState
     {
@@ -53,11 +55,23 @@ public class CraneStockManager : MonoBehaviour
     private readonly List<GameObject> materializedStockBoards =
         new List<GameObject>();
 
+    // 生成後に一度Stock Area内に存在したことを確認できた板だけを、
+    // 「持ち出しによるストック減少」の判定対象にします。
+    private readonly HashSet<GameObject> confirmedInsideStockAreaBoards =
+        new HashSet<GameObject>();
+
     private bool initialized;
     private int materializedCraneIndex = -1;
+    private float materializedBoardDetectionStartTime;
 
     public int ManagedCraneCount => stockStates.Count;
     public int MaximumStockCount => Mathf.Max(0, maximumStockCount);
+
+    /// <summary>
+    /// ストック数が変化したときに通知します。
+    /// 第1引数はCrane Index、第2引数は変更後のストック数です。
+    /// </summary>
+    public event Action<int, int> StockCountChanged;
 
     public float GetStockRatio(int craneIndex)
     {
@@ -159,17 +173,15 @@ public class CraneStockManager : MonoBehaviour
             return false;
         }
 
-        state.stockCount--;
+        if (!TryDecreaseStockCount(craneIndex, "Point0到着"))
+        {
+            return false;
+        }
 
         if (craneIndex == materializedCraneIndex)
         {
             RemoveOneMaterializedStockBoard();
         }
-
-        Debug.Log(
-            $"{state.craneName}: Point0到着でストックを1減少。" +
-            $"現在数={state.stockCount}"
-        );
 
         return true;
     }
@@ -277,7 +289,7 @@ public class CraneStockManager : MonoBehaviour
                 continue;
             }
 
-            state.stockCount++;
+            SetStockCount(craneIndex, state.stockCount + 1);
 
             if (craneIndex == materializedCraneIndex)
             {
@@ -334,6 +346,8 @@ public class CraneStockManager : MonoBehaviour
                 materializedStockBoards.Add(board);
             }
         }
+
+        BeginMaterializedBoardDetectionGracePeriod();
     }
 
     private void CreateOneMaterializedStockBoard(int craneIndex)
@@ -348,12 +362,20 @@ public class CraneStockManager : MonoBehaviour
         if (board != null)
         {
             materializedStockBoards.Add(board);
+            BeginMaterializedBoardDetectionGracePeriod();
         }
     }
 
     private void DetectBoardsTakenOutOfStockArea()
     {
         if (materializedCraneIndex < 0)
+        {
+            return;
+        }
+
+        // 選択・介入に伴う生成直後の位置確定中は、
+        // Stock Area外と誤判定して保持数を減らさないようにします。
+        if (Time.unscaledTime < materializedBoardDetectionStartTime)
         {
             return;
         }
@@ -376,19 +398,48 @@ public class CraneStockManager : MonoBehaviour
 
             if (board == null)
             {
+                confirmedInsideStockAreaBoards.Remove(board);
                 materializedStockBoards.RemoveAt(i);
                 continue;
             }
 
             if (location.ContainsBoard(board))
             {
+                // この板が実際にStock Area内にあったことを記録します。
+                confirmedInsideStockAreaBoards.Add(board);
+                continue;
+            }
+
+            // 介入・選択時の生成直後から範囲外だった板では、
+            // StockManagerが保持する数を減らしません。
+            // 一度範囲内に入った板が、その後外へ出た場合だけ持ち出しです。
+            if (!confirmedInsideStockAreaBoards.Remove(board))
+            {
+                continue;
+            }
+
+            // 先にStockManagerの保持数を減らします。
+            // 減算に成功した場合だけ、板を管理対象から外して詰め直します。
+            // これにより「板配置だけ更新され、ゲージ値は変わらない」状態を防ぎます。
+            if (!TryDecreaseStockCount(
+                    materializedCraneIndex,
+                    "板がストック範囲外へ移動"
+                ))
+            {
+                // 一時的な管理状態の不整合なら、次フレームに再判定します。
+                confirmedInsideStockAreaBoards.Add(board);
+
+                Debug.LogWarning(
+                    $"CraneStockManager: CraneIndex={materializedCraneIndex} の" +
+                    "ストック減算に失敗したため、板配置を更新しません。",
+                    this
+                );
                 continue;
             }
 
             // 範囲外へ出た板は通常の運搬板として残し、
             // ストック管理対象からだけ外します。
             materializedStockBoards.RemoveAt(i);
-            DecreaseStockAfterManualTakeOut(materializedCraneIndex);
             stockBoardWasRemoved = true;
         }
 
@@ -396,6 +447,13 @@ public class CraneStockManager : MonoBehaviour
         {
             RepositionMaterializedStockBoards(location);
         }
+    }
+
+    private void BeginMaterializedBoardDetectionGracePeriod()
+    {
+        materializedBoardDetectionStartTime =
+            Time.unscaledTime +
+            MaterializedBoardDetectionGraceSeconds;
     }
 
     private void RepositionMaterializedStockBoards(
@@ -417,21 +475,50 @@ public class CraneStockManager : MonoBehaviour
         }
     }
 
-    private void DecreaseStockAfterManualTakeOut(int craneIndex)
+    private bool TryDecreaseStockCount(int craneIndex, string reason)
     {
         CraneStockState state = GetState(craneIndex);
         if (state == null || state.stockCount <= 0)
         {
-            return;
+            return false;
         }
 
-        state.stockCount--;
+        SetStockCount(craneIndex, state.stockCount - 1);
         state.stockReservedForMove1 = false;
 
         Debug.Log(
-            $"{state.craneName}: 板がストック範囲外へ移動。" +
+            $"{state.craneName}: {reason}でストックを1減少。" +
             $"現在数={state.stockCount}"
         );
+
+        return true;
+    }
+
+    private void SetStockCount(int craneIndex, int newStockCount)
+    {
+        CraneStockState state = GetState(craneIndex);
+        if (state == null)
+        {
+            return;
+        }
+
+        int clampedStockCount = Mathf.Max(0, newStockCount);
+
+        if (maximumStockCount > 0)
+        {
+            clampedStockCount = Mathf.Min(
+                clampedStockCount,
+                maximumStockCount
+            );
+        }
+
+        if (state.stockCount == clampedStockCount)
+        {
+            return;
+        }
+
+        state.stockCount = clampedStockCount;
+        StockCountChanged?.Invoke(craneIndex, state.stockCount);
     }
 
     private void RemoveOneMaterializedStockBoard()
@@ -442,6 +529,7 @@ public class CraneStockManager : MonoBehaviour
         {
             GameObject board = materializedStockBoards[i];
             materializedStockBoards.RemoveAt(i);
+            confirmedInsideStockAreaBoards.Remove(board);
 
             if (board != null)
             {
@@ -461,6 +549,7 @@ public class CraneStockManager : MonoBehaviour
             new List<GameObject>(materializedStockBoards);
 
         materializedStockBoards.Clear();
+        confirmedInsideStockAreaBoards.Clear();
 
         foreach (GameObject board in boardsToDestroy)
         {
