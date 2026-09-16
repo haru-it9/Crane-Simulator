@@ -119,7 +119,7 @@ public class CraneOperationManager : MonoBehaviour
 
     [Header("Dead Zone")]
     [SerializeField] private float deadZone = 0.1f;
-    
+
     [Header("Current Crane")]
     [SerializeField] private int currentCraneIndex = 0;
 
@@ -179,7 +179,7 @@ public class CraneOperationManager : MonoBehaviour
     {
         SubscribeToRegistry();
         ApplyOperationMode();
-        
+
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
@@ -205,7 +205,8 @@ public class CraneOperationManager : MonoBehaviour
 
     private void Update()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
         if (CurrentCrane == null) return;
 
         // InputField入力中はキーボードによる速度切替を受け付けない
@@ -274,7 +275,8 @@ public class CraneOperationManager : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
         if (CurrentCrane == null) return;
 
         // Keyboardモード中、InputField入力中はクレーン操作を受け付けない
@@ -289,7 +291,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void HandleCraneSelection(int craneIndex)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
 
         if (operationMode == OperationMode.SingleCrane)
         {
@@ -573,7 +576,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void EnterWaitingMode()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
 
         if (operationMode == OperationMode.SingleCrane)
         {
@@ -654,8 +658,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneXSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagXSpeed();
@@ -663,8 +668,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneXSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagXSpeed();
@@ -672,8 +678,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneYSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagYSpeed();
@@ -681,8 +688,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneYSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagYSpeed();
@@ -690,7 +698,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneZSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
 
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
@@ -699,7 +708,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneZSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
 
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
@@ -708,8 +718,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void SetCurrentCraneLifMagCurrent(int index, bool isOn)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
 
@@ -725,7 +736,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void ResetCurrentCraneLifMag()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
 
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
@@ -810,8 +822,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void ToggleSelectionLock()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         SetSelectionLock(!isSelectionLocked);
     }
 
@@ -919,14 +932,15 @@ public class CraneOperationManager : MonoBehaviour
 
     public void CompleteCurrentCraneError()
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
 
         if (operationMode == OperationMode.SingleCrane)
         {
             Debug.Log("SingleCraneモード中のため、エラー完了処理は行いません");
             return;
         }
-        
+
         if (craneStatusManager == null) return;
 
         if (currentCraneIndex < 0)
@@ -944,14 +958,14 @@ public class CraneOperationManager : MonoBehaviour
 
         EnterWaitingMode();
     }
-    
+
     private void HandleSpeedSwitch()
     {
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard)
         {
             return;
         }
-        
+
         // 速度切替キーは例
         if (Input.GetKeyDown(KeyCode.C))
             CurrentCrane.ChangeZSpeed();
@@ -1077,13 +1091,13 @@ public class CraneOperationManager : MonoBehaviour
     private float ApplyDeadZone(float value)
     {
         if (Mathf.Abs(value) < deadZone) return 0f;
-        
+
         if (speedControlMode == SpeedControlMode.JoystickStep)
         {
             if (Mathf.Abs(value) < deadZone) return 0f;
             return Mathf.Clamp(value, -1f, 1f);
         }
-        
+
         if (Mathf.Abs(value) < deadZone) return 0f;
         return value > 0f ? 1f : -1f;
     }

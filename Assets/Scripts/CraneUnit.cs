@@ -20,7 +20,7 @@ public class CraneUnit : MonoBehaviour
         public float maxX;
         public bool movable = true;
     }
-    
+
     [Header("References")]
     [SerializeField] private Transform mainCrane;
     [SerializeField] private Transform mainLifMag;
@@ -126,7 +126,7 @@ public class CraneUnit : MonoBehaviour
         useJoystickStepSpeed = enabled;
         UpdateSpeedTexts();
     }
-    
+
     public void UpdateSpeedTexts()
     {
         int displayZIndex = useJoystickStepSpeed ? currentJoystickZSpeedIndex : zSpeedIndex;
@@ -196,8 +196,9 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainCraneZ(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (mainCrane == null) return;
 
         int speedIndex = zSpeedIndex;
@@ -224,8 +225,9 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagX(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (mainLifMag == null) return;
 
         int speedIndex = mainLifMagXSpeedIndex;
@@ -255,8 +257,9 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagY(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (mainLifMag == null) return;
 
         int speedIndex = mainLifMagYSpeedIndex;
@@ -390,7 +393,7 @@ public class CraneUnit : MonoBehaviour
             else
             {
                 Debug.Log("非吸着BoxCastルート");
-                
+
                 float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
                 shouldStop = false;
 
@@ -557,8 +560,9 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveLifMagX(int index, float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
-        
+        if (!SimulatorStartManager.IsOperationEnabled ||
+            ExperimentPauseManager.IsPaused) return;
+
         if (lifMags == null || index < 0 || index >= lifMags.Length) return;
         if (lifMags[index] == null) return;
         if (lifMags[index].target == null) return;
@@ -661,7 +665,7 @@ public class CraneUnit : MonoBehaviour
     }
 
     public void IncreaseMainLifMagXSpeed()
-    {   
+    {
         mainLifMagXSpeedIndex = Mathf.Min(mainLifMagXSpeedIndex + 1, mainLifMagXSpeeds.Length - 1);
         UpdateSpeedTexts();
         if (uiButtonCsvLogger != null)

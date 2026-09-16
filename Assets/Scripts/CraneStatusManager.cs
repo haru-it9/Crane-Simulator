@@ -413,6 +413,12 @@ public class CraneStatusManager : MonoBehaviour
     {
         while (true)
         {
+            // 実験全体が停止中は、時間抽選・エラー抽選・フェーズ開始を行いません。
+            while (ExperimentPauseManager.IsPaused)
+            {
+                yield return null;
+            }
+
             PhaseSetting setting = GetPhaseSetting(state.currentPhase);
 
             if (setting == null)
@@ -432,11 +438,14 @@ public class CraneStatusManager : MonoBehaviour
             {
                 // 移動先PointはCraneSchematicDisplay側で抽選されるため、
                 // その結果から計算した時間が渡されるまで1フレーム待ちます。
-                state.movementDurationPrepared = false;
-                state.phaseDuration = 0f;
-                state.remainingTime = 0f;
-
-                yield return null;
+                // 停止中に模式図側が先に準備を完了している場合は、
+                // その値を消さずにそのまま使用します。
+                if (!state.movementDurationPrepared)
+                {
+                    state.phaseDuration = 0f;
+                    state.remainingTime = 0f;
+                    yield return null;
+                }
 
                 if (state.movementDurationPrepared)
                 {
@@ -503,7 +512,8 @@ public class CraneStatusManager : MonoBehaviour
             );
 
             // エラーが出た場合は外部から解除されるまで停止
-            while (state.IsProgressPaused)
+            while (ExperimentPauseManager.IsPaused ||
+                   state.IsProgressPaused)
             {
                 yield return null;
             }
@@ -511,7 +521,8 @@ public class CraneStatusManager : MonoBehaviour
             // 通常進行
             while (state.remainingTime > 0f)
             {
-                if (!state.IsProgressPaused)
+                if (!ExperimentPauseManager.IsPaused &&
+                    !state.IsProgressPaused)
                 {
                     state.remainingTime -= Time.deltaTime;
                 }
@@ -521,7 +532,8 @@ public class CraneStatusManager : MonoBehaviour
 
             // 残り時間が0になった瞬間に選択された場合も、
             // 選択解除までは次フェーズへ進めません。
-            while (state.IsProgressPaused)
+            while (ExperimentPauseManager.IsPaused ||
+                   state.IsProgressPaused)
             {
                 yield return null;
             }

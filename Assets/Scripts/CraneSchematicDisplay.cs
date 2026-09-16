@@ -117,14 +117,16 @@ public class CraneSchematicDisplay : MonoBehaviour
             HandlePhaseChanged(state.currentPhase, state);
         }
 
-        // 停止するのは模式図のクレーンアイコンだけです。
-        // CraneStockManagerやCraneStockGaugeの更新は止めません。
+        // 介入選択時は模式図のクレーンアイコンだけを止めます。
+        // 実験全体の停止時は、別途StockManager側の時間進行も止まります。
         bool isSelectedCrane =
             craneOperationManager != null &&
             craneOperationManager.CurrentCraneIndex == craneIndex;
 
         bool shouldPauseCraneIcon =
-            isSelectedCrane || state.IsProgressPaused;
+            ExperimentPauseManager.IsPaused ||
+            isSelectedCrane ||
+            state.IsProgressPaused;
 
         if (IsMovingPhase(state.currentPhase) &&
             !shouldPauseCraneIcon)

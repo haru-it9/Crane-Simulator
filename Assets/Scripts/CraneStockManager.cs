@@ -92,6 +92,13 @@ public class CraneStockManager : MonoBehaviour
 
     private void Update()
     {
+        // 介入による個別停止中はストック更新を続けますが、
+        // 実験全体の一時停止中は入荷タイマーと持ち出し判定も止めます。
+        if (ExperimentPauseManager.IsPaused)
+        {
+            return;
+        }
+
         if (waitForSimulatorStart &&
             !SimulatorStartManager.IsOperationEnabled)
         {
