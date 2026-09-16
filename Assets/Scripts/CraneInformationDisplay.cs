@@ -26,6 +26,10 @@ public class CraneInformationDisplay : MonoBehaviour
     [SerializeField] private InformationTextSet singleDisplayTexts =
         new InformationTextSet();
 
+    [Tooltip("Task Switch Display専用の現在座標・実重量Textです。")]
+    [SerializeField] private InformationTextSet taskSwitchDisplayTexts =
+        new InformationTextSet();
+
     [Header("板密度 [kg/m^3]")]
     [SerializeField] private float boardDensity = 7850f;
 
@@ -206,6 +210,11 @@ public class CraneInformationDisplay : MonoBehaviour
         if (singleDisplayTexts != null)
         {
             yield return singleDisplayTexts;
+        }
+
+        if (taskSwitchDisplayTexts != null)
+        {
+            yield return taskSwitchDisplayTexts;
         }
     }
 

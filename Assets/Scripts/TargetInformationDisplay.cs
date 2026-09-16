@@ -8,8 +8,8 @@ public class TargetInformationDisplay : MonoBehaviour
 {
     // CraneSchematicDisplayで決定された内部座標を、
     // 操作画面に表示する座標へ変換するための値です。
-    private const float TargetXDisplayOffset = 20f;
-    private const float TargetZDisplayOffset = 250f;
+    private const float TargetXDisplayOffset = 50f;
+    private const float TargetZDisplayOffset = 200f;
 
     private enum GenerateMode
     {
@@ -43,6 +43,10 @@ public class TargetInformationDisplay : MonoBehaviour
     [SerializeField] private TargetTextSet multiDisplayTexts =
         new TargetTextSet();
     [SerializeField] private TargetTextSet singleDisplayTexts =
+        new TargetTextSet();
+
+    [Tooltip("Task Switch Display専用の目標座標・重量Textです。")]
+    [SerializeField] private TargetTextSet taskSwitchDisplayTexts =
         new TargetTextSet();
 
     [Header("次の値へ進むキー")]
@@ -210,6 +214,11 @@ public class TargetInformationDisplay : MonoBehaviour
         if (singleDisplayTexts != null)
         {
             yield return singleDisplayTexts;
+        }
+
+        if (taskSwitchDisplayTexts != null)
+        {
+            yield return taskSwitchDisplayTexts;
         }
     }
 

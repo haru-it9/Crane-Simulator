@@ -8,7 +8,8 @@ public class DisplayLayoutManager : MonoBehaviour
     {
         MultiDisplay,
         SingleDisplay,
-        MixDisplay
+        MixDisplay,
+        TaskSwitchDisplay
     }
 
     public enum CameraNameMatchMode
@@ -60,6 +61,14 @@ public class DisplayLayoutManager : MonoBehaviour
     [Tooltip("SingleとMixで使用する通常UIを登録します。CraneStatusScreenは除外してください。")]
     [SerializeField]
     private GameObject[] singleDisplayUIObjects = new GameObject[0];
+
+    [Header("作業切替実験UI")]
+    [Tooltip(
+        "TaskSwitchDisplayでのみ表示する専用UIのRootです。" +
+        "カメラ配置はSingleDisplayの設定を使用します。"
+    )]
+    [SerializeField]
+    private GameObject taskSwitchUIRoot;
 
     [Header("CraneStatusScreen")]
     [Tooltip("MultiとMixで使用するDisplay 5・6側のCraneStatusScreenを登録します。")]
@@ -125,6 +134,7 @@ public class DisplayLayoutManager : MonoBehaviour
         {
             SetUIObjectsActive(multiDisplayUIObjects, false);
             SetUIObjectsActive(singleDisplayUIObjects, false);
+            SetUIObjectActive(taskSwitchUIRoot, false);
             SetUIObjectsActive(multiCraneStatusUIObjects, false);
             SetUIObjectsActive(singleCraneStatusUIObjects, false);
         }
@@ -186,8 +196,19 @@ public class DisplayLayoutManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 作業切替実験用表示を直ちに適用します。
+    /// カメラはSingle、UIはTaskSwitch UI Rootを使用します。
+    /// </summary>
+    public void SelectTaskSwitchDisplayMode()
+    {
+        selectedMode = DisplayLayoutMode.TaskSwitchDisplay;
+        ApplySelectedMode();
+    }
+
+    /// <summary>
     /// Unity UIのDropdownから選択モードだけを変更します。
-    /// 0 = 複数画面、1 = 単一画面、2 = Mixです。この時点では適用しません。
+    /// 0 = 複数画面、1 = 単一画面、2 = Mix、
+    /// 3 = 作業切替実験です。この時点では適用しません。
     /// </summary>
     public void SetSelectedModeFromDropdown(int optionIndex)
     {
@@ -203,6 +224,10 @@ public class DisplayLayoutManager : MonoBehaviour
 
             case 2:
                 selectedMode = DisplayLayoutMode.MixDisplay;
+                break;
+
+            case 3:
+                selectedMode = DisplayLayoutMode.TaskSwitchDisplay;
                 break;
 
             default:
@@ -230,6 +255,8 @@ public class DisplayLayoutManager : MonoBehaviour
         bool isMultiDisplay = mode == DisplayLayoutMode.MultiDisplay;
         bool isSingleDisplay = mode == DisplayLayoutMode.SingleDisplay;
         bool isMixDisplay = mode == DisplayLayoutMode.MixDisplay;
+        bool isTaskSwitchDisplay =
+            mode == DisplayLayoutMode.TaskSwitchDisplay;
 
         if (isMultiDisplay)
         {
@@ -257,6 +284,10 @@ public class DisplayLayoutManager : MonoBehaviour
         SetUIObjectsActive(
             singleDisplayUIObjects,
             isSingleDisplay || isMixDisplay
+        );
+        SetUIObjectActive(
+            taskSwitchUIRoot,
+            isTaskSwitchDisplay
         );
 
         // CraneStatusScreen：MixではMulti側を使用します。
@@ -310,7 +341,8 @@ public class DisplayLayoutManager : MonoBehaviour
             }
             else
             {
-                // SingleとMixでは、対象CameraをDisplay 1へ集約します。
+                // Single、Mix、TaskSwitchでは、対象Cameraを
+                // Display 1へ集約し、Single用Rectを共用します。
                 targetCamera.targetDisplay = 0;
                 targetCamera.rect = matchedRule.singleViewportRect;
                 enableCamera = matchedRule.enableInSingleDisplay;
@@ -378,6 +410,14 @@ public class DisplayLayoutManager : MonoBehaviour
             {
                 uiObject.SetActive(active);
             }
+        }
+    }
+
+    private void SetUIObjectActive(GameObject uiObject, bool active)
+    {
+        if (uiObject != null)
+        {
+            uiObject.SetActive(active);
         }
     }
 

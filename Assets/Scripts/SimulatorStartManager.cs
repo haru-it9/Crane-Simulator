@@ -6,6 +6,19 @@ using UnityEngine.EventSystems;
 
 public class SimulatorStartManager : MonoBehaviour
 {
+    private const int TaskSwitchCraneCount = 2;
+
+    public enum SimulatorMode
+    {
+        AutomaticIntervention,
+        TaskSwitchExperiment
+    }
+
+    [Header("Simulator Mode")]
+    [SerializeField]
+    private SimulatorMode simulatorMode =
+        SimulatorMode.AutomaticIntervention;
+
     [Header("StartScreen Canvas")]
     [SerializeField] private GameObject startScreen;
 
@@ -66,7 +79,7 @@ public class SimulatorStartManager : MonoBehaviour
             return;
         }
 
-        if (!craneCountManager.ApplySelectedCraneCount())
+        if (!ApplyCraneCountForSelectedMode())
         {
             return;
         }
@@ -87,10 +100,7 @@ public class SimulatorStartManager : MonoBehaviour
 
         SetOperationUIInteractable(true);
 
-        if (craneStatusManager != null)
-        {
-            craneStatusManager.StartStatusManagementFromSimulator();
-        }
+        ApplySelectedSimulatorMode();
 
         if (inputLogger != null)
         {
@@ -133,7 +143,7 @@ public class SimulatorStartManager : MonoBehaviour
             return;
         }
 
-        if (!craneCountManager.ApplySelectedCraneCount())
+        if (!ApplyCraneCountForSelectedMode())
         {
             return;
         }
@@ -147,10 +157,7 @@ public class SimulatorStartManager : MonoBehaviour
 
         SetOperationUIInteractable(true);
 
-        if (craneStatusManager != null)
-        {
-            craneStatusManager.StartStatusManagementFromSimulator();
-        }
+        ApplySelectedSimulatorMode();
 
         Debug.Log("Debug：操作開始、CSV記録なし");
     }
@@ -173,6 +180,77 @@ public class SimulatorStartManager : MonoBehaviour
                 selectable.interactable = interactable;
             }
         }
+    }
+
+    private void ApplySelectedSimulatorMode()
+    {
+        if (craneStatusManager == null)
+        {
+            return;
+        }
+
+        if (simulatorMode == SimulatorMode.TaskSwitchExperiment)
+        {
+            craneStatusManager.SetStatusManagementEnabled(false);
+            Debug.Log(
+                "作業切替実験モード：自動クレーン状態管理は開始しません"
+            );
+            return;
+        }
+
+        craneStatusManager.SetStatusManagementEnabled(true);
+        craneStatusManager.StartStatusManagementFromSimulator();
+    }
+
+    /// <summary>
+    /// 通常管理モードではDropdownの選択基数を使用し、
+    /// 作業切替実験では選択値に関係なく2基へ固定します。
+    /// </summary>
+    private bool ApplyCraneCountForSelectedMode()
+    {
+        if (craneCountManager == null)
+        {
+            Debug.LogError("CraneCountManagerが設定されていません。");
+            return false;
+        }
+
+        if (simulatorMode != SimulatorMode.TaskSwitchExperiment)
+        {
+            return craneCountManager.ApplySelectedCraneCount();
+        }
+
+        if (!craneCountManager.ApplyCraneCount(TaskSwitchCraneCount))
+        {
+            return false;
+        }
+
+        if (craneCountManager.AppliedCraneCount !=
+            TaskSwitchCraneCount)
+        {
+            Debug.LogError(
+                "作業切替実験にはクレーンが2基必要です。" +
+                $"現在の適用基数: {craneCountManager.AppliedCraneCount}"
+            );
+            return false;
+        }
+
+        Debug.Log(
+            "作業切替実験モードのため、管理基数の選択に関係なく" +
+            "クレーンを2基に設定しました。"
+        );
+        return true;
+    }
+
+    public void SetSimulatorMode(int modeIndex)
+    {
+        simulatorMode = modeIndex == 1
+            ? SimulatorMode.TaskSwitchExperiment
+            : SimulatorMode.AutomaticIntervention;
+    }
+
+    public bool IsTaskSwitchExperimentSelected()
+    {
+        return simulatorMode == SimulatorMode.TaskSwitchExperiment;
     }
 
     private bool IsExcluded(Selectable selectable)

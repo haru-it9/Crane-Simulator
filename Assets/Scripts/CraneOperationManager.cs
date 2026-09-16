@@ -93,6 +93,10 @@ public class CraneOperationManager : MonoBehaviour
     [SerializeField] private OperationUiSet singleDisplayUiSet =
         new OperationUiSet();
 
+    [Tooltip("作業切替実験専用UIを登録します。")]
+    [SerializeField] private OperationUiSet taskSwitchDisplayUiSet =
+        new OperationUiSet();
+
     [Header("Intervention Scenario Manager")]
     [SerializeField] private CraneInterventionScenarioManager interventionScenarioManager;
 
@@ -119,12 +123,12 @@ public class CraneOperationManager : MonoBehaviour
 
     [Header("Dead Zone")]
     [SerializeField] private float deadZone = 0.1f;
-
+    
     [Header("Current Crane")]
     [SerializeField] private int currentCraneIndex = 0;
 
-    [Header("Single・Mix時のリフマグ電流")]
-    [Tooltip("SingleまたはMixで強制ONにするリフマグ数です。通常は5です。")]
+    [Header("Single・Mix・Task Switch時のリフマグ電流")]
+    [Tooltip("Single、Mix、Task Switchで強制ONにするリフマグ数です。通常は5です。")]
     [SerializeField]
     [Min(1)]
     private int lifMagCurrentCount = 5;
@@ -142,6 +146,9 @@ public class CraneOperationManager : MonoBehaviour
     [SerializeField] private Color lockColor = new Color(1.0f, 0.7f, 0.7f);   // 淡い赤
 
     private bool isSelectionLocked = false;
+    private bool externalOperationInputLocked = false;
+    private bool taskSwitchExperimentMode = false;
+    private bool statusManagementEnabledBeforeTaskSwitch = true;
 
     public CraneInstance CurrentCraneInstance
     {
@@ -163,6 +170,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public int CurrentCraneIndex => currentCraneIndex;
     public int ActiveCraneCount => GetActiveCraneCount();
+    public bool IsOperationInputLocked => externalOperationInputLocked;
+    public bool IsTaskSwitchExperimentMode => taskSwitchExperimentMode;
 
     private void Awake()
     {
@@ -179,7 +188,7 @@ public class CraneOperationManager : MonoBehaviour
     {
         SubscribeToRegistry();
         ApplyOperationMode();
-
+        
         UpdateActiveCamera();
         UpdateCraneButtonColors();
         UpdateDisplay2();
@@ -205,8 +214,16 @@ public class CraneOperationManager : MonoBehaviour
 
     private void Update()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+
+        // Task Switch中は、入力ロック状態に関係なく
+        // 2基すべてのリフマグ電流をONに維持します。
+        if (taskSwitchExperimentMode)
+        {
+            ForceAllTaskSwitchLifMagCurrentsOn();
+        }
+
+        if (externalOperationInputLocked) return;
         if (CurrentCrane == null) return;
 
         // InputField入力中はキーボードによる速度切替を受け付けない
@@ -216,7 +233,9 @@ public class CraneOperationManager : MonoBehaviour
         UpdateSpeedDisplayTexts();
     }
 
-    private void ApplyOperationMode()
+    private void ApplyOperationMode(
+        bool updateStatusManagement = true
+    )
     {
         if (operationMode == OperationMode.SingleCrane)
         {
@@ -241,7 +260,7 @@ public class CraneOperationManager : MonoBehaviour
             SetStatusScreensActive(false);
 
             // ★追加：単一モードではCraneStatusManagerを停止
-            if (craneStatusManager != null)
+            if (updateStatusManagement && craneStatusManager != null)
             {
                 craneStatusManager.SetStatusManagementEnabled(false);
             }
@@ -260,7 +279,7 @@ public class CraneOperationManager : MonoBehaviour
             SetStatusScreensActive(true);
 
             // ★追加：複数台管理モードではCraneStatusManagerを再開
-            if (craneStatusManager != null)
+            if (updateStatusManagement && craneStatusManager != null)
             {
                 craneStatusManager.SetStatusManagementEnabled(true);
             }
@@ -275,8 +294,8 @@ public class CraneOperationManager : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
         if (CurrentCrane == null) return;
 
         // Keyboardモード中、InputField入力中はクレーン操作を受け付けない
@@ -291,8 +310,13 @@ public class CraneOperationManager : MonoBehaviour
 
     public void HandleCraneSelection(int craneIndex)
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+
+        if (taskSwitchExperimentMode)
+        {
+            Debug.Log("作業切替実験中のため、手動のクレーン選択は無効です");
+            return;
+        }
 
         if (operationMode == OperationMode.SingleCrane)
         {
@@ -422,6 +446,157 @@ public class CraneOperationManager : MonoBehaviour
         UpdateSpeedDisplayTexts();
 
         SetSelectionLock(true);
+    }
+
+    /// <summary>
+    /// 通常の管理モードを一時退避し、
+    /// 2基間の作業切替実験用モードを開始します。
+    /// </summary>
+    public void BeginTaskSwitchExperimentMode()
+    {
+        if (taskSwitchExperimentMode)
+        {
+            return;
+        }
+
+        if (craneStatusManager != null)
+        {
+            statusManagementEnabledBeforeTaskSwitch =
+                craneStatusManager.IsStatusManagementEnabled;
+        }
+
+        taskSwitchExperimentMode = true;
+        externalOperationInputLocked = true;
+
+        ReleaseCurrentCraneSelectionPause();
+
+        if (craneStatusManager != null)
+        {
+            craneStatusManager.SetStatusManagementEnabled(false);
+        }
+
+        SetWaitingScreensActive(false);
+        SetStatusScreensActive(false);
+        SetSelectionLock(true);
+    }
+
+    /// <summary>
+    /// 作業切替実験を終了し、Inspectorで指定された通常モードへ戻します。
+    /// </summary>
+    public void EndTaskSwitchExperimentMode()
+    {
+        if (!taskSwitchExperimentMode)
+        {
+            return;
+        }
+
+        externalOperationInputLocked = false;
+        taskSwitchExperimentMode = false;
+
+        // UI・選択状態だけ通常モードへ戻し、状態管理のON/OFFは
+        // Begin時に退避した値を厳密に復元します。
+        ApplyOperationMode(false);
+
+        if (craneStatusManager != null)
+        {
+            craneStatusManager.SetStatusManagementEnabled(
+                statusManagementEnabledBeforeTaskSwitch
+            );
+        }
+
+        UpdateActiveCamera();
+        UpdateCraneButtonColors();
+        UpdateDisplay2();
+        UpdateSelectedCraneTargetInformation();
+        UpdateLifMagButtonViews();
+        UpdateCurrentCraneNameText();
+        UpdateSpeedDisplayTexts();
+    }
+
+    /// <summary>
+    /// 介入シナリオを生成せず、作業切替実験の操作対象だけを変更します。
+    /// </summary>
+    public bool SelectCraneForTaskSwitch(int craneIndex)
+    {
+        if (!taskSwitchExperimentMode)
+        {
+            Debug.LogWarning(
+                "作業切替実験モードが開始されていないため、" +
+                "操作対象を変更できません。"
+            );
+            return false;
+        }
+
+        int activeCraneCount = GetActiveCraneCount();
+        if (craneIndex < 0 || craneIndex >= activeCraneCount)
+        {
+            Debug.LogWarning(
+                $"作業切替先のクレーン番号が範囲外です: {craneIndex} " +
+                $"（有効基数: {activeCraneCount}）"
+            );
+            return false;
+        }
+
+        currentCraneIndex = craneIndex;
+
+        if (CurrentCrane == null)
+        {
+            Debug.LogWarning(
+                $"Crane {craneIndex + 1} が取得できません"
+            );
+            return false;
+        }
+
+        CurrentCrane.ResetSpeedLevel();
+
+        SetWaitingScreensActive(false);
+        SetStatusScreensActive(false);
+        UpdateActiveCamera();
+        UpdateCraneButtonColors();
+        UpdateDisplay2();
+        UpdateSelectedCraneTargetInformation();
+        UpdateLifMagButtonViews();
+        UpdateCurrentCraneNameText();
+        UpdateSpeedDisplayTexts();
+
+        Debug.Log(
+            $"作業切替実験の操作対象: Crane {craneIndex + 1}"
+        );
+        return true;
+    }
+
+    /// <summary>
+    /// trueの間は、ジョイスティック・キーボード・操作UIからの入力を停止します。
+    /// </summary>
+    public void SetTaskSwitchOperationInputLocked(bool locked)
+    {
+        externalOperationInputLocked = locked;
+
+        if (locked && CurrentCrane != null)
+        {
+            CurrentCrane.ResetSpeedLevel();
+            UpdateSpeedDisplayTexts();
+        }
+    }
+
+    /// <summary>
+    /// 既存のCraneSchematicDisplayから介入開始Zを取得します。
+    /// 通常管理モードのHandleCraneSelectionと同じ座標源を使用します。
+    /// </summary>
+    public bool TryGetInterventionStartLocalZ(
+        int craneIndex,
+        out float localZ
+    )
+    {
+        localZ = 0f;
+
+        CraneSchematicDisplay schematicDisplay =
+            FindSchematicDisplayForCrane(craneIndex);
+
+        return schematicDisplay != null &&
+               schematicDisplay.TryGetCurrentInterventionLocalZ(
+                   out localZ
+               );
     }
 
     private void UpdateActiveCamera()
@@ -576,8 +751,12 @@ public class CraneOperationManager : MonoBehaviour
 
     public void EnterWaitingMode()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+
+        if (taskSwitchExperimentMode)
+        {
+            return;
+        }
 
         if (operationMode == OperationMode.SingleCrane)
         {
@@ -658,9 +837,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneXSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagXSpeed();
@@ -668,9 +847,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneXSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagXSpeed();
@@ -678,9 +857,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneYSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.IncreaseMainLifMagYSpeed();
@@ -688,9 +867,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneYSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
+        
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
         CurrentCrane.DecreaseMainLifMagYSpeed();
@@ -698,8 +877,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void IncreaseCurrentCraneZSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
 
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
@@ -708,8 +887,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void DecreaseCurrentCraneZSpeed()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
 
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard) return;
         if (CurrentCrane == null) return;
@@ -718,9 +897,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void SetCurrentCraneLifMagCurrent(int index, bool isOn)
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
+        
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
 
@@ -736,8 +915,8 @@ public class CraneOperationManager : MonoBehaviour
 
     public void ResetCurrentCraneLifMag()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (externalOperationInputLocked) return;
 
         if (CurrentCrane == null) return;
         if (CurrentCrane.LifMagSystem == null) return;
@@ -778,6 +957,11 @@ public class CraneOperationManager : MonoBehaviour
 
     private bool ShouldForceCurrentCraneLifMagOn()
     {
+        if (taskSwitchExperimentMode)
+        {
+            return true;
+        }
+
         if (!EnsureDisplayLayoutManagerIsReady() ||
             !displayLayoutManager.IsModeSelected)
         {
@@ -804,6 +988,57 @@ public class CraneOperationManager : MonoBehaviour
         }
     }
 
+    private void ForceAllTaskSwitchLifMagCurrentsOn()
+    {
+        if (!taskSwitchExperimentMode || !EnsureRegistryIsReady())
+        {
+            return;
+        }
+
+        bool currentCraneViewChanged = false;
+
+        for (int runtimeIndex = 0;
+             runtimeIndex < craneRegistry.ActiveCraneCount;
+             runtimeIndex++)
+        {
+            CraneInstance craneInstance =
+                craneRegistry.GetCraneByRuntimeIndex(runtimeIndex);
+
+            if (craneInstance == null ||
+                craneInstance.LifMagSystem == null)
+            {
+                continue;
+            }
+
+            for (int lifMagIndex = 0;
+                 lifMagIndex < lifMagCurrentCount;
+                 lifMagIndex++)
+            {
+                if (craneInstance.LifMagSystem.GetLifMagCurrent(
+                        lifMagIndex
+                    ))
+                {
+                    continue;
+                }
+
+                craneInstance.LifMagSystem.SetLifMagCurrent(
+                    lifMagIndex,
+                    true
+                );
+
+                if (runtimeIndex == currentCraneIndex)
+                {
+                    currentCraneViewChanged = true;
+                }
+            }
+        }
+
+        if (currentCraneViewChanged)
+        {
+            UpdateLifMagButtonViews();
+        }
+    }
+
     private void UpdateCurrentCraneNameText()
     {
         CraneInstance crane = CurrentCraneInstance;
@@ -822,9 +1057,9 @@ public class CraneOperationManager : MonoBehaviour
 
     public void ToggleSelectionLock()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (taskSwitchExperimentMode) return;
+        
         SetSelectionLock(!isSelectionLocked);
     }
 
@@ -932,15 +1167,15 @@ public class CraneOperationManager : MonoBehaviour
 
     public void CompleteCurrentCraneError()
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (taskSwitchExperimentMode) return;
 
         if (operationMode == OperationMode.SingleCrane)
         {
             Debug.Log("SingleCraneモード中のため、エラー完了処理は行いません");
             return;
         }
-
+        
         if (craneStatusManager == null) return;
 
         if (currentCraneIndex < 0)
@@ -958,14 +1193,14 @@ public class CraneOperationManager : MonoBehaviour
 
         EnterWaitingMode();
     }
-
+    
     private void HandleSpeedSwitch()
     {
         if (speedControlMode != SpeedControlMode.ButtonAndKeyboard)
         {
             return;
         }
-
+        
         // 速度切替キーは例
         if (Input.GetKeyDown(KeyCode.C))
             CurrentCrane.ChangeZSpeed();
@@ -1091,13 +1326,13 @@ public class CraneOperationManager : MonoBehaviour
     private float ApplyDeadZone(float value)
     {
         if (Mathf.Abs(value) < deadZone) return 0f;
-
+        
         if (speedControlMode == SpeedControlMode.JoystickStep)
         {
             if (Mathf.Abs(value) < deadZone) return 0f;
             return Mathf.Clamp(value, -1f, 1f);
         }
-
+        
         if (Mathf.Abs(value) < deadZone) return 0f;
         return value > 0f ? 1f : -1f;
     }
@@ -1146,6 +1381,11 @@ public class CraneOperationManager : MonoBehaviour
         {
             yield return singleDisplayUiSet;
         }
+
+        if (taskSwitchDisplayUiSet != null)
+        {
+            yield return taskSwitchDisplayUiSet;
+        }
     }
 
     private void SetWaitingScreensActive(bool active)
@@ -1153,6 +1393,7 @@ public class CraneOperationManager : MonoBehaviour
         // 一度両方をOFFにし、現在の表示モード側だけをONにします。
         SetWaitingScreenActive(multiDisplayUiSet, false);
         SetWaitingScreenActive(singleDisplayUiSet, false);
+        SetWaitingScreenActive(taskSwitchDisplayUiSet, false);
 
         if (!active) return;
 
@@ -1173,6 +1414,7 @@ public class CraneOperationManager : MonoBehaviour
         // WaitingScreenと同様、非表示側の画面を直接再有効化しません。
         SetStatusScreenActive(multiDisplayUiSet, false);
         SetStatusScreenActive(singleDisplayUiSet, false);
+        SetStatusScreenActive(taskSwitchDisplayUiSet, false);
 
         if (!active) return;
 
@@ -1215,10 +1457,19 @@ public class CraneOperationManager : MonoBehaviour
             return null;
         }
 
-        return displayLayoutManager.CurrentMode ==
-               DisplayLayoutManager.DisplayLayoutMode.MultiDisplay
-            ? multiDisplayUiSet
-            : singleDisplayUiSet;
+        switch (displayLayoutManager.CurrentMode)
+        {
+            case DisplayLayoutManager.DisplayLayoutMode.MultiDisplay:
+                return multiDisplayUiSet;
+
+            case DisplayLayoutManager.DisplayLayoutMode.SingleDisplay:
+            case DisplayLayoutManager.DisplayLayoutMode.MixDisplay:
+                return singleDisplayUiSet;
+
+            case DisplayLayoutManager.DisplayLayoutMode.TaskSwitchDisplay:
+            default:
+                return null;
+        }
     }
 
     /// <summary>
@@ -1232,10 +1483,19 @@ public class CraneOperationManager : MonoBehaviour
             return null;
         }
 
-        return displayLayoutManager.CurrentMode ==
-               DisplayLayoutManager.DisplayLayoutMode.SingleDisplay
-            ? singleDisplayUiSet
-            : multiDisplayUiSet;
+        switch (displayLayoutManager.CurrentMode)
+        {
+            case DisplayLayoutManager.DisplayLayoutMode.SingleDisplay:
+                return singleDisplayUiSet;
+
+            case DisplayLayoutManager.DisplayLayoutMode.MultiDisplay:
+            case DisplayLayoutManager.DisplayLayoutMode.MixDisplay:
+                return multiDisplayUiSet;
+
+            case DisplayLayoutManager.DisplayLayoutMode.TaskSwitchDisplay:
+            default:
+                return null;
+        }
     }
 
     private bool EnsureDisplayLayoutManagerIsReady()
@@ -1271,6 +1531,15 @@ public class CraneOperationManager : MonoBehaviour
         DisplayLayoutManager.DisplayLayoutMode mode
     )
     {
+        if (taskSwitchExperimentMode ||
+            mode == DisplayLayoutManager.DisplayLayoutMode.TaskSwitchDisplay)
+        {
+            SetWaitingScreensActive(false);
+            SetStatusScreensActive(false);
+            UpdateLifMagButtonViews();
+            return;
+        }
+
         bool showStatusScreen =
             operationMode == OperationMode.MultiCraneManagement;
 
