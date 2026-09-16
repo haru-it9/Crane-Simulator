@@ -67,6 +67,8 @@ public class CraneSchematicDisplay : MonoBehaviour
 
     // 現在向かっている地点。到着後は次の移動の開始地点になります。
     private int currentPointIndex = -1;
+    private int movementStartPointIndex = -1;
+    private int movementEndPointIndex = -1;
 
     private bool hasPreviousPhase;
     private CraneStatusManager.WorkPhase previousPhase;
@@ -177,6 +179,8 @@ public class CraneSchematicDisplay : MonoBehaviour
         craneIcon.anchoredPosition = initialPosition;
         moveStartPosition = initialPosition;
         moveEndPosition = initialPosition;
+        movementStartPointIndex = currentPointIndex;
+        movementEndPointIndex = currentPointIndex;
         hasPreviousPhase = false;
 
         // 開始直後が移動フェーズでなかった場合にも、
@@ -270,6 +274,8 @@ public class CraneSchematicDisplay : MonoBehaviour
 
         moveStartPosition = craneIcon.anchoredPosition;
         moveEndPosition = GetCandidatePosition(endPointIndex);
+        movementStartPointIndex = startPointIndex;
+        movementEndPointIndex = endPointIndex;
         currentPointIndex = endPointIndex;
 
         // この移動で使用する目標座標を一度だけ確定します。
@@ -322,6 +328,62 @@ public class CraneSchematicDisplay : MonoBehaviour
         targetX = currentTargetX;
         targetZ = currentTargetZ;
         return hasCurrentTargetPosition;
+    }
+
+    /// <summary>
+    /// 自動クレーン位置ログ用に、現在の模式図位置と論理Zを返します。
+    /// Point0・Point12を含む移動でも、開始／終了Point間を補間します。
+    /// </summary>
+    public bool TryGetAutomaticMovementSnapshot(
+        out Vector2 schematicPosition,
+        out float logicalZ,
+        out int startPointIndex,
+        out int endPointIndex,
+        out float progress
+    )
+    {
+        schematicPosition = Vector2.zero;
+        logicalZ = 0f;
+        startPointIndex = movementStartPointIndex;
+        endPointIndex = movementEndPointIndex;
+        progress = 0f;
+
+        if (craneIcon == null)
+        {
+            return false;
+        }
+
+        schematicPosition = craneIcon.anchoredPosition;
+
+        if (observedState != null &&
+            IsMovingPhase(observedState.currentPhase))
+        {
+            progress = observedState.phaseDuration > 0f
+                ? Mathf.Clamp01(
+                    1f -
+                    observedState.remainingTime /
+                    observedState.phaseDuration
+                )
+                : 0f;
+        }
+        else
+        {
+            progress = 1f;
+        }
+
+        if (!IsValidTargetZIndex(startPointIndex) ||
+            !IsValidTargetZIndex(endPointIndex))
+        {
+            return false;
+        }
+
+        logicalZ = Mathf.Lerp(
+            BasePointTargetZValues[startPointIndex],
+            BasePointTargetZValues[endPointIndex],
+            progress
+        ) + GetCraneGroupZOffset();
+
+        return true;
     }
 
     /// <summary>
@@ -543,6 +605,13 @@ public class CraneSchematicDisplay : MonoBehaviour
             index >= 0 &&
             index < positionCandidates.Count &&
             positionCandidates[index] != null;
+    }
+
+    private bool IsValidTargetZIndex(int index)
+    {
+        return
+            index >= 0 &&
+            index < BasePointTargetZValues.Length;
     }
 
     private Vector2 GetCandidatePosition(int index)

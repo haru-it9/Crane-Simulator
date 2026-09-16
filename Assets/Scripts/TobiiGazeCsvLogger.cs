@@ -111,6 +111,7 @@ public class TobiiGazeCsvLogger : MonoBehaviour
     {
         if (!isLogging) return;
         if (writer == null) return;
+        if (ExperimentPauseManager.IsPaused) return;
 
         timer += Time.deltaTime;
 

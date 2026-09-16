@@ -24,6 +24,10 @@ public class SimulatorStartManager : MonoBehaviour
     [Header("Work Information Logger")]
     [SerializeField] private WorkInformationCsvLogger workInformationLogger;
 
+    [Header("Extended Experiment Logger")]
+    [SerializeField]
+    private ExtendedExperimentCsvLogger extendedExperimentCsvLogger;
+
     [Header("Crane Status Manager")]
     [SerializeField] private CraneStatusManager craneStatusManager;
 
@@ -113,6 +117,11 @@ public class SimulatorStartManager : MonoBehaviour
             workInformationLogger.StartLogging(inputFileName);
         }
 
+        if (extendedExperimentCsvLogger != null)
+        {
+            extendedExperimentCsvLogger.StartLogging(inputFileName);
+        }
+
         Debug.Log("Start：操作開始＋CSV記録開始");
     }
 
@@ -192,5 +201,51 @@ public class SimulatorStartManager : MonoBehaviour
         InputField inputField = selectedObject.GetComponent<InputField>();
 
         return inputField != null && inputField.isFocused;
+    }
+
+    /// <summary>
+    /// 起動したすべてのCSV Loggerを終了し、未書き込みのデータを確定します。
+    /// </summary>
+    public void StopAllLogging()
+    {
+        if (inputLogger != null)
+        {
+            inputLogger.StopLogging();
+        }
+
+        if (uiButtonLogger != null)
+        {
+            uiButtonLogger.StopLogging();
+        }
+
+        if (cranePositionLogger != null)
+        {
+            cranePositionLogger.StopLogging();
+        }
+
+        if (tobiiGazeLogger != null)
+        {
+            tobiiGazeLogger.StopLogging();
+        }
+
+        if (workInformationLogger != null)
+        {
+            workInformationLogger.StopLogging();
+        }
+
+        if (extendedExperimentCsvLogger != null)
+        {
+            extendedExperimentCsvLogger.StopLogging();
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        StopAllLogging();
+    }
+
+    private void OnDestroy()
+    {
+        StopAllLogging();
     }
 }

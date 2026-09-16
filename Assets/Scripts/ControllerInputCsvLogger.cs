@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Globalization;
+using System.Text;
 
 public class ControllerInputCsvLogger : MonoBehaviour
 {
@@ -15,14 +17,27 @@ public class ControllerInputCsvLogger : MonoBehaviour
     [SerializeField] private string saveFolderPath =
         @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
 
+    [Header("記録間隔")]
+    [SerializeField]
+    [Min(0.001f)]
+    private float logInterval = 0.02f;
+
+    [SerializeField]
+    [Min(1)]
+    private int flushEveryLines = 100;
+
     private StreamWriter writer;
     private bool isLogging = false;
     private string filePath;
 
     private float startTime;
+    private float timer;
+    private int linesSinceFlush;
 
     public void StartLogging(string inputFileName)
     {
+        StopLogging();
+
         string folderPath = saveFolderPath;
 
         if (!Directory.Exists(folderPath))
@@ -43,13 +58,19 @@ public class ControllerInputCsvLogger : MonoBehaviour
         string fileName = inputFileName + "_ControllerInput.csv";
         filePath = Path.Combine(folderPath, fileName);
 
-        writer = new StreamWriter(filePath, false);
+        writer = new StreamWriter(
+            filePath,
+            false,
+            new UTF8Encoding(true)
+        );
 
         writer.WriteLine(
-            "Time,JoyStick2Horizontal,JoyStick2Vertical,JoyStick3Vertical,JoyStick2Slider"
+            "Time,JoyStick2Horizontal,JoyStick2Vertical,JoyStick3Vertical,JoyStick3Slider"
         );
- 
+
         startTime = Time.time;
+        timer = 0f;
+        linesSinceFlush = 0;
         isLogging = true;
 
         Debug.Log("CSV記録開始: " + filePath);
@@ -58,6 +79,11 @@ public class ControllerInputCsvLogger : MonoBehaviour
     private void Update()
     {
         if (!isLogging || writer == null) return;
+        if (ExperimentPauseManager.IsPaused) return;
+
+        timer += Time.deltaTime;
+        if (timer < logInterval) return;
+        timer -= logInterval;
 
         float elapsedTime = Time.time - startTime;
 
@@ -66,9 +92,27 @@ public class ControllerInputCsvLogger : MonoBehaviour
         float js3V = Input.GetAxis(joyStick3Vertical);
         float slider = Input.GetAxis(joyStick3Slider);
 
-        writer.WriteLine(
-            $"{elapsedTime:F3},{js2H:F4},{js2V:F4},{js3V:F4},{slider:F4}"
-        );
+        writer.WriteLine(string.Join(",", new string[]
+        {
+            elapsedTime.ToString("F3", CultureInfo.InvariantCulture),
+            js2H.ToString("F4", CultureInfo.InvariantCulture),
+            js2V.ToString("F4", CultureInfo.InvariantCulture),
+            js3V.ToString("F4", CultureInfo.InvariantCulture),
+            slider.ToString("F4", CultureInfo.InvariantCulture)
+        }));
+
+        linesSinceFlush++;
+        if (linesSinceFlush >= flushEveryLines)
+        {
+            writer.Flush();
+            linesSinceFlush = 0;
+        }
+    }
+
+    public void StopLogging()
+    {
+        isLogging = false;
+        CloseWriter();
     }
 
     private void OnApplicationQuit()
@@ -88,5 +132,11 @@ public class ControllerInputCsvLogger : MonoBehaviour
         writer.Flush();
         writer.Close();
         writer = null;
+    }
+
+    private void OnValidate()
+    {
+        logInterval = Mathf.Max(0.001f, logInterval);
+        flushEveryLines = Mathf.Max(1, flushEveryLines);
     }
 }

@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Globalization;
+using System.Text;
 
 public class WorkInformationCsvLogger : MonoBehaviour
 {
@@ -15,13 +17,26 @@ public class WorkInformationCsvLogger : MonoBehaviour
     [Header("リフマグ累積値表示スクリプト")]
     [SerializeField] private LifMagAccumValueText[] lifMagAccumValueTexts;
 
+    [Header("記録間隔")]
+    [SerializeField]
+    [Min(0.001f)]
+    private float logInterval = 0.02f;
+
+    [SerializeField]
+    [Min(1)]
+    private int flushEveryLines = 100;
+
     private StreamWriter writer;
     private bool isLogging = false;
     private float startTime;
     private string filePath;
+    private float timer;
+    private int linesSinceFlush;
 
     public void StartLogging(string inputFileName)
     {
+        StopLogging();
+
         string folderPath = saveFolderPath;
 
         if (!Directory.Exists(folderPath))
@@ -42,7 +57,11 @@ public class WorkInformationCsvLogger : MonoBehaviour
         string fileName = inputFileName + "_WorkInformation.csv";
         filePath = Path.Combine(folderPath, fileName);
 
-        writer = new StreamWriter(filePath, false);
+        writer = new StreamWriter(
+            filePath,
+            false,
+            new UTF8Encoding(true)
+        );
 
         writer.Write("Time,X,Z,DisplayWeight_t");
 
@@ -57,6 +76,8 @@ public class WorkInformationCsvLogger : MonoBehaviour
         writer.WriteLine();
 
         startTime = Time.time;
+        timer = 0f;
+        linesSinceFlush = 0;
         isLogging = true;
 
         Debug.Log("作業情報CSV記録開始: " + filePath);
@@ -65,6 +86,11 @@ public class WorkInformationCsvLogger : MonoBehaviour
     private void Update()
     {
         if (!isLogging || writer == null) return;
+        if (ExperimentPauseManager.IsPaused) return;
+
+        timer += Time.deltaTime;
+        if (timer < logInterval) return;
+        timer -= logInterval;
 
         float elapsedTime = Time.time - startTime;
 
@@ -79,7 +105,12 @@ public class WorkInformationCsvLogger : MonoBehaviour
             weight = craneInformationDisplay.CurrentDisplayWeightTon;
         }
 
-        writer.Write($"{elapsedTime:F3},{x:F2},{z:F2},{weight:F2}");
+        writer.Write(
+            elapsedTime.ToString("F3", CultureInfo.InvariantCulture) + "," +
+            x.ToString("F2", CultureInfo.InvariantCulture) + "," +
+            z.ToString("F2", CultureInfo.InvariantCulture) + "," +
+            weight.ToString("F2", CultureInfo.InvariantCulture)
+        );
 
         if (lifMagAccumValueTexts != null)
         {
@@ -92,11 +123,29 @@ public class WorkInformationCsvLogger : MonoBehaviour
                     value = lifMagAccumValueTexts[i].CurrentValue;
                 }
 
-                writer.Write($",{value:F2}");
+                writer.Write(
+                    "," + value.ToString(
+                        "F2",
+                        CultureInfo.InvariantCulture
+                    )
+                );
             }
         }
 
         writer.WriteLine();
+
+        linesSinceFlush++;
+        if (linesSinceFlush >= flushEveryLines)
+        {
+            writer.Flush();
+            linesSinceFlush = 0;
+        }
+    }
+
+    public void StopLogging()
+    {
+        isLogging = false;
+        CloseWriter();
     }
 
     private void OnApplicationQuit()
@@ -116,5 +165,11 @@ public class WorkInformationCsvLogger : MonoBehaviour
         writer.Flush();
         writer.Close();
         writer = null;
+    }
+
+    private void OnValidate()
+    {
+        logInterval = Mathf.Max(0.001f, logInterval);
+        flushEveryLines = Mathf.Max(1, flushEveryLines);
     }
 }

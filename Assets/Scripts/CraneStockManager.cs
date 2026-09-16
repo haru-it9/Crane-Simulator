@@ -22,6 +22,24 @@ public class CraneStockManager : MonoBehaviour
         public bool stockReservedForMove1;
     }
 
+    public enum StockChangeReason
+    {
+        Arrival,
+        AutomaticPoint0Consumption,
+        ManualTakeOut
+    }
+
+    public sealed class StockChangeEventData
+    {
+        public int craneIndex;
+        public string craneName;
+        public int previousStockCount;
+        public int newStockCount;
+        public int delta;
+        public StockChangeReason reason;
+        public float remainingUntilNextStock;
+    }
+
     [Header("管理対象")]
     [SerializeField]
     private CraneRegistry craneRegistry;
@@ -73,6 +91,11 @@ public class CraneStockManager : MonoBehaviour
     /// </summary>
     public event Action<int, int> StockCountChanged;
 
+    /// <summary>
+    /// CSV記録などで使用する、増減理由を含む詳細通知です。
+    /// </summary>
+    public event Action<StockChangeEventData> DetailedStockChanged;
+
     public float GetStockRatio(int craneIndex)
     {
         if (MaximumStockCount <= 0)
@@ -119,6 +142,22 @@ public class CraneStockManager : MonoBehaviour
     {
         CraneStockState state = GetState(craneIndex);
         return state != null ? state.stockCount : 0;
+    }
+
+    public string GetCraneName(int craneIndex)
+    {
+        CraneStockState state = GetState(craneIndex);
+        return state != null
+            ? state.craneName
+            : $"Crane {craneIndex + 1}";
+    }
+
+    public float GetRemainingUntilNextStock(int craneIndex)
+    {
+        CraneStockState state = GetState(craneIndex);
+        return state != null
+            ? Mathf.Max(0f, state.remainingUntilNextStock)
+            : 0f;
     }
 
     public bool HasStock(int craneIndex)
@@ -180,7 +219,11 @@ public class CraneStockManager : MonoBehaviour
             return false;
         }
 
-        if (!TryDecreaseStockCount(craneIndex, "Point0到着"))
+        if (!TryDecreaseStockCount(
+                craneIndex,
+                StockChangeReason.AutomaticPoint0Consumption,
+                "Point0到着"
+            ))
         {
             return false;
         }
@@ -296,7 +339,11 @@ public class CraneStockManager : MonoBehaviour
                 continue;
             }
 
-            SetStockCount(craneIndex, state.stockCount + 1);
+            SetStockCount(
+                craneIndex,
+                state.stockCount + 1,
+                StockChangeReason.Arrival
+            );
 
             if (craneIndex == materializedCraneIndex)
             {
@@ -430,6 +477,7 @@ public class CraneStockManager : MonoBehaviour
             // これにより「板配置だけ更新され、ゲージ値は変わらない」状態を防ぎます。
             if (!TryDecreaseStockCount(
                     materializedCraneIndex,
+                    StockChangeReason.ManualTakeOut,
                     "板がストック範囲外へ移動"
                 ))
             {
@@ -482,7 +530,11 @@ public class CraneStockManager : MonoBehaviour
         }
     }
 
-    private bool TryDecreaseStockCount(int craneIndex, string reason)
+    private bool TryDecreaseStockCount(
+        int craneIndex,
+        StockChangeReason changeReason,
+        string logReason
+    )
     {
         CraneStockState state = GetState(craneIndex);
         if (state == null || state.stockCount <= 0)
@@ -490,18 +542,26 @@ public class CraneStockManager : MonoBehaviour
             return false;
         }
 
-        SetStockCount(craneIndex, state.stockCount - 1);
+        SetStockCount(
+            craneIndex,
+            state.stockCount - 1,
+            changeReason
+        );
         state.stockReservedForMove1 = false;
 
         Debug.Log(
-            $"{state.craneName}: {reason}でストックを1減少。" +
+            $"{state.craneName}: {logReason}でストックを1減少。" +
             $"現在数={state.stockCount}"
         );
 
         return true;
     }
 
-    private void SetStockCount(int craneIndex, int newStockCount)
+    private void SetStockCount(
+        int craneIndex,
+        int newStockCount,
+        StockChangeReason reason
+    )
     {
         CraneStockState state = GetState(craneIndex);
         if (state == null)
@@ -524,8 +584,24 @@ public class CraneStockManager : MonoBehaviour
             return;
         }
 
+        int previousStockCount = state.stockCount;
         state.stockCount = clampedStockCount;
+
         StockCountChanged?.Invoke(craneIndex, state.stockCount);
+
+        DetailedStockChanged?.Invoke(
+            new StockChangeEventData
+            {
+                craneIndex = craneIndex,
+                craneName = state.craneName,
+                previousStockCount = previousStockCount,
+                newStockCount = state.stockCount,
+                delta = state.stockCount - previousStockCount,
+                reason = reason,
+                remainingUntilNextStock =
+                    Mathf.Max(0f, state.remainingUntilNextStock)
+            }
+        );
     }
 
     private void RemoveOneMaterializedStockBoard()

@@ -22,6 +22,8 @@ public class UIButtonCsvLogger : MonoBehaviour
 
     public void StartLogging(string inputFileName)
     {
+        StopLogging();
+
         string folderPath = saveFolderPath;
 
         if (!Directory.Exists(folderPath))
@@ -66,6 +68,7 @@ public class UIButtonCsvLogger : MonoBehaviour
     public void RecordButtonClick(string buttonName)
     {
         if (!isLogging || currentWriter == null) return;
+        if (ExperimentPauseManager.IsPaused) return;
 
         float elapsedTime = Time.time - startTime;
 
@@ -86,6 +89,7 @@ public class UIButtonCsvLogger : MonoBehaviour
     )
     {
         if (!isLogging || speedWriter == null) return;
+        if (ExperimentPauseManager.IsPaused) return;
 
         float elapsedTime = Time.time - startTime;
 
@@ -109,6 +113,12 @@ public class UIButtonCsvLogger : MonoBehaviour
 
     private void OnDestroy()
     {
+        CloseWriter();
+    }
+
+    public void StopLogging()
+    {
+        isLogging = false;
         CloseWriter();
     }
 

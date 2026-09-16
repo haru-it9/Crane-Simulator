@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Globalization;
+using System.Text;
 
 public class CranePositionCsvLogger : MonoBehaviour
 {
@@ -12,13 +14,26 @@ public class CranePositionCsvLogger : MonoBehaviour
     [Header("記録対象クレーン")]
     [SerializeField] private Transform craneTransform;
 
+    [Header("記録間隔")]
+    [SerializeField]
+    [Min(0.001f)]
+    private float logInterval = 0.02f;
+
+    [SerializeField]
+    [Min(1)]
+    private int flushEveryLines = 100;
+
     private StreamWriter writer;
     private bool isLogging = false;
     private float startTime;
     private string filePath;
+    private float timer;
+    private int linesSinceFlush;
 
     public void StartLogging(string inputFileName)
     {
+        StopLogging();
+
         string folderPath = saveFolderPath;
 
         if (!Directory.Exists(folderPath))
@@ -39,10 +54,16 @@ public class CranePositionCsvLogger : MonoBehaviour
         string fileName = inputFileName + "_CranePosition.csv";
         filePath = Path.Combine(folderPath, fileName);
 
-        writer = new StreamWriter(filePath, false);
+        writer = new StreamWriter(
+            filePath,
+            false,
+            new UTF8Encoding(true)
+        );
         writer.WriteLine("Time,X,Y,Z");
 
         startTime = Time.time;
+        timer = 0f;
+        linesSinceFlush = 0;
         isLogging = true;
 
         Debug.Log("クレーン座標CSV記録開始: " + filePath);
@@ -51,11 +72,35 @@ public class CranePositionCsvLogger : MonoBehaviour
     private void Update()
     {
         if (!isLogging || writer == null || craneTransform == null) return;
+        if (ExperimentPauseManager.IsPaused) return;
+
+        timer += Time.deltaTime;
+        if (timer < logInterval) return;
+        timer -= logInterval;
 
         float elapsedTime = Time.time - startTime;
         Vector3 pos = craneTransform.position;
 
-        writer.WriteLine($"{elapsedTime:F3},{pos.x:F4},{pos.y:F4},{pos.z:F4}");
+        writer.WriteLine(string.Join(",", new string[]
+        {
+            elapsedTime.ToString("F3", CultureInfo.InvariantCulture),
+            pos.x.ToString("F4", CultureInfo.InvariantCulture),
+            pos.y.ToString("F4", CultureInfo.InvariantCulture),
+            pos.z.ToString("F4", CultureInfo.InvariantCulture)
+        }));
+
+        linesSinceFlush++;
+        if (linesSinceFlush >= flushEveryLines)
+        {
+            writer.Flush();
+            linesSinceFlush = 0;
+        }
+    }
+
+    public void StopLogging()
+    {
+        isLogging = false;
+        CloseWriter();
     }
 
     private void OnApplicationQuit()
@@ -75,5 +120,11 @@ public class CranePositionCsvLogger : MonoBehaviour
         writer.Flush();
         writer.Close();
         writer = null;
+    }
+
+    private void OnValidate()
+    {
+        logInterval = Mathf.Max(0.001f, logInterval);
+        flushEveryLines = Mathf.Max(1, flushEveryLines);
     }
 }
