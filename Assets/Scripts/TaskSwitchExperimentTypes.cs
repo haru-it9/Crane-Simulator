@@ -15,6 +15,8 @@ public enum TaskSwitchExperimentState
     CountingDown,
     WaitingForPhaseBoundary,
     OperatingTarget,
+    ReturningToSource,
+    OperatingReturnedSource,
     Completed
 }
 
@@ -43,6 +45,27 @@ public class TaskSwitchCraneCondition
         "取得できない場合はInterventionScenarioManagerのCSV／範囲設定を使用します。"
     )]
     public bool useSchematicStartZ = true;
+
+    [UnityEngine.Header("静的な作業目標")]
+    [UnityEngine.Tooltip(
+        "有効時はMove1/LiftUpをPoint0、PlaceToTrackをPoint12、" +
+        "ErrorCのMove2/PlaceをPoint12として設定します。" +
+        "その他はTarget Point Indexを使用します。"
+    )]
+    public bool useDefaultTargetPointForPhase = true;
+
+    [UnityEngine.Tooltip(
+        "通常配置で使用するPoint番号です。" +
+        "Use Default Target Point For PhaseがOFFの場合は全フェーズで使用します。"
+    )]
+    [UnityEngine.Range(0, 12)]
+    public int targetPointIndex = 6;
+
+    [UnityEngine.Tooltip(
+        "既存座標候補のX=-4側、X=4側、またはランダムを選択します。"
+    )]
+    public CraneWorkTargetXSelection targetXSelection =
+        CraneWorkTargetXSelection.Random;
 }
 
 public struct TaskSwitchEventData

@@ -41,6 +41,10 @@ public class SimulatorStartManager : MonoBehaviour
     [SerializeField]
     private ExtendedExperimentCsvLogger extendedExperimentCsvLogger;
 
+    [Header("Task Switch Experiment Logger")]
+    [SerializeField]
+    private TaskSwitchExperimentCsvLogger taskSwitchExperimentCsvLogger;
+
     [Header("Crane Status Manager")]
     [SerializeField] private CraneStatusManager craneStatusManager;
 
@@ -130,6 +134,12 @@ public class SimulatorStartManager : MonoBehaviour
         if (extendedExperimentCsvLogger != null)
         {
             extendedExperimentCsvLogger.StartLogging(inputFileName);
+        }
+
+        if (simulatorMode == SimulatorMode.TaskSwitchExperiment &&
+            taskSwitchExperimentCsvLogger != null)
+        {
+            taskSwitchExperimentCsvLogger.StartLogging(inputFileName);
         }
 
         Debug.Log("Start：操作開始＋CSV記録開始");
@@ -248,6 +258,53 @@ public class SimulatorStartManager : MonoBehaviour
             : SimulatorMode.AutomaticIntervention;
     }
 
+    /// <summary>
+    /// DisplayLayoutManagerがTaskSwitchDisplayを選択したときに呼びます。
+    /// Editor上でもSerialized Fieldへ反映します。
+    /// </summary>
+    public void SelectTaskSwitchExperimentMode()
+    {
+        SetSimulatorModeAndMarkDirty(
+            SimulatorMode.TaskSwitchExperiment
+        );
+    }
+
+    /// <summary>
+    /// DisplayLayoutManagerがMulti・Single・Mixを選択したときに呼びます。
+    /// Editor上でもSerialized Fieldへ反映します。
+    /// </summary>
+    public void SelectAutomaticInterventionMode()
+    {
+        SetSimulatorModeAndMarkDirty(
+            SimulatorMode.AutomaticIntervention
+        );
+    }
+
+    private void SetSimulatorModeAndMarkDirty(
+        SimulatorMode newMode
+    )
+    {
+        if (simulatorMode == newMode)
+        {
+            return;
+        }
+
+        simulatorMode = newMode;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            UnityEditor.EditorUtility.SetDirty(this);
+
+            if (gameObject.scene.IsValid())
+            {
+                UnityEditor.SceneManagement.EditorSceneManager
+                    .MarkSceneDirty(gameObject.scene);
+            }
+        }
+#endif
+    }
+
     public bool IsTaskSwitchExperimentSelected()
     {
         return simulatorMode == SimulatorMode.TaskSwitchExperiment;
@@ -314,6 +371,11 @@ public class SimulatorStartManager : MonoBehaviour
         if (extendedExperimentCsvLogger != null)
         {
             extendedExperimentCsvLogger.StopLogging();
+        }
+
+        if (taskSwitchExperimentCsvLogger != null)
+        {
+            taskSwitchExperimentCsvLogger.StopLogging();
         }
     }
 

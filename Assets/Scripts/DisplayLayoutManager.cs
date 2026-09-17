@@ -70,6 +70,25 @@ public class DisplayLayoutManager : MonoBehaviour
     [SerializeField]
     private GameObject taskSwitchUIRoot;
 
+    [Tooltip(
+        "TaskSwitchDisplayで追加表示する別Root・別Canvasです。" +
+        "同じRootの子UIはここへ登録する必要はありません。"
+    )]
+    [SerializeField]
+    private GameObject[] additionalTaskSwitchUIObjects =
+        new GameObject[0];
+
+    [Header("Simulator Mode同期")]
+    [Tooltip(
+        "TaskSwitchDisplayではTaskSwitchExperiment、" +
+        "それ以外ではAutomaticInterventionへ同期します。"
+    )]
+    [SerializeField]
+    private SimulatorStartManager simulatorStartManager;
+
+    [SerializeField]
+    private bool syncTaskSwitchSimulatorMode = true;
+
     [Header("CraneStatusScreen")]
     [Tooltip("MultiとMixで使用するDisplay 5・6側のCraneStatusScreenを登録します。")]
     [SerializeField]
@@ -114,6 +133,11 @@ public class DisplayLayoutManager : MonoBehaviour
 
     private bool additionalDisplaysWereActivated;
 
+    private void OnValidate()
+    {
+        SyncTaskSwitchSimulatorMode();
+    }
+
     private void Awake()
     {
         if (displayModeDropdown != null)
@@ -135,6 +159,7 @@ public class DisplayLayoutManager : MonoBehaviour
             SetUIObjectsActive(multiDisplayUIObjects, false);
             SetUIObjectsActive(singleDisplayUIObjects, false);
             SetUIObjectActive(taskSwitchUIRoot, false);
+            SetUIObjectsActive(additionalTaskSwitchUIObjects, false);
             SetUIObjectsActive(multiCraneStatusUIObjects, false);
             SetUIObjectsActive(singleCraneStatusUIObjects, false);
         }
@@ -202,6 +227,7 @@ public class DisplayLayoutManager : MonoBehaviour
     public void SelectTaskSwitchDisplayMode()
     {
         selectedMode = DisplayLayoutMode.TaskSwitchDisplay;
+        SyncTaskSwitchSimulatorMode();
         ApplySelectedMode();
     }
 
@@ -234,6 +260,8 @@ public class DisplayLayoutManager : MonoBehaviour
                 Debug.LogWarning($"表示モードのDropdown値が不正です: {optionIndex}");
                 break;
         }
+
+        SyncTaskSwitchSimulatorMode();
     }
 
     /// <summary>
@@ -257,6 +285,10 @@ public class DisplayLayoutManager : MonoBehaviour
         bool isMixDisplay = mode == DisplayLayoutMode.MixDisplay;
         bool isTaskSwitchDisplay =
             mode == DisplayLayoutMode.TaskSwitchDisplay;
+
+        // Dropdown以外のボタンや公開メソッドから適用した場合も、
+        // 表示モードに対応するSimulator Modeへ同期します。
+        SyncTaskSwitchSimulatorMode();
 
         if (isMultiDisplay)
         {
@@ -287,6 +319,10 @@ public class DisplayLayoutManager : MonoBehaviour
         );
         SetUIObjectActive(
             taskSwitchUIRoot,
+            isTaskSwitchDisplay
+        );
+        SetUIObjectsActive(
+            additionalTaskSwitchUIObjects,
             isTaskSwitchDisplay
         );
 
@@ -492,5 +528,33 @@ public class DisplayLayoutManager : MonoBehaviour
             "追加Displayの有効化はStandaloneビルドで確認してください。"
         );
 #endif
+    }
+
+    private void SyncTaskSwitchSimulatorMode()
+    {
+        if (!syncTaskSwitchSimulatorMode)
+        {
+            return;
+        }
+
+        if (simulatorStartManager == null)
+        {
+            simulatorStartManager =
+                FindObjectOfType<SimulatorStartManager>(true);
+        }
+
+        if (simulatorStartManager == null)
+        {
+            return;
+        }
+
+        if (selectedMode == DisplayLayoutMode.TaskSwitchDisplay)
+        {
+            simulatorStartManager.SelectTaskSwitchExperimentMode();
+        }
+        else
+        {
+            simulatorStartManager.SelectAutomaticInterventionMode();
+        }
     }
 }

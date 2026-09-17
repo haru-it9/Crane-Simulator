@@ -549,6 +549,16 @@ public class CraneOperationManager : MonoBehaviour
 
         CurrentCrane.ResetSpeedLevel();
 
+        // Task Switchで板を保持中のクレーンへ操作を移す場合、
+        // 前のクレーンで使用していた低い電流入力を引き継がないようにします。
+        // まず全リフマグをONにし、40Aの仮想保持電流から再開します。
+        ForceCurrentCraneLifMagOnIfNeeded();
+
+        if (CurrentCrane.LifMagSystem != null)
+        {
+            CurrentCrane.LifMagSystem.BeginTaskSwitchSafeCurrentHold();
+        }
+
         SetWaitingScreensActive(false);
         SetStatusScreensActive(false);
         UpdateActiveCamera();
@@ -693,6 +703,25 @@ public class CraneOperationManager : MonoBehaviour
         return inactiveFallback;
     }
 
+    private CraneWorkTargetManager FindWorkTargetManagerForCrane(
+        int targetCraneIndex
+    )
+    {
+        CraneWorkTargetManager[] targetManagers =
+            FindObjectsOfType<CraneWorkTargetManager>(true);
+
+        foreach (CraneWorkTargetManager targetManager in targetManagers)
+        {
+            if (targetManager != null &&
+                targetManager.CraneIndex == targetCraneIndex)
+            {
+                return targetManager;
+            }
+        }
+
+        return null;
+    }
+
     private void UpdateSelectedCraneTargetInformation()
     {
         if (currentCraneIndex < 0) return;
@@ -712,6 +741,28 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
+        CraneWorkTargetManager workTargetManager =
+            FindWorkTargetManagerForCrane(currentCraneIndex);
+
+        if (workTargetManager != null &&
+            workTargetManager.TryGetTarget(
+                out float managedTargetX,
+                out float managedTargetZ
+            ))
+        {
+            targetInformationDisplay.ShowPositionTarget(
+                managedTargetX,
+                managedTargetZ
+            );
+
+            Debug.Log(
+                $"Crane {currentCraneIndex + 1} 共通目標座標表示: " +
+                $"X={managedTargetX:F2}, Z={managedTargetZ:F2}"
+            );
+            return;
+        }
+
+        // 共通Manager未設定時は、従来の模式図参照へフォールバックします。
         CraneSchematicDisplay selectedDisplay =
             FindSchematicDisplayForCrane(currentCraneIndex);
 

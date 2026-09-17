@@ -5510,9 +5510,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 2080963382}
-        m_TargetAssemblyTypeName: SimulatorStartManager, Assembly-CSharp
-        m_MethodName: OnDebugButtonClicked
+      - m_Target: {fileID: 605867915}
+        m_TargetAssemblyTypeName: DisplayLayoutManager, Assembly-CSharp
+        m_MethodName: ApplySelectedMode
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -5522,9 +5522,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 605867915}
-        m_TargetAssemblyTypeName: DisplayLayoutManager, Assembly-CSharp
-        m_MethodName: ApplySelectedMode
+      - m_Target: {fileID: 2080963382}
+        m_TargetAssemblyTypeName: SimulatorStartManager, Assembly-CSharp
+        m_MethodName: OnDebugButtonClicked
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -9217,7 +9217,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 800, y: 0}
-  m_SizeDelta: {x: 300, y: 300}
+  m_SizeDelta: {x: 300, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &104696220
 MonoBehaviour:
@@ -14641,6 +14641,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 995693980}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 5
   craneIcon: {fileID: 854775169}
@@ -25786,6 +25787,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1602054567}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 6
   craneIcon: {fileID: 636022885}
@@ -25901,6 +25903,8 @@ GameObject:
   - component: {fileID: 293505548}
   - component: {fileID: 293505547}
   - component: {fileID: 293505546}
+  - component: {fileID: 293505552}
+  - component: {fileID: 293505553}
   m_Layer: 0
   m_Name: MainCrane12
   m_TagString: Untagged
@@ -26105,6 +26109,51 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 23
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &293505552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293505545}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 293505546}
+  workTargetManager: {fileID: 293505553}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &293505553
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293505545}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 293505546}
+  fallbackCraneIndex: 11
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &293669982
 GameObject:
   m_ObjectHideFlags: 0
@@ -28534,6 +28583,8 @@ GameObject:
   - component: {fileID: 319117107}
   - component: {fileID: 319117106}
   - component: {fileID: 319117105}
+  - component: {fileID: 319117111}
+  - component: {fileID: 319117112}
   m_Layer: 0
   m_Name: MainCrane10
   m_TagString: Untagged
@@ -28738,6 +28789,51 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 21
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &319117111
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 319117104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 319117105}
+  workTargetManager: {fileID: 319117112}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &319117112
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 319117104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 319117105}
+  fallbackCraneIndex: 9
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &319887195
 GameObject:
   m_ObjectHideFlags: 0
@@ -29790,23 +29886,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
-  interventionScenarioManager: {fileID: 0}
+  interventionScenarioManager: {fileID: 1123226829}
   switchMethod: 0
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
-    workPhase: 0
+    workPhase: 3
     errorType: 0
     useSchematicStartZ: 1
+    useDefaultTargetPointForPhase: 1
+    targetPointIndex: 6
+    targetXSelection: 0
   targetCondition:
     craneIndex: 1
     taskName: Target Task
     workPhase: 3
-    errorType: 3
+    errorType: 0
     useSchematicStartZ: 1
+    useDefaultTargetPointForPhase: 1
+    targetPointIndex: 6
+    targetXSelection: 0
   countdownSeconds: 5
   sourcePhaseTracker: {fileID: 1378636668}
   targetPhaseTracker: {fileID: 1229067184}
+  sourceWorkPhaseTracker: {fileID: 1378636669}
+  targetWorkPhaseTracker: {fileID: 1229067185}
+  useRealWorkPhaseBoundary: 1
+  allowLegacyPhaseBoundaryFallback: 0
   confirmationPanel: {fileID: 104696218}
   countdownPanel: {fileID: 429858653}
   countdownText: {fileID: 376037744}
@@ -33776,6 +33882,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 293505553}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 11
   craneIcon: {fileID: 1575298350}
@@ -34029,7 +34136,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_Color: {r: 0.5330188, g: 0.68350685, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -36434,6 +36541,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1033601258}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 4
   craneIcon: {fileID: 247129840}
@@ -39946,8 +40054,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 450, y: 0}
-  m_SizeDelta: {x: 300, y: 300}
+  m_AnchoredPosition: {x: 350, y: 0}
+  m_SizeDelta: {x: 200, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &429858655
 MonoBehaviour:
@@ -56821,6 +56929,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 319117112}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 9
   craneIcon: {fileID: 1124574422}
@@ -57167,7 +57276,10 @@ MonoBehaviour:
   - {fileID: 827076650}
   singleDisplayUIObjects:
   - {fileID: 1564791259}
-  taskSwitchUIRoot: {fileID: 798470287}
+  taskSwitchUIRoot: {fileID: 1728859743}
+  additionalTaskSwitchUIObjects: []
+  simulatorStartManager: {fileID: 2080963382}
+  syncTaskSwitchSimulatorMode: 1
   multiCraneStatusUIObjects:
   - {fileID: 266821441}
   singleCraneStatusUIObjects:
@@ -60786,6 +60898,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1229067186}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 1
   craneIcon: {fileID: 908706982}
@@ -74046,7 +74159,7 @@ GameObject:
   - component: {fileID: 798470290}
   - component: {fileID: 798470289}
   m_Layer: 5
-  m_Name: TaskSwitchUIRoot
+  m_Name: TouchPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -74067,8 +74180,8 @@ RectTransform:
   - {fileID: 533668364}
   - {fileID: 1165711565}
   - {fileID: 1796973733}
-  m_Father: {fileID: 0}
-  m_RootOrder: 5
+  m_Father: {fileID: 1728859744}
+  m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -74136,7 +74249,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 0
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_TargetDisplay: 0
 --- !u!1 &799596518
 GameObject:
@@ -76387,6 +76500,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1343052243}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 2
   craneIcon: {fileID: 1118120813}
@@ -82539,6 +82653,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 319117112}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 9
   craneIcon: {fileID: 1990352863}
@@ -88177,6 +88292,8 @@ GameObject:
   - component: {fileID: 968091383}
   - component: {fileID: 968091382}
   - component: {fileID: 968091386}
+  - component: {fileID: 968091387}
+  - component: {fileID: 968091388}
   m_Layer: 0
   m_Name: MainCrane4
   m_TagString: Untagged
@@ -88381,6 +88498,51 @@ MonoBehaviour:
   humanZOffset: 0
   trailerXOffset: 60
   trailerZOffset: 0
+--- !u!114 &968091387
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 968091380}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 968091386}
+  workTargetManager: {fileID: 968091388}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &968091388
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 968091380}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 968091386}
+  fallbackCraneIndex: 3
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &968098737
 GameObject:
   m_ObjectHideFlags: 0
@@ -89900,6 +90062,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1229067186}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 1
   craneIcon: {fileID: 1308811772}
@@ -91230,6 +91393,8 @@ GameObject:
   - component: {fileID: 995693975}
   - component: {fileID: 995693974}
   - component: {fileID: 995693978}
+  - component: {fileID: 995693979}
+  - component: {fileID: 995693980}
   m_Layer: 0
   m_Name: MainCrane6
   m_TagString: Untagged
@@ -91434,6 +91599,51 @@ MonoBehaviour:
   humanZOffset: 0
   trailerXOffset: 100
   trailerZOffset: 0
+--- !u!114 &995693979
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 995693972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 995693978}
+  workTargetManager: {fileID: 995693980}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &995693980
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 995693972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 995693978}
+  fallbackCraneIndex: 5
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1001 &995938316
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -94682,6 +94892,8 @@ GameObject:
   - component: {fileID: 1033601253}
   - component: {fileID: 1033601252}
   - component: {fileID: 1033601256}
+  - component: {fileID: 1033601257}
+  - component: {fileID: 1033601258}
   m_Layer: 0
   m_Name: MainCrane5
   m_TagString: Untagged
@@ -94886,6 +95098,51 @@ MonoBehaviour:
   humanZOffset: 0
   trailerXOffset: 80
   trailerZOffset: 0
+--- !u!114 &1033601257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1033601250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1033601256}
+  workTargetManager: {fileID: 1033601258}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1033601258
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1033601250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1033601256}
+  fallbackCraneIndex: 4
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1034056408
 GameObject:
   m_ObjectHideFlags: 0
@@ -103013,6 +103270,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 995693980}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 5
   craneIcon: {fileID: 2127757644}
@@ -104625,6 +104883,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1602054567}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 6
   craneIcon: {fileID: 1708548467}
@@ -106922,9 +107181,9 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1165711564}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.3, y: 0.35, z: 1}
+  m_LocalScale: {x: 0.35, y: 0.35, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 798470288}
@@ -111078,6 +111337,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1378636670}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 0
   craneIcon: {fileID: 2055133967}
@@ -111872,6 +112132,8 @@ GameObject:
   - component: {fileID: 1229067178}
   - component: {fileID: 1229067183}
   - component: {fileID: 1229067184}
+  - component: {fileID: 1229067185}
+  - component: {fileID: 1229067186}
   m_Layer: 0
   m_Name: MainCrane2
   m_TagString: Untagged
@@ -112091,6 +112353,51 @@ MonoBehaviour:
   craneIndex: 1
   taskName: Task
   currentPhase: 0
+--- !u!114 &1229067185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1229067177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1229067183}
+  workTargetManager: {fileID: 1229067186}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1229067186
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1229067177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1229067183}
+  fallbackCraneIndex: 1
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1229118834
 GameObject:
   m_ObjectHideFlags: 0
@@ -120737,6 +121044,8 @@ GameObject:
   - component: {fileID: 1343052238}
   - component: {fileID: 1343052237}
   - component: {fileID: 1343052241}
+  - component: {fileID: 1343052242}
+  - component: {fileID: 1343052243}
   m_Layer: 0
   m_Name: MainCrane3
   m_TagString: Untagged
@@ -120941,6 +121250,51 @@ MonoBehaviour:
   humanZOffset: 0
   trailerXOffset: 40
   trailerZOffset: 0
+--- !u!114 &1343052242
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1343052235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1343052241}
+  workTargetManager: {fileID: 1343052243}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1343052243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1343052235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1343052241}
+  fallbackCraneIndex: 2
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1343825379
 GameObject:
   m_ObjectHideFlags: 0
@@ -121749,6 +122103,8 @@ GameObject:
   - component: {fileID: 1351253246}
   - component: {fileID: 1351253245}
   - component: {fileID: 1351253244}
+  - component: {fileID: 1351253250}
+  - component: {fileID: 1351253251}
   m_Layer: 0
   m_Name: MainCrane11
   m_TagString: Untagged
@@ -121953,6 +122309,51 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 22
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1351253250
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1351253243}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1351253244}
+  workTargetManager: {fileID: 1351253251}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1351253251
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1351253243}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1351253244}
+  fallbackCraneIndex: 10
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1353118729
 GameObject:
   m_ObjectHideFlags: 0
@@ -124262,6 +124663,8 @@ GameObject:
   - component: {fileID: 1378636666}
   - component: {fileID: 1378636667}
   - component: {fileID: 1378636668}
+  - component: {fileID: 1378636669}
+  - component: {fileID: 1378636670}
   m_Layer: 0
   m_Name: MainCrane1
   m_TagString: Untagged
@@ -124481,6 +124884,51 @@ MonoBehaviour:
   craneIndex: 0
   taskName: Task
   currentPhase: 0
+--- !u!114 &1378636669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1378636660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1378636667}
+  workTargetManager: {fileID: 1378636670}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 3
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1378636670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1378636660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1378636667}
+  fallbackCraneIndex: 0
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1379410122
 GameObject:
   m_ObjectHideFlags: 0
@@ -135848,6 +136296,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1780959817}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 7
   craneIcon: {fileID: 473476439}
@@ -137277,6 +137726,8 @@ GameObject:
   - component: {fileID: 1531814519}
   - component: {fileID: 1531814518}
   - component: {fileID: 1531814517}
+  - component: {fileID: 1531814523}
+  - component: {fileID: 1531814524}
   m_Layer: 0
   m_Name: MainCrane9
   m_TagString: Untagged
@@ -137481,6 +137932,51 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 20
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1531814523
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531814516}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1531814517}
+  workTargetManager: {fileID: 1531814524}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1531814524
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531814516}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1531814517}
+  fallbackCraneIndex: 8
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1533084605
 GameObject:
   m_ObjectHideFlags: 0
@@ -138128,6 +138624,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1351253251}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 10
   craneIcon: {fileID: 841131661}
@@ -142845,6 +143342,8 @@ GameObject:
   - component: {fileID: 1602054562}
   - component: {fileID: 1602054561}
   - component: {fileID: 1602054560}
+  - component: {fileID: 1602054566}
+  - component: {fileID: 1602054567}
   m_Layer: 0
   m_Name: MainCrane7
   m_TagString: Untagged
@@ -143049,6 +143548,51 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 18
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1602054566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602054559}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1602054560}
+  workTargetManager: {fileID: 1602054567}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1602054567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602054559}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1602054560}
+  fallbackCraneIndex: 6
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1602192854
 GameObject:
   m_ObjectHideFlags: 0
@@ -145809,6 +146353,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1780959817}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 7
   craneIcon: {fileID: 2084676208}
@@ -154448,6 +154993,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 0}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 0
   craneIcon: {fileID: 2112485271}
@@ -154753,6 +155299,43 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1727881177}
   m_CullTransparentMesh: 1
+--- !u!1 &1728859743
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1728859744}
+  m_Layer: 5
+  m_Name: TaskSwitchUIRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1728859744
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1728859743}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 798470288}
+  m_Father: {fileID: 0}
+  m_RootOrder: 5
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 960, y: 540}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1729239532
 GameObject:
   m_ObjectHideFlags: 0
@@ -158537,6 +159120,8 @@ GameObject:
   - component: {fileID: 1780959812}
   - component: {fileID: 1780959811}
   - component: {fileID: 1780959810}
+  - component: {fileID: 1780959816}
+  - component: {fileID: 1780959817}
   m_Layer: 0
   m_Name: MainCrane8
   m_TagString: Untagged
@@ -158741,6 +159326,51 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 19
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1780959816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1780959809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce34143fd40dfb64c8c172f0774bfa9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1780959810}
+  workTargetManager: {fileID: 1780959817}
+  schematicDisplay: {fileID: 0}
+  phaseProfile: {fileID: 0}
+  initialMajorPhase: 0
+  monitorOnStart: 0
+  useManualTargetWhenUnavailable: 0
+  manualTargetXZ: {x: 0, y: 0}
+  useUnscaledTime: 0
+  logPhaseEvents: 1
+--- !u!114 &1780959817
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1780959809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dd3ba0ea3348254ba7660b3d22999d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  craneInstance: {fileID: 1780959810}
+  fallbackCraneIndex: 7
+  currentTarget:
+    isValid: 0
+    craneIndex: 0
+    pointIndex: 0
+    targetX: 0
+    targetZ: 0
+    targetKind: 0
+    source: 0
+    isFixed: 0
 --- !u!1 &1783149579
 GameObject:
   m_ObjectHideFlags: 0
@@ -159991,9 +160621,9 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1796973732}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.3, y: 0.3, z: 1}
+  m_LocalScale: {x: 0.35, y: 0.35, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 840980741}
@@ -162082,6 +162712,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 968091388}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 3
   craneIcon: {fileID: 472617959}
@@ -163483,6 +164114,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1351253251}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 10
   craneIcon: {fileID: 490196284}
@@ -166522,6 +167154,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1531814524}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 8
   craneIcon: {fileID: 827044139}
@@ -172131,6 +172764,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1531814524}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 8
   craneIcon: {fileID: 1638877773}
@@ -174307,6 +174941,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 968091388}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 3
   craneIcon: {fileID: 1965266740}
@@ -180032,6 +180667,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 293505553}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 11
   craneIcon: {fileID: 429695842}
@@ -182090,6 +182726,7 @@ GameObject:
   - component: {fileID: 2080963385}
   - component: {fileID: 2080963386}
   - component: {fileID: 2080963387}
+  - component: {fileID: 2080963388}
   m_Layer: 0
   m_Name: SimulatorCSVManager
   m_TagString: Untagged
@@ -182141,7 +182778,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f0ec806de5774243adff24510b0e6e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  simulatorMode: 1
+  simulatorMode: 0
   startScreen: {fileID: 110828386}
   inputLogger: {fileID: 2080963381}
   uiButtonLogger: {fileID: 2080963380}
@@ -182149,6 +182786,7 @@ MonoBehaviour:
   tobiiGazeLogger: {fileID: 2080963385}
   workInformationLogger: {fileID: 2080963386}
   extendedExperimentCsvLogger: {fileID: 2080963387}
+  taskSwitchExperimentCsvLogger: {fileID: 2080963388}
   craneStatusManager: {fileID: 825525979}
   fileNameInputField: {fileID: 682514084}
   operationUiRoots:
@@ -182246,6 +182884,23 @@ MonoBehaviour:
   positionLogInterval: 0.05
   logPositionsDuringGlobalPause: 0
   flushEveryLines: 100
+--- !u!114 &2080963388
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2080963379}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1885f85f6e983ed468cf4e26fd2f9b16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  saveFolderPath: C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData
+  taskSwitchExperimentManager: {fileID: 333508956}
+  craneOperationManager: {fileID: 1612894383}
+  craneRegistry: {fileID: 2123578659}
+  flushEveryLines: 1
 --- !u!1 &2081010235
 GameObject:
   m_ObjectHideFlags: 0
@@ -183993,6 +184648,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1343052243}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 2
   craneIcon: {fileID: 1169825618}
@@ -185913,6 +186569,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
+  workTargetManager: {fileID: 1033601258}
   craneOperationManager: {fileID: 1612894383}
   craneIndex: 4
   craneIcon: {fileID: 1478801307}

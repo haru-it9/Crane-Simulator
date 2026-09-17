@@ -8,8 +8,8 @@ public class TargetInformationDisplay : MonoBehaviour
 {
     // CraneSchematicDisplayで決定された内部座標を、
     // 操作画面に表示する座標へ変換するための値です。
-    private const float TargetXDisplayOffset = 50f;
-    private const float TargetZDisplayOffset = 200f;
+    private const float TargetXDisplayOffset = 20f;
+    private const float TargetZDisplayOffset = 250f;
 
     private enum GenerateMode
     {

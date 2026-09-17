@@ -8,18 +8,6 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class CraneSchematicDisplay : MonoBehaviour
 {
-    // Crane1を基準としたPoint0～Point12の目標Z座標です。
-    private static readonly float[] BasePointTargetZValues =
-    {
-        19f, 10f, 8f, 6f, 4f, 2f, 0f,
-        -2f, -4f, -6f, -8f, -10f, -15f
-    };
-
-    private const int CranesPerGroup = 6;
-    private const float CraneXInterval = 20f;
-    private const float CraneGroupZInterval = 200f;
-    private const float FirstXCandidate = -4f;
-    private const float SecondXCandidate = 4f;
     private const int FirstInterventionPointIndex = 1;
     private const int LastInterventionPointIndex = 11;
 
@@ -29,6 +17,13 @@ public class CraneSchematicDisplay : MonoBehaviour
 
     [SerializeField]
     private CraneStockManager craneStockManager;
+
+    [Tooltip(
+        "表示モードに依存しない共通目標座標です。" +
+        "未設定時はCrane Indexが一致するものを自動検索します。"
+    )]
+    [SerializeField]
+    private CraneWorkTargetManager workTargetManager;
 
     [Tooltip("現在選択されているクレーン番号の取得に使用します。未設定時は自動検索します。")]
     [SerializeField]
@@ -90,6 +85,8 @@ public class CraneSchematicDisplay : MonoBehaviour
             craneOperationManager =
                 FindObjectOfType<CraneOperationManager>(true);
         }
+
+        ResolveWorkTargetManager();
     }
 
     private void Update()
@@ -325,6 +322,15 @@ public class CraneSchematicDisplay : MonoBehaviour
             }
         }
 
+        if (workTargetManager != null &&
+            workTargetManager.TryGetTarget(
+                out targetX,
+                out targetZ
+            ))
+        {
+            return true;
+        }
+
         targetX = currentTargetX;
         targetZ = currentTargetZ;
         return hasCurrentTargetPosition;
@@ -371,15 +377,21 @@ public class CraneSchematicDisplay : MonoBehaviour
             progress = 1f;
         }
 
-        if (!IsValidTargetZIndex(startPointIndex) ||
-            !IsValidTargetZIndex(endPointIndex))
+        if (!CraneWorkCoordinateUtility.TryGetBasePointZ(
+                startPointIndex,
+                out float startPointZ
+            ) ||
+            !CraneWorkCoordinateUtility.TryGetBasePointZ(
+                endPointIndex,
+                out float endPointZ
+            ))
         {
             return false;
         }
 
         logicalZ = Mathf.Lerp(
-            BasePointTargetZValues[startPointIndex],
-            BasePointTargetZValues[endPointIndex],
+            startPointZ,
+            endPointZ,
             progress
         ) + GetCraneGroupZOffset();
 
@@ -419,7 +431,7 @@ public class CraneSchematicDisplay : MonoBehaviour
         int lastPointIndex = Mathf.Min(
             LastInterventionPointIndex,
             positionCandidates.Count - 1,
-            BasePointTargetZValues.Length - 1
+            CraneWorkCoordinateUtility.PointCount - 1
         );
 
         if (lastPointIndex < FirstInterventionPointIndex)
@@ -475,9 +487,21 @@ public class CraneSchematicDisplay : MonoBehaviour
             }
 
             nearestSqrDistance = sqrDistance;
+            if (!CraneWorkCoordinateUtility.TryGetBasePointZ(
+                    pointIndex,
+                    out float segmentStartZ
+                ) ||
+                !CraneWorkCoordinateUtility.TryGetBasePointZ(
+                    nextPointIndex,
+                    out float segmentEndZ
+                ))
+            {
+                continue;
+            }
+
             mainCraneLocalZ = Mathf.Lerp(
-                BasePointTargetZValues[pointIndex],
-                BasePointTargetZValues[nextPointIndex],
+                segmentStartZ,
+                segmentEndZ,
                 interpolation
             ) + craneGroupZOffset;
             foundSegment = true;
@@ -508,9 +532,14 @@ public class CraneSchematicDisplay : MonoBehaviour
             }
 
             nearestSqrDistance = sqrDistance;
-            mainCraneLocalZ =
-                BasePointTargetZValues[pointIndex] +
-                craneGroupZOffset;
+            if (CraneWorkCoordinateUtility.TryGetBasePointZ(
+                    pointIndex,
+                    out float nearestPointZ
+                ))
+            {
+                mainCraneLocalZ =
+                    nearestPointZ + craneGroupZOffset;
+            }
         }
 
         return !float.IsPositiveInfinity(nearestSqrDistance);
@@ -518,53 +547,47 @@ public class CraneSchematicDisplay : MonoBehaviour
 
     private float GetCraneGroupZOffset()
     {
-        int validCraneIndex = Mathf.Max(0, craneIndex);
-        int craneGroupIndex = validCraneIndex / CranesPerGroup;
-
-        return craneGroupIndex * CraneGroupZInterval;
+        return CraneWorkCoordinateUtility.GetCraneGroupZOffset(
+            craneIndex
+        );
     }
 
     private void SelectTargetPosition(int pointIndex)
     {
         hasCurrentTargetPosition = false;
 
-        if (pointIndex < 0 ||
-            pointIndex >= BasePointTargetZValues.Length)
+        if (!CraneWorkCoordinateUtility.TryCreatePointTarget(
+                craneIndex,
+                pointIndex,
+                CraneWorkTargetXSelection.Random,
+                out currentTargetX,
+                out currentTargetZ
+            ))
         {
             Debug.LogWarning(
-                $"{name}: Point{pointIndex}に対応する目標Z座標がありません。",
+                $"{name}: Crane {craneIndex + 1} / " +
+                $"Point{pointIndex}の目標座標を生成できません。",
                 this
             );
             return;
         }
-
-        if (craneIndex < 0)
-        {
-            Debug.LogWarning(
-                $"{name}: Crane Indexが不正です: {craneIndex}",
-                this
-            );
-            return;
-        }
-
-        // Crane1～6を第1グループ、Crane7～12を第2グループとして扱います。
-        // Crane13以降も6基ごとに同じ規則で自動拡張されます。
-        int craneGroupIndex = craneIndex / CranesPerGroup;
-        int craneIndexWithinGroup = craneIndex % CranesPerGroup;
-
-        float craneXOffset =
-            craneIndexWithinGroup * CraneXInterval;
-
-        float selectedBaseX = Random.Range(0, 2) == 0
-            ? FirstXCandidate
-            : SecondXCandidate;
-
-        currentTargetX = selectedBaseX + craneXOffset;
-        currentTargetZ =
-            BasePointTargetZValues[pointIndex] +
-            craneGroupIndex * CraneGroupZInterval;
 
         hasCurrentTargetPosition = true;
+
+        ResolveWorkTargetManager();
+
+        if (workTargetManager != null)
+        {
+            CraneWorkTargetKind targetKind =
+                GetTargetKindForPoint(pointIndex);
+
+            workTargetManager.TrySetAutomaticTarget(
+                currentTargetX,
+                currentTargetZ,
+                pointIndex,
+                targetKind
+            );
+        }
     }
 
     private int GetRandomNormalDestinationIndex(int startPointIndex)
@@ -611,7 +634,7 @@ public class CraneSchematicDisplay : MonoBehaviour
     {
         return
             index >= 0 &&
-            index < BasePointTargetZValues.Length;
+            index < CraneWorkCoordinateUtility.PointCount;
     }
 
     private Vector2 GetCandidatePosition(int index)
@@ -642,5 +665,41 @@ public class CraneSchematicDisplay : MonoBehaviour
         return
             phase == CraneStatusManager.WorkPhase.Move1 ||
             phase == CraneStatusManager.WorkPhase.Move2;
+    }
+
+    private CraneWorkTargetKind GetTargetKindForPoint(int pointIndex)
+    {
+        if (pointIndex == stockPointIndex)
+        {
+            return CraneWorkTargetKind.Pickup;
+        }
+
+        if (pointIndex == trailerPointIndex)
+        {
+            return CraneWorkTargetKind.Trailer;
+        }
+
+        return CraneWorkTargetKind.NormalPlacement;
+    }
+
+    private void ResolveWorkTargetManager()
+    {
+        if (workTargetManager != null &&
+            workTargetManager.CraneIndex == craneIndex)
+        {
+            return;
+        }
+
+        CraneWorkTargetManager[] managers =
+            FindObjectsOfType<CraneWorkTargetManager>(true);
+
+        foreach (CraneWorkTargetManager manager in managers)
+        {
+            if (manager != null && manager.CraneIndex == craneIndex)
+            {
+                workTargetManager = manager;
+                return;
+            }
+        }
     }
 }
