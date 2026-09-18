@@ -26125,10 +26125,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 293505553}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &293505553
@@ -28805,10 +28808,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 319117112}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &319117112
@@ -29891,10 +29897,10 @@ MonoBehaviour:
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
-    workPhase: 3
+    workPhase: 0
     errorType: 0
     useSchematicStartZ: 1
-    useDefaultTargetPointForPhase: 1
+    useDefaultTargetPointForPhase: 0
     targetPointIndex: 6
     targetXSelection: 0
   targetCondition:
@@ -88514,10 +88520,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 968091388}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &968091388
@@ -91615,10 +91624,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 995693980}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &995693980
@@ -95114,10 +95126,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1033601258}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1033601258
@@ -112134,6 +112149,7 @@ GameObject:
   - component: {fileID: 1229067184}
   - component: {fileID: 1229067185}
   - component: {fileID: 1229067186}
+  - component: {fileID: 1229067187}
   m_Layer: 0
   m_Name: MainCrane2
   m_TagString: Untagged
@@ -112369,10 +112385,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1229067186}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 1229067187}
+  craneUnit: {fileID: 1229067178}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1229067186
@@ -112398,6 +112417,25 @@ MonoBehaviour:
     targetKind: 0
     source: 0
     isFixed: 0
+--- !u!114 &1229067187
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1229067177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d6c5018bf60c504e83854f531b3e98d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pickupTargetWeightKg: 0
+  placementTargetMode: 0
+  plannedReleaseWeightKg: 0
+  explicitRemainingWeightKg: 0
+  placementStartWeightKg: 0
+  targetRemainingWeightKg: 0
+  placementPlanPrepared: 0
 --- !u!1 &1229118834
 GameObject:
   m_ObjectHideFlags: 0
@@ -121266,10 +121304,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1343052243}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1343052243
@@ -122325,10 +122366,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1351253251}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1351253251
@@ -124665,6 +124709,8 @@ GameObject:
   - component: {fileID: 1378636668}
   - component: {fileID: 1378636669}
   - component: {fileID: 1378636670}
+  - component: {fileID: 1378636671}
+  - component: {fileID: 1378636672}
   m_Layer: 0
   m_Name: MainCrane1
   m_TagString: Untagged
@@ -124900,10 +124946,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1378636670}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
-  initialMajorPhase: 3
+  loadPlanManager: {fileID: 1378636671}
+  craneUnit: {fileID: 1378636666}
+  initialMajorPhase: 2
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1378636670
@@ -124929,6 +124978,68 @@ MonoBehaviour:
     targetKind: 0
     source: 0
     isFixed: 0
+--- !u!114 &1378636671
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1378636660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d6c5018bf60c504e83854f531b3e98d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pickupTargetWeightKg: 1770
+  placementTargetMode: 0
+  plannedReleaseWeightKg: 1770
+  explicitRemainingWeightKg: 0
+  placementStartWeightKg: 0
+  targetRemainingWeightKg: 0
+  placementPlanPrepared: 0
+--- !u!114 &1378636672
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1378636660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb95758b2f04b30488a7e1af73de5846, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  phaseTracker: {fileID: 1378636669}
+  targetManager: {fileID: 1378636670}
+  loadPlanManager: {fileID: 1378636671}
+  craneInstance: {fileID: 1378636667}
+  totalCycleCount: 3
+  initialPhase: 0
+  useTrailerPlacement: 0
+  pickupPointIndex: 5
+  pickupXSelection: 1
+  destinationPointIndex: 6
+  destinationXSelection: 1
+  trailerPointIndex: 12
+  trailerXSelection: 1
+  targetSource: 2
+  autoAdoptRunningTracker: 1
+  automaticPhaseAdvance: 1
+  phaseAdvanceDelaySeconds: 0.05
+  useUnscaledAdvanceDelay: 1
+  requireValidTarget: 1
+  logCycleEvents: 1
+  isRunning: 0
+  isPaused: 0
+  waitingAtBoundary: 0
+  holdAfterCurrentPhase: 0
+  completedCycleCount: 0
+  currentPhase: 0
+  pendingNextPhase: 0
+  hasPendingNextPhase: 0
+  activePickupXSelection: 1
+  activeDestinationXSelection: 1
+  activeTrailerXSelection: 1
 --- !u!1 &1379410122
 GameObject:
   m_ObjectHideFlags: 0
@@ -137948,10 +138059,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1531814524}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1531814524
@@ -143564,10 +143678,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1602054567}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1602054567
@@ -159342,10 +159459,13 @@ MonoBehaviour:
   workTargetManager: {fileID: 1780959817}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  craneUnit: {fileID: 0}
   initialMajorPhase: 0
   monitorOnStart: 0
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
+  positionExitHysteresis: 0.05
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1780959817
