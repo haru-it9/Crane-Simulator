@@ -58,8 +58,20 @@ public class CraneWorkPhaseProfile : ScriptableObject
         return new List<CraneWorkStepDefinition>
         {
             CreateStep(
-                "Move1.ArrivePickup",
-                "厚板吸着位置へ到着",
+                "Move1.PickupCoarseMove",
+                "吸着位置へ大まかに移動",
+                CraneStatusManager.WorkPhase.Move1,
+                0.20f,
+                Condition(
+                    CraneWorkConditionType.PositionWithinTarget,
+                    1.00f,
+                    1.00f
+                ),
+                Condition(CraneWorkConditionType.BoardNotAttached)
+            ),
+            CreateStep(
+                "Move1.PickupFineAlign",
+                "吸着位置を微調整",
                 CraneStatusManager.WorkPhase.Move1,
                 0.30f,
                 Condition(
@@ -69,31 +81,62 @@ public class CraneWorkPhaseProfile : ScriptableObject
                 ),
                 Condition(CraneWorkConditionType.BoardNotAttached),
                 Condition(
-                    CraneWorkConditionType.HorizontalMovementObserved,
+                    CraneWorkConditionType.HorizontalSpeedBelow,
                     0.05f
                 )
             ),
             CreateStep(
-                "LiftUp.BoardAttached",
-                "厚板吸着",
+                "LiftUp.PickupLowering",
+                "リフマグを厚板まで下降",
                 CraneStatusManager.WorkPhase.LiftUp,
                 0.10f,
-                Condition(CraneWorkConditionType.BoardAttached)
+                Condition(CraneWorkConditionType.TouchdownObserved),
+                Condition(
+                    CraneWorkConditionType.VerticalSpeedBelow,
+                    0.05f
+                )
             ),
             CreateStep(
-                "LiftUp.Hoisted",
-                "規定高さまでつり上げ",
+                "LiftUp.LoadAcquisition",
+                "目標重量を吸着",
                 CraneStatusManager.WorkPhase.LiftUp,
-                0.25f,
-                Condition(CraneWorkConditionType.BoardAttached),
+                0.50f,
                 Condition(
-                    CraneWorkConditionType.LiftHeightFromAttachment,
+                    CraneWorkConditionType.AttachedWeightWithinTarget,
+                    100f,
+                    100f
+                )
+            ),
+            CreateStep(
+                "LiftUp.LoadedRaising",
+                "吊荷を安全高さまで上昇",
+                CraneStatusManager.WorkPhase.LiftUp,
+                0.20f,
+                Condition(
+                    CraneWorkConditionType.AttachedWeightWithinTarget,
+                    100f,
+                    100f
+                ),
+                Condition(
+                    CraneWorkConditionType.LiftMagClearanceFromTouchdown,
                     0.50f
                 )
             ),
             CreateStep(
-                "Move2.ArriveDestination",
-                "配置先へ到着",
+                "Move2.DestinationCoarseMove",
+                "配置位置へ大まかに移動",
+                CraneStatusManager.WorkPhase.Move2,
+                0.20f,
+                Condition(CraneWorkConditionType.BoardAttached),
+                Condition(
+                    CraneWorkConditionType.PositionWithinTarget,
+                    1.00f,
+                    1.00f
+                )
+            ),
+            CreateStep(
+                "Move2.DestinationFineAlign",
+                "配置位置を微調整",
                 CraneStatusManager.WorkPhase.Move2,
                 0.30f,
                 Condition(CraneWorkConditionType.BoardAttached),
@@ -103,70 +146,94 @@ public class CraneWorkPhaseProfile : ScriptableObject
                     0.25f
                 ),
                 Condition(
-                    CraneWorkConditionType.HorizontalMovementObserved,
+                    CraneWorkConditionType.HorizontalSpeedBelow,
                     0.05f
                 )
             ),
             CreateStep(
-                "Place.BoardReleased",
-                "配置先で厚板を解放",
+                "Place.PlacementLowering",
+                "吊荷を配置面まで下降",
                 CraneStatusManager.WorkPhase.Place,
-                0.30f,
+                0.10f,
+                Condition(CraneWorkConditionType.BoardAttached),
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
                     0.25f,
                     0.25f
                 ),
+                Condition(CraneWorkConditionType.TouchdownObserved),
                 Condition(
-                    CraneWorkConditionType.BoardReleasedAfterHeld
+                    CraneWorkConditionType.VerticalSpeedBelow,
+                    0.05f
                 )
             ),
             CreateStep(
-                "Place.Stable",
-                "配置状態を確認",
+                "Place.LoadRelease",
+                "所定重量を配置",
                 CraneStatusManager.WorkPhase.Place,
                 0.50f,
                 Condition(
-                    CraneWorkConditionType.ReleasedBoardWithinTarget,
-                    0.25f,
-                    0.25f
-                ),
-                Condition(CraneWorkConditionType.BoardNotAttached),
-                Condition(
-                    CraneWorkConditionType.ReleasedBoardStable,
-                    0.05f,
-                    0.10f
+                    CraneWorkConditionType.PlacementRemainingWeightWithinTarget,
+                    100f,
+                    100f
                 )
             ),
             CreateStep(
-                "PlaceToTrack.BoardReleased",
-                "トレーラ上で厚板を解放",
+                "Place.PostPlacementRaising",
+                "配置後にリフマグを上昇",
+                CraneStatusManager.WorkPhase.Place,
+                0.20f,
+                Condition(
+                    CraneWorkConditionType.PlacementRemainingWeightWithinTarget,
+                    100f,
+                    100f
+                ),
+                Condition(
+                    CraneWorkConditionType.LiftMagClearanceFromTouchdown,
+                    0.50f
+                )
+            ),
+            CreateStep(
+                "PlaceToTrack.PlacementLowering",
+                "吊荷をトレーラまで下降",
                 CraneStatusManager.WorkPhase.PlaceToTrack,
-                0.30f,
+                0.10f,
+                Condition(CraneWorkConditionType.BoardAttached),
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
                     0.25f,
                     0.25f
                 ),
+                Condition(CraneWorkConditionType.TouchdownObserved),
                 Condition(
-                    CraneWorkConditionType.BoardReleasedAfterHeld
+                    CraneWorkConditionType.VerticalSpeedBelow,
+                    0.05f
                 )
             ),
             CreateStep(
-                "PlaceToTrack.Stable",
-                "トレーラ配置状態を確認",
+                "PlaceToTrack.LoadRelease",
+                "所定重量をトレーラへ配置",
                 CraneStatusManager.WorkPhase.PlaceToTrack,
                 0.50f,
                 Condition(
-                    CraneWorkConditionType.ReleasedBoardWithinTarget,
-                    0.25f,
-                    0.25f
-                ),
-                Condition(CraneWorkConditionType.BoardNotAttached),
+                    CraneWorkConditionType.PlacementRemainingWeightWithinTarget,
+                    100f,
+                    100f
+                )
+            ),
+            CreateStep(
+                "PlaceToTrack.PostPlacementRaising",
+                "トレーラ配置後にリフマグを上昇",
+                CraneStatusManager.WorkPhase.PlaceToTrack,
+                0.20f,
                 Condition(
-                    CraneWorkConditionType.ReleasedBoardStable,
-                    0.05f,
-                    0.10f
+                    CraneWorkConditionType.PlacementRemainingWeightWithinTarget,
+                    100f,
+                    100f
+                ),
+                Condition(
+                    CraneWorkConditionType.LiftMagClearanceFromTouchdown,
+                    0.50f
                 )
             )
         };

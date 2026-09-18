@@ -20,7 +20,7 @@ public class CraneUnit : MonoBehaviour
         public float maxX;
         public bool movable = true;
     }
-
+    
     [Header("References")]
     [SerializeField] private Transform mainCrane;
     [SerializeField] private Transform mainLifMag;
@@ -110,6 +110,34 @@ public class CraneUnit : MonoBehaviour
     private float debugMoveAmount;
     private Vector3 debugDirection = Vector3.down;
 
+    // 既存の下降停止判定を、実作業フェーズ判定でも共有します。
+    // 同じ接触中にイベントを連続発行しないようラッチします。
+    private bool touchdownEventLatched;
+
+    public bool IsDownwardMovementBlockedByTouchdown
+    {
+        get;
+        private set;
+    }
+
+    public CraneWorkTouchdownKind LastTouchdownKind
+    {
+        get;
+        private set;
+    }
+
+    public float LastTouchdownMainLifMagLocalY
+    {
+        get;
+        private set;
+    }
+
+    public event System.Action<
+        CraneUnit,
+        CraneWorkTouchdownKind,
+        float
+    > TouchdownDetected;
+
     private int currentJoystickZSpeedIndex = -1;
     private int currentJoystickXSpeedIndex = -1;
     private int currentJoystickYSpeedIndex = -1;
@@ -121,12 +149,27 @@ public class CraneUnit : MonoBehaviour
         UpdateSpeedTexts();
     }
 
+    /// <summary>
+    /// 着床後の上昇量を、下降制御と同じMainLifMagのlocal Yで取得します。
+    /// </summary>
+    public bool TryGetMainLifMagLocalY(out float localY)
+    {
+        if (mainLifMag == null)
+        {
+            localY = 0f;
+            return false;
+        }
+
+        localY = mainLifMag.localPosition.y;
+        return true;
+    }
+
     public void SetJoystickStepSpeedMode(bool enabled)
     {
         useJoystickStepSpeed = enabled;
         UpdateSpeedTexts();
     }
-
+    
     public void UpdateSpeedTexts()
     {
         int displayZIndex = useJoystickStepSpeed ? currentJoystickZSpeedIndex : zSpeedIndex;
@@ -196,9 +239,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainCraneZ(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (mainCrane == null) return;
 
         int speedIndex = zSpeedIndex;
@@ -225,9 +267,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagX(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (mainLifMag == null) return;
 
         int speedIndex = mainLifMagXSpeedIndex;
@@ -257,9 +298,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagY(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (mainLifMag == null) return;
 
         int speedIndex = mainLifMagYSpeedIndex;
@@ -286,6 +326,10 @@ public class CraneUnit : MonoBehaviour
 
         if (moveAmount > 0f)
         {
+            // 上昇を開始したら、次回の着床通知を許可します。
+            touchdownEventLatched = false;
+            IsDownwardMovementBlockedByTouchdown = false;
+
             if (craneInformationDisplay != null)
             {
                 craneInformationDisplay.NotifyUpwardMovementStarted();
@@ -317,74 +361,74 @@ public class CraneUnit : MonoBehaviour
         if (moveAmount < 0f)
         {
             bool shouldStop = false;
+            bool hasAttachedLoad =
+                lifMagSystem != null && lifMagSystem.HasAttachedBoard;
 
             // 吸着中なら、保持板が他板に接触しているかを見る
-            if (lifMagSystem != null && lifMagSystem.HasAttachedBoard)
+            if (hasAttachedLoad)
             {
                 Debug.Log("吸着中判定ルート");
-                GameObject lastBoard = lifMagSystem.LastAttachedBoard;
 
-                if (lastBoard != null)
+                if (TryGetLowestAttachedBoardCollider(
+                        out GameObject lowestBoard,
+                        out Collider boardCol
+                    ))
                 {
-                    Collider boardCol = lastBoard.GetComponent<Collider>();
+                    float checkDistance = 0.001f;
+                    Bounds b = boardCol.bounds;
 
-                    if (boardCol != null)
+                    Vector3 origin = new Vector3(
+                        b.center.x,
+                        b.min.y + skinWidth,
+                        b.center.z
+                    );
+
+                    Vector3 halfExtents = new Vector3(
+                        b.extents.x * 0.95f,
+                        skinWidth,
+                        b.extents.z * 0.95f
+                    );
+
+                    Quaternion rotation = boardCol.transform.rotation;
+
+                    // 実際に使った値を保存
+                    debugHasBoxCast = true;
+                    debugOrigin = origin;
+                    debugHalfExtents = halfExtents;
+                    debugRotation = rotation;
+                    debugCheckDistance = checkDistance;
+                    debugDirection = Vector3.down;
+
+                    RaycastHit[] hits = Physics.BoxCastAll(
+                        origin,
+                        halfExtents,
+                        Vector3.down,
+                        rotation,
+                        checkDistance,
+                        boardLayer,
+                        QueryTriggerInteraction.Ignore
+                    );
+
+                    foreach (RaycastHit hit in hits)
                     {
-                        float checkDistance = 0.001f/*Mathf.Abs(moveAmount)*/;//0.001f
-                        Bounds b = boardCol.bounds;
+                        if (hit.collider == null) continue;
 
-                        Vector3 origin = new Vector3(
-                            b.center.x,
-                            b.min.y + skinWidth,
-                            b.center.z
-                        );
-
-                        Vector3 halfExtents = new Vector3(
-                            b.extents.x * 0.95f,
-                            skinWidth,
-                            b.extents.z * 0.95f
-                        );
-
-                        Quaternion rotation = lastBoard.transform.rotation;
-
-                        // 実際に使った値を保存
-                        debugHasBoxCast = true;
-                        debugOrigin = origin;
-                        debugHalfExtents = halfExtents;
-                        debugRotation = rotation;
-                        debugCheckDistance = checkDistance;
-                        debugDirection = Vector3.down;
-
-                        RaycastHit[] hits = Physics.BoxCastAll(
-                            origin,
-                            halfExtents,
-                            Vector3.down,
-                            lastBoard.transform.rotation,
-                            checkDistance,
-                            boardLayer,
-                            QueryTriggerInteraction.Ignore
-                        );
-
-                        foreach (RaycastHit hit in hits)
+                        // 自分が保持している全厚板は無視します。
+                        if (IsColliderPartOfAttachedBoard(hit.collider))
                         {
-                            if (hit.collider == null) continue;
+                            continue;
+                        }
 
-                            GameObject hitObj = hit.collider.gameObject;
-
-                            // 自分が保持している板は無視
-                            if (lifMagSystem.IsAttachedBoard(hitObj))
-                            {
-                                continue;
-                            }
-
-                            // Board または BoardStage なら停止
-                            if (hitObj.CompareTag("Board") || hitObj.CompareTag("BoardStage"))
-                            {
-                                shouldStop = true;
-                                debugBoxCastHit = true;
-                                Debug.Log($"吸着中：{lastBoard.name} の下で {hitObj.name} を検出 → 下方向停止");
-                                break;
-                            }
+                        if (HasTagOnSelfOrParent(hit.collider, "Board") ||
+                            HasTagOnSelfOrParent(hit.collider, "BoardStage"))
+                        {
+                            shouldStop = true;
+                            debugBoxCastHit = true;
+                            Debug.Log(
+                                $"吸着中：{lowestBoard.name} の下で " +
+                                $"{hit.collider.name} を検出 → 下方向停止"
+                            );
+                            break;
                         }
                     }
                 }
@@ -393,7 +437,7 @@ public class CraneUnit : MonoBehaviour
             else
             {
                 Debug.Log("非吸着BoxCastルート");
-
+                
                 float checkDistance = Mathf.Abs(moveAmount) + skinWidth;
                 shouldStop = false;
 
@@ -437,16 +481,158 @@ public class CraneUnit : MonoBehaviour
             {
                 moveAmount = 0f;
 
+                NotifyTouchdown(
+                    hasAttachedLoad
+                        ? CraneWorkTouchdownKind.Placement
+                        : CraneWorkTouchdownKind.Pickup
+                );
+
                 if (craneInformationDisplay != null)
                 {
                     craneInformationDisplay.NotifyDownwardMovementStopped();
                 }
+            }
+            else
+            {
+                IsDownwardMovementBlockedByTouchdown = false;
             }
         }
 
         pos.y += moveAmount;
         pos.y = Mathf.Clamp(pos.y, minMainY, maxMainY);
         mainLifMag.localPosition = pos;
+    }
+
+    /// <summary>
+    /// 保持中の全厚板から、Collider下面が最も低いものを取得します。
+    /// 複数枚保持・一部配置時も最下面の厚板で接触を確認します。
+    /// </summary>
+    private bool TryGetLowestAttachedBoardCollider(
+        out GameObject lowestBoard,
+        out Collider lowestCollider
+    )
+    {
+        lowestBoard = null;
+        lowestCollider = null;
+
+        if (lifMagSystem == null)
+        {
+            return false;
+        }
+
+        float lowestY = float.PositiveInfinity;
+
+        foreach (GameObject board in lifMagSystem.AttachedBoards)
+        {
+            if (board == null)
+            {
+                continue;
+            }
+
+            Collider[] colliders =
+                board.GetComponentsInChildren<Collider>(true);
+
+            foreach (Collider candidate in colliders)
+            {
+                if (candidate == null ||
+                    !candidate.enabled ||
+                    candidate.isTrigger)
+                {
+                    continue;
+                }
+
+                float candidateBottomY = candidate.bounds.min.y;
+
+                if (candidateBottomY < lowestY)
+                {
+                    lowestY = candidateBottomY;
+                    lowestBoard = board;
+                    lowestCollider = candidate;
+                }
+            }
+        }
+
+        return lowestBoard != null && lowestCollider != null;
+    }
+
+    private bool IsColliderPartOfAttachedBoard(Collider candidate)
+    {
+        if (candidate == null || lifMagSystem == null)
+        {
+            return false;
+        }
+
+        foreach (GameObject board in lifMagSystem.AttachedBoards)
+        {
+            if (board != null &&
+                candidate.transform.IsChildOf(board.transform))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasTagOnSelfOrParent(
+        Collider candidate,
+        string targetTag
+    )
+    {
+        if (candidate == null)
+        {
+            return false;
+        }
+
+        Transform current = candidate.transform;
+
+        while (current != null)
+        {
+            if (current.CompareTag(targetTag))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    private void NotifyTouchdown(CraneWorkTouchdownKind kind)
+    {
+        IsDownwardMovementBlockedByTouchdown = true;
+        LastTouchdownKind = kind;
+
+        if (!TryGetMainLifMagLocalY(
+                out float touchdownMainLifMagLocalY
+            ))
+        {
+            return;
+        }
+
+        LastTouchdownMainLifMagLocalY =
+            touchdownMainLifMagLocalY;
+
+        if (touchdownEventLatched)
+        {
+            return;
+        }
+
+        touchdownEventLatched = true;
+
+        Debug.Log(
+            $"CraneWork: TouchdownDetected, " +
+            $"Crane={name}, Kind={kind}, " +
+            $"MainLifMagLocalY={touchdownMainLifMagLocalY:F3}",
+            this
+        );
+
+        TouchdownDetected?.Invoke(
+            this,
+            kind,
+            touchdownMainLifMagLocalY
+        );
     }
 
     public void LockDescentByWarningArea()
@@ -560,9 +746,8 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveLifMagX(int index, float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled ||
-            ExperimentPauseManager.IsPaused) return;
-
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        
         if (lifMags == null || index < 0 || index >= lifMags.Length) return;
         if (lifMags[index] == null) return;
         if (lifMags[index].target == null) return;
@@ -665,7 +850,7 @@ public class CraneUnit : MonoBehaviour
     }
 
     public void IncreaseMainLifMagXSpeed()
-    {
+    {   
         mainLifMagXSpeedIndex = Mathf.Min(mainLifMagXSpeedIndex + 1, mainLifMagXSpeeds.Length - 1);
         UpdateSpeedTexts();
         if (uiButtonCsvLogger != null)

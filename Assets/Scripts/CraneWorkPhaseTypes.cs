@@ -3,6 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
+/// CraneUnitの既存下降停止判定から通知する着床種別です。
+/// Pickupはリフマグ下面、Placementは保持中の厚板下面の着床です。
+/// </summary>
+public enum CraneWorkTouchdownKind
+{
+    Pickup,
+    Placement
+}
+
+/// <summary>
 /// 実作業ステップの完了条件です。
 /// 新しい判定を追加する場合は、この列挙値と
 /// CraneWorkPhaseTracker.EvaluateCondition()を拡張します。
@@ -18,7 +28,16 @@ public enum CraneWorkConditionType
     BoardReleasedAfterHeld,
     ReleasedBoardWithinTarget,
     ReleasedBoardStable,
-    MinimumStepElapsedTime
+    MinimumStepElapsedTime,
+
+    // ここから下は詳細10ステップ版で追加した条件です。
+    // 既存Profileのenum値を壊さないよう末尾へ追加しています。
+    HorizontalSpeedBelow,
+    VerticalSpeedBelow,
+    TouchdownObserved,
+    AttachedWeightWithinTarget,
+    PlacementRemainingWeightWithinTarget,
+    LiftMagClearanceFromTouchdown
 }
 
 [Serializable]
@@ -29,13 +48,16 @@ public class CraneWorkConditionDefinition
         CraneWorkConditionType.Always;
 
     [Tooltip(
-        "条件の第1閾値です。座標判定ではX許容誤差、" +
-        "移動・上昇・時間判定では必要量として使用します。"
+        "条件の第1閾値です。座標ではX許容誤差、速度では上限、" +
+        "重量では下側許容誤差[kg]、高さでは必要量[m]です。"
     )]
     [Min(0f)]
     public float threshold = 0.25f;
 
-    [Tooltip("座標判定で使用するZ許容誤差です。")]
+    [Tooltip(
+        "条件の第2閾値です。座標ではZ許容誤差、" +
+        "重量では上側許容誤差[kg]です。"
+    )]
     [Min(0f)]
     public float secondaryThreshold = 0.25f;
 

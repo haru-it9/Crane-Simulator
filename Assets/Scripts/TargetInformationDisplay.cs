@@ -68,6 +68,7 @@ public class TargetInformationDisplay : MonoBehaviour
 
     public float CurrentTargetX { get; private set; }
     public float CurrentTargetZ { get; private set; }
+    public float CurrentTargetWeightTon { get; private set; }
 
     private void Start()
     {
@@ -152,6 +153,7 @@ public class TargetInformationDisplay : MonoBehaviour
 
         CurrentTargetX = data.targetX;
         CurrentTargetZ = data.targetZ;
+        CurrentTargetWeightTon = data.targetWeight;
 
         foreach (TargetTextSet textSet in GetTextSets())
         {
@@ -200,6 +202,26 @@ public class TargetInformationDisplay : MonoBehaviour
             {
                 textSet.targetZText.text =
                     displayTargetZ.ToString("F2");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 共通の作業重量計画から目標重量だけを更新します。
+    /// 入力はkg、画面表示はtです。
+    /// </summary>
+    public void ShowWeightTargetKg(float targetWeightKg)
+    {
+        CurrentTargetWeightTon =
+            Mathf.Max(0f, targetWeightKg) / 1000f;
+
+        foreach (TargetTextSet textSet in GetTextSets())
+        {
+            if (textSet.targetWeightText != null)
+            {
+                textSet.targetWeightText.text =
+                    CurrentTargetWeightTon.ToString("F2") +
+                    weightUnit;
             }
         }
     }

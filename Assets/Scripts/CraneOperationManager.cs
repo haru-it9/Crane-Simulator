@@ -149,6 +149,9 @@ public class CraneOperationManager : MonoBehaviour
     private bool externalOperationInputLocked = false;
     private bool taskSwitchExperimentMode = false;
     private bool statusManagementEnabledBeforeTaskSwitch = true;
+    private CraneWorkTargetManager selectedWorkTargetManager;
+    private CraneWorkLoadPlanManager selectedLoadPlanManager;
+    private CraneWorkPhaseTracker selectedWorkPhaseTracker;
 
     public CraneInstance CurrentCraneInstance
     {
@@ -203,6 +206,8 @@ public class CraneOperationManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnbindSelectedCraneWeightSources();
+
         if (craneRegistry != null)
         {
             craneRegistry.ActiveCraneCountChanged -=
@@ -741,6 +746,9 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
+        BindSelectedCraneWeightSources();
+        UpdateSelectedCraneWeightTargetInformation();
+
         CraneWorkTargetManager workTargetManager =
             FindWorkTargetManagerForCrane(currentCraneIndex);
 
@@ -797,6 +805,236 @@ public class CraneOperationManager : MonoBehaviour
         Debug.Log(
             $"Crane {currentCraneIndex + 1} 目標座標表示: " +
             $"X={targetX:F2}, Z={targetZ:F2}"
+        );
+    }
+
+    private void BindSelectedCraneWeightSources()
+    {
+        CraneInstance craneInstance = CurrentCraneInstance;
+        CraneWorkTargetManager nextTargetManager =
+            FindWorkTargetManagerForCrane(currentCraneIndex);
+        CraneWorkLoadPlanManager nextLoadPlan =
+            FindComponentForCrane<CraneWorkLoadPlanManager>(
+                craneInstance
+            );
+        CraneWorkPhaseTracker nextTracker =
+            FindComponentForCrane<CraneWorkPhaseTracker>(
+                craneInstance
+            );
+
+        if (selectedWorkTargetManager != nextTargetManager)
+        {
+            if (selectedWorkTargetManager != null)
+            {
+                selectedWorkTargetManager.TargetChanged -=
+                    HandleSelectedWorkTargetChanged;
+            }
+
+            selectedWorkTargetManager = nextTargetManager;
+
+            if (selectedWorkTargetManager != null)
+            {
+                selectedWorkTargetManager.TargetChanged +=
+                    HandleSelectedWorkTargetChanged;
+            }
+        }
+
+        if (selectedLoadPlanManager != nextLoadPlan)
+        {
+            if (selectedLoadPlanManager != null)
+            {
+                selectedLoadPlanManager.PlanChanged -=
+                    HandleSelectedLoadPlanChanged;
+            }
+
+            selectedLoadPlanManager = nextLoadPlan;
+
+            if (selectedLoadPlanManager != null)
+            {
+                selectedLoadPlanManager.PlanChanged +=
+                    HandleSelectedLoadPlanChanged;
+            }
+        }
+
+        if (selectedWorkPhaseTracker != nextTracker)
+        {
+            if (selectedWorkPhaseTracker != null)
+            {
+                selectedWorkPhaseTracker.StepStarted -=
+                    HandleSelectedWorkStepStarted;
+                selectedWorkPhaseTracker.StepResumed -=
+                    HandleSelectedWorkStepResumed;
+            }
+
+            selectedWorkPhaseTracker = nextTracker;
+
+            if (selectedWorkPhaseTracker != null)
+            {
+                selectedWorkPhaseTracker.StepStarted +=
+                    HandleSelectedWorkStepStarted;
+                selectedWorkPhaseTracker.StepResumed +=
+                    HandleSelectedWorkStepResumed;
+            }
+        }
+    }
+
+    private void UnbindSelectedCraneWeightSources()
+    {
+        if (selectedWorkTargetManager != null)
+        {
+            selectedWorkTargetManager.TargetChanged -=
+                HandleSelectedWorkTargetChanged;
+        }
+
+        if (selectedLoadPlanManager != null)
+        {
+            selectedLoadPlanManager.PlanChanged -=
+                HandleSelectedLoadPlanChanged;
+        }
+
+        if (selectedWorkPhaseTracker != null)
+        {
+            selectedWorkPhaseTracker.StepStarted -=
+                HandleSelectedWorkStepStarted;
+            selectedWorkPhaseTracker.StepResumed -=
+                HandleSelectedWorkStepResumed;
+        }
+
+        selectedWorkTargetManager = null;
+        selectedLoadPlanManager = null;
+        selectedWorkPhaseTracker = null;
+    }
+
+    private T FindComponentForCrane<T>(CraneInstance craneInstance)
+        where T : Component
+    {
+        if (craneInstance == null)
+        {
+            return null;
+        }
+
+        T component = craneInstance.GetComponent<T>();
+        if (component != null)
+        {
+            return component;
+        }
+
+        component = craneInstance.GetComponentInChildren<T>(true);
+        if (component != null)
+        {
+            return component;
+        }
+
+        CraneUnit craneUnit = craneInstance.CraneUnit;
+        return craneUnit != null
+            ? craneUnit.GetComponentInParent<T>()
+            : null;
+    }
+
+    private void HandleSelectedLoadPlanChanged(
+        CraneWorkLoadPlanManager changedPlan
+    )
+    {
+        if (changedPlan == selectedLoadPlanManager)
+        {
+            UpdateSelectedCraneWeightTargetInformation();
+        }
+    }
+
+    private void HandleSelectedWorkTargetChanged(
+        CraneWorkTargetManager changedManager,
+        CraneWorkTargetData target
+    )
+    {
+        if (changedManager != selectedWorkTargetManager ||
+            !target.isValid)
+        {
+            return;
+        }
+
+        if (targetInformationDisplay == null)
+        {
+            targetInformationDisplay =
+                FindObjectOfType<TargetInformationDisplay>(true);
+        }
+
+        if (targetInformationDisplay == null)
+        {
+            return;
+        }
+
+        targetInformationDisplay.ShowPositionTarget(
+            target.targetX,
+            target.targetZ
+        );
+
+        Debug.Log(
+            $"Crane {currentCraneIndex + 1} 共通目標座標表示更新: " +
+            $"Point={target.pointIndex}, " +
+            $"X={target.targetX:F2}, Z={target.targetZ:F2}"
+        );
+    }
+
+    private void HandleSelectedWorkStepStarted(
+        CraneWorkPhaseTracker tracker,
+        CraneStatusManager.WorkPhase phase,
+        string stepId
+    )
+    {
+        if (tracker == selectedWorkPhaseTracker)
+        {
+            UpdateSelectedCraneWeightTargetInformation();
+        }
+    }
+
+    private void HandleSelectedWorkStepResumed(
+        CraneWorkPhaseTracker tracker,
+        CraneStatusManager.WorkPhase phase,
+        string stepId
+    )
+    {
+        if (tracker == selectedWorkPhaseTracker)
+        {
+            UpdateSelectedCraneWeightTargetInformation();
+        }
+    }
+
+    private void UpdateSelectedCraneWeightTargetInformation()
+    {
+        if (targetInformationDisplay == null ||
+            selectedLoadPlanManager == null ||
+            selectedWorkPhaseTracker == null)
+        {
+            return;
+        }
+
+        float currentAttachedWeightKg = 0f;
+        CraneUnit craneUnit = CurrentCrane;
+
+        if (craneUnit != null && craneUnit.LifMagSystem != null)
+        {
+            currentAttachedWeightKg =
+                craneUnit.LifMagSystem
+                    .GetAttachedTotalWeightKgForDisplay();
+        }
+
+        CraneStatusManager.WorkPhase phase =
+            selectedWorkPhaseTracker.CurrentMajorPhase;
+
+        if (!selectedLoadPlanManager.TryGetDisplayTargetWeightKg(
+                phase,
+                currentAttachedWeightKg,
+                out float targetWeightKg
+            ))
+        {
+            return;
+        }
+
+        targetInformationDisplay.ShowWeightTargetKg(targetWeightKg);
+
+        Debug.Log(
+            $"Crane {currentCraneIndex + 1} 共通目標重量表示: " +
+            $"Phase={phase}, Weight={targetWeightKg:F1} kg"
         );
     }
 

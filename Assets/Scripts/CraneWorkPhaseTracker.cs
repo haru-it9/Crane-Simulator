@@ -36,6 +36,20 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     [SerializeField]
     private CraneWorkPhaseProfile phaseProfile;
 
+    [Header("荷重・着床判定")]
+    [Tooltip(
+        "吸着目標重量と配置計画を保持する、同じクレーンのManagerです。"
+    )]
+    [SerializeField]
+    private CraneWorkLoadPlanManager loadPlanManager;
+
+    [Tooltip(
+        "既存の下降停止判定を持つ同じクレーンのCraneUnitです。" +
+        "通常はCraneInstanceから自動取得します。"
+    )]
+    [SerializeField]
+    private CraneUnit craneUnit;
+
     [Header("初期デバッグ設定")]
     [SerializeField]
     private CraneStatusManager.WorkPhase initialMajorPhase =
@@ -57,6 +71,15 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     [SerializeField]
     private Vector2 manualTargetXZ;
 
+    [Header("座標判定安定化")]
+    [Tooltip(
+        "一度許容範囲へ入った後、判定を解除する範囲へ加える余裕です。" +
+        "境界付近のON/OFF反復を防ぎます。"
+    )]
+    [SerializeField]
+    [Min(0f)]
+    private float positionExitHysteresis = 0.05f;
+
     private bool runtimeTargetOverrideEnabled;
     private Vector2 runtimeTargetOverrideXZ;
 
@@ -77,6 +100,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     private float stepElapsedSeconds;
     private float conditionStableSeconds;
+    private bool positionConditionLatched;
+
+    private Vector3 lastObservedPosition;
+    private bool hasLastObservedPosition;
 
     private Vector3 phaseStartPosition;
     private float attachmentReferenceY;
@@ -87,10 +114,22 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     private GameObject lastHeldBoard;
     private GameObject releasedBoard;
 
+    private CraneUnit subscribedCraneUnit;
+    private bool touchdownObservationArmed;
+    private bool touchdownObserved;
+    private CraneWorkTouchdownKind expectedTouchdownKind;
+    private CraneWorkTouchdownKind observedTouchdownKind;
+    private bool hasTouchdownReference;
+    private float touchdownMainLifMagLocalY;
+
     private bool warnedMissingCraneInstance;
     private bool warnedMissingInformationTarget;
     private bool warnedMissingLifMagSystem;
     private bool warnedMissingTarget;
+    private bool warnedMissingLoadPlan;
+    private bool warnedMissingPickupWeight;
+    private bool warnedMissingPlacementPlan;
+    private bool warnedMissingTouchdownSource;
 
     public CraneStatusManager.WorkPhase CurrentMajorPhase
     {
@@ -121,6 +160,11 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     public float CurrentTargetErrorX { get; private set; }
     public float CurrentTargetErrorZ { get; private set; }
     public bool IsHoldingBoard { get; private set; }
+    public float CurrentHorizontalSpeed { get; private set; }
+    public float CurrentVerticalSpeed { get; private set; }
+    public float CurrentAttachedWeightKg { get; private set; }
+    public float CurrentWeightErrorKg { get; private set; }
+    public float CurrentLiftMagClearance { get; private set; }
 
     private CraneWorkStepDefinition CurrentStep
     {
@@ -169,6 +213,17 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         ResolveReferences();
     }
 
+    private void OnEnable()
+    {
+        ResolveReferences();
+        RefreshTouchdownSubscription();
+    }
+
+    private void OnDisable()
+    {
+        RemoveTouchdownSubscription();
+    }
+
     private void Start()
     {
         if (monitorOnStart)
@@ -188,7 +243,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             ? Time.unscaledDeltaTime
             : Time.deltaTime;
 
-        UpdateObservedState();
+        UpdateObservedState(deltaTime);
         EvaluateCurrentStep(deltaTime);
     }
 
@@ -202,6 +257,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     )
     {
         ResolveReferences();
+        RefreshTouchdownSubscription();
 
         CurrentMajorPhase = phase;
         LoadStepsForPhase(phase);
@@ -222,11 +278,17 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             ? informationTarget.position
             : Vector3.zero;
 
+        lastObservedPosition = phaseStartPosition;
+        hasLastObservedPosition = informationTarget != null;
+        CurrentHorizontalSpeed = 0f;
+        CurrentVerticalSpeed = 0f;
+
         LifMagSystem lifMagSystem = GetLifMagSystem();
         bool isHolding =
             lifMagSystem != null && lifMagSystem.HasAttachedBoard;
 
         IsHoldingBoard = isHolding;
+        CurrentAttachedWeightKg = GetAttachedWeightKg(lifMagSystem);
         wasHoldingBoard = isHolding;
         sawBoardAttachedSincePhaseStart = isHolding;
         boardReleasedAfterHeld = false;
@@ -235,10 +297,24 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             : null;
         releasedBoard = null;
 
+        if (phase == CraneStatusManager.WorkPhase.Place ||
+            phase == CraneStatusManager.WorkPhase.PlaceToTrack)
+        {
+            PreparePlacementPlan();
+        }
+
         hasAttachmentReference = isHolding && informationTarget != null;
         attachmentReferenceY = informationTarget != null
             ? informationTarget.position.y
             : 0f;
+
+        // 新しい大フェーズでは着床基準を作り直します。
+        // StopMonitoring / ResumeMonitoringではここを初期化しないため、
+        // Task Switchの中断前後で着床高さを保持できます。
+        touchdownObservationArmed = false;
+        touchdownObserved = false;
+        hasTouchdownReference = false;
+        CurrentLiftMagClearance = 0f;
 
         majorPhaseCompleted = false;
         currentStepIndex = 0;
@@ -355,6 +431,51 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         runtimeTargetOverrideEnabled = false;
     }
 
+    public void SetPickupTargetWeightKg(float targetWeightKg)
+    {
+        ResolveReferences();
+
+        if (loadPlanManager != null)
+        {
+            loadPlanManager.SetPickupTargetWeightKg(targetWeightKg);
+            warnedMissingPickupWeight = false;
+        }
+        else
+        {
+            WarnMissingLoadPlan();
+        }
+    }
+
+    public void SetPlannedReleaseWeightKg(float releaseWeightKg)
+    {
+        ResolveReferences();
+
+        if (loadPlanManager != null)
+        {
+            loadPlanManager.SetPlannedReleaseWeightKg(releaseWeightKg);
+            warnedMissingPlacementPlan = false;
+        }
+        else
+        {
+            WarnMissingLoadPlan();
+        }
+    }
+
+    public void SetTargetRemainingWeightKg(float remainingWeightKg)
+    {
+        ResolveReferences();
+
+        if (loadPlanManager != null)
+        {
+            loadPlanManager.SetTargetRemainingWeightKg(remainingWeightKg);
+            warnedMissingPlacementPlan = false;
+        }
+        else
+        {
+            WarnMissingLoadPlan();
+        }
+    }
+
     /// <summary>
     /// Inspectorで選んだInitial Major Phaseの監視を開始します。
     /// 動作確認用Buttonから引数なしで呼び出せます。
@@ -399,15 +520,60 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         }
     }
 
-    private void UpdateObservedState()
+    private void PreparePlacementPlan()
+    {
+        if (loadPlanManager == null)
+        {
+            WarnMissingLoadPlan();
+            return;
+        }
+
+        if (!loadPlanManager.PreparePlacementPlan(
+                CurrentAttachedWeightKg
+            ) &&
+            !warnedMissingPlacementPlan)
+        {
+            warnedMissingPlacementPlan = true;
+            Debug.LogWarning(
+                $"{name}: 配置計画を確定できません。" +
+                "CraneWorkLoadPlanManagerで配置重量または" +
+                "配置後残存重量を設定してください。",
+                this
+            );
+        }
+    }
+
+    private void UpdateObservedState(float deltaTime)
     {
         Transform informationTarget = GetInformationTarget();
         LifMagSystem lifMagSystem = GetLifMagSystem();
+
+        if (informationTarget != null)
+        {
+            Vector3 currentPosition = informationTarget.position;
+
+            if (hasLastObservedPosition && deltaTime > 0f)
+            {
+                Vector3 delta =
+                    currentPosition - lastObservedPosition;
+
+                CurrentHorizontalSpeed = new Vector2(
+                    delta.x,
+                    delta.z
+                ).magnitude / deltaTime;
+
+                CurrentVerticalSpeed = delta.y / deltaTime;
+            }
+
+            lastObservedPosition = currentPosition;
+            hasLastObservedPosition = true;
+        }
 
         bool isHolding =
             lifMagSystem != null && lifMagSystem.HasAttachedBoard;
 
         IsHoldingBoard = isHolding;
+        CurrentAttachedWeightKg = GetAttachedWeightKg(lifMagSystem);
 
         if (isHolding)
         {
@@ -516,9 +682,30 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                     informationTarget.position.z - targetZ
                 );
 
-                return CurrentTargetErrorX <= condition.threshold &&
-                       CurrentTargetErrorZ <=
-                       condition.secondaryThreshold;
+                float allowedX = condition.threshold +
+                    (positionConditionLatched
+                        ? positionExitHysteresis
+                        : 0f);
+
+                float allowedZ = condition.secondaryThreshold +
+                    (positionConditionLatched
+                        ? positionExitHysteresis
+                        : 0f);
+
+                bool isWithinPosition =
+                    CurrentTargetErrorX <= allowedX &&
+                    CurrentTargetErrorZ <= allowedZ;
+
+                if (isWithinPosition)
+                {
+                    positionConditionLatched = true;
+                }
+                else if (positionConditionLatched)
+                {
+                    positionConditionLatched = false;
+                }
+
+                return isWithinPosition;
 
             case CraneWorkConditionType.BoardAttached:
                 return IsHoldingBoard;
@@ -544,6 +731,13 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 return Vector2.Distance(start, current) >=
                        condition.threshold;
 
+            case CraneWorkConditionType.HorizontalSpeedBelow:
+                return CurrentHorizontalSpeed <= condition.threshold;
+
+            case CraneWorkConditionType.VerticalSpeedBelow:
+                return Mathf.Abs(CurrentVerticalSpeed) <=
+                       condition.threshold;
+
             case CraneWorkConditionType.LiftHeightFromAttachment:
                 if (informationTarget == null ||
                     !hasAttachmentReference ||
@@ -556,6 +750,45 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                     informationTarget.position.y - attachmentReferenceY;
 
                 return liftedHeight >= condition.threshold;
+
+            case CraneWorkConditionType.TouchdownObserved:
+                if (craneUnit == null)
+                {
+                    WarnMissingTouchdownSource();
+                    return false;
+                }
+
+                return touchdownObserved &&
+                       observedTouchdownKind == expectedTouchdownKind;
+
+            case CraneWorkConditionType.AttachedWeightWithinTarget:
+                return IsAttachedWeightWithinTarget(
+                    condition.threshold,
+                    condition.secondaryThreshold
+                );
+
+            case CraneWorkConditionType.PlacementRemainingWeightWithinTarget:
+                return IsPlacementRemainingWeightWithinTarget(
+                    condition.threshold,
+                    condition.secondaryThreshold
+                );
+
+            case CraneWorkConditionType.LiftMagClearanceFromTouchdown:
+                if (craneUnit == null)
+                {
+                    WarnMissingTouchdownSource();
+                    return false;
+                }
+
+                if (!TryGetLiftMagClearanceFromTouchdown(
+                        out float clearanceHeight
+                    ))
+                {
+                    return false;
+                }
+
+                CurrentLiftMagClearance = clearanceHeight;
+                return clearanceHeight >= condition.threshold;
 
             case CraneWorkConditionType.BoardReleasedAfterHeld:
                 return boardReleasedAfterHeld && !IsHoldingBoard;
@@ -606,6 +839,82 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             default:
                 return false;
         }
+    }
+
+    private bool IsAttachedWeightWithinTarget(
+        float lowerToleranceKg,
+        float upperToleranceKg
+    )
+    {
+        if (loadPlanManager == null)
+        {
+            WarnMissingLoadPlan();
+            return false;
+        }
+
+        if (!loadPlanManager.TryGetPickupTargetWeightKg(
+                out float targetWeightKg
+            ))
+        {
+            if (!warnedMissingPickupWeight)
+            {
+                warnedMissingPickupWeight = true;
+                Debug.LogWarning(
+                    $"{name}: 吸着目標重量が未設定です。" +
+                    "CraneWorkLoadPlanManagerのPickup Target Weight Kgを" +
+                    "設定してください。",
+                    this
+                );
+            }
+
+            return false;
+        }
+
+        CurrentWeightErrorKg =
+            CurrentAttachedWeightKg - targetWeightKg;
+
+        return CurrentAttachedWeightKg >=
+                   targetWeightKg - Mathf.Max(0f, lowerToleranceKg) &&
+               CurrentAttachedWeightKg <=
+                   targetWeightKg + Mathf.Max(0f, upperToleranceKg);
+    }
+
+    private bool IsPlacementRemainingWeightWithinTarget(
+        float lowerToleranceKg,
+        float upperToleranceKg
+    )
+    {
+        if (loadPlanManager == null)
+        {
+            WarnMissingLoadPlan();
+            return false;
+        }
+
+        if (!loadPlanManager.TryGetTargetRemainingWeightKg(
+                out float targetRemainingWeightKg
+            ))
+        {
+            if (!warnedMissingPlacementPlan)
+            {
+                warnedMissingPlacementPlan = true;
+                Debug.LogWarning(
+                    $"{name}: 配置後の残存目標重量が未確定です。",
+                    this
+                );
+            }
+
+            return false;
+        }
+
+        CurrentWeightErrorKg =
+            CurrentAttachedWeightKg - targetRemainingWeightKg;
+
+        return CurrentAttachedWeightKg >=
+                   targetRemainingWeightKg -
+                   Mathf.Max(0f, lowerToleranceKg) &&
+               CurrentAttachedWeightKg <=
+                   targetRemainingWeightKg +
+                   Mathf.Max(0f, upperToleranceKg);
     }
 
     private void CompleteCurrentStep()
@@ -668,6 +977,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             return;
         }
 
+        PrepareStepTouchdownObservation(step);
+
         if (logPhaseEvents)
         {
             Debug.Log(
@@ -686,10 +997,135 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         );
     }
 
+    private void PrepareStepTouchdownObservation(
+        CraneWorkStepDefinition step
+    )
+    {
+        if (step == null || step.completionConditions == null)
+        {
+            return;
+        }
+
+        bool needsTouchdown = false;
+
+        foreach (CraneWorkConditionDefinition condition in
+                 step.completionConditions)
+        {
+            if (condition != null &&
+                condition.conditionType ==
+                CraneWorkConditionType.TouchdownObserved)
+            {
+                needsTouchdown = true;
+                break;
+            }
+        }
+
+        if (!needsTouchdown)
+        {
+            return;
+        }
+
+        if (craneUnit == null)
+        {
+            WarnMissingTouchdownSource();
+            return;
+        }
+
+        expectedTouchdownKind =
+            CurrentMajorPhase == CraneStatusManager.WorkPhase.LiftUp
+                ? CraneWorkTouchdownKind.Pickup
+                : CraneWorkTouchdownKind.Placement;
+
+        touchdownObservationArmed = true;
+        touchdownObserved = false;
+        hasTouchdownReference = false;
+        CurrentLiftMagClearance = 0f;
+    }
+
+    private void HandleTouchdownDetected(
+        CraneUnit source,
+        CraneWorkTouchdownKind kind,
+        float mainLifMagLocalY
+    )
+    {
+        if (!isMonitoring ||
+            !touchdownObservationArmed ||
+            source != craneUnit ||
+            kind != expectedTouchdownKind)
+        {
+            return;
+        }
+
+        touchdownObservationArmed = false;
+        touchdownObserved = true;
+        observedTouchdownKind = kind;
+        touchdownMainLifMagLocalY = mainLifMagLocalY;
+        hasTouchdownReference = true;
+        CurrentLiftMagClearance = 0f;
+
+        if (logPhaseEvents)
+        {
+            Debug.Log(
+                $"CraneWork: TouchdownAccepted, " +
+                $"Crane={GetCraneLabel()}, " +
+                $"Phase={CurrentMajorPhase}, " +
+                $"Kind={kind}, " +
+                $"MainLifMagLocalY={mainLifMagLocalY:F3}",
+                this
+            );
+        }
+    }
+
+    private bool TryGetLiftMagClearanceFromTouchdown(
+        out float clearanceHeight
+    )
+    {
+        clearanceHeight = 0f;
+
+        if (!hasTouchdownReference ||
+            craneUnit == null ||
+            !craneUnit.TryGetMainLifMagLocalY(out float currentLocalY))
+        {
+            return false;
+        }
+
+        clearanceHeight =
+            currentLocalY - touchdownMainLifMagLocalY;
+        return true;
+    }
+
+    private void RefreshTouchdownSubscription()
+    {
+        if (subscribedCraneUnit == craneUnit)
+        {
+            return;
+        }
+
+        RemoveTouchdownSubscription();
+        subscribedCraneUnit = craneUnit;
+
+        if (subscribedCraneUnit != null)
+        {
+            subscribedCraneUnit.TouchdownDetected +=
+                HandleTouchdownDetected;
+        }
+    }
+
+    private void RemoveTouchdownSubscription()
+    {
+        if (subscribedCraneUnit != null)
+        {
+            subscribedCraneUnit.TouchdownDetected -=
+                HandleTouchdownDetected;
+            subscribedCraneUnit = null;
+        }
+    }
+
     private void ResetStepTimers()
     {
         stepElapsedSeconds = 0f;
         conditionStableSeconds = 0f;
+        positionConditionLatched = false;
     }
 
     private bool TryGetTargetPosition(
@@ -798,6 +1234,45 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         return lifMagSystem;
     }
 
+    private float GetAttachedWeightKg(LifMagSystem lifMagSystem)
+    {
+        return lifMagSystem != null
+            ? Mathf.Max(
+                0f,
+                lifMagSystem.GetAttachedTotalWeightKgForDisplay()
+            )
+            : 0f;
+    }
+
+    private void WarnMissingLoadPlan()
+    {
+        if (warnedMissingLoadPlan)
+        {
+            return;
+        }
+
+        warnedMissingLoadPlan = true;
+        Debug.LogWarning(
+            $"{name}: CraneWorkLoadPlanManagerが設定されていません。",
+            this
+        );
+    }
+
+    private void WarnMissingTouchdownSource()
+    {
+        if (warnedMissingTouchdownSource)
+        {
+            return;
+        }
+
+        warnedMissingTouchdownSource = true;
+        Debug.LogWarning(
+            $"{name}: 着床判定に使用するCraneUnitが設定されていません。" +
+            "CraneInstance.CraneUnitを確認してください。",
+            this
+        );
+    }
+
     private void ResolveReferences()
     {
         if (craneInstance == null)
@@ -831,6 +1306,48 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             workTargetManager =
                 GetComponentInChildren<CraneWorkTargetManager>(true);
         }
+
+        if (loadPlanManager == null)
+        {
+            loadPlanManager = GetComponent<CraneWorkLoadPlanManager>();
+        }
+
+        if (loadPlanManager == null)
+        {
+            loadPlanManager =
+                GetComponentInParent<CraneWorkLoadPlanManager>();
+        }
+
+        if (loadPlanManager == null)
+        {
+            loadPlanManager =
+                GetComponentInChildren<CraneWorkLoadPlanManager>(true);
+        }
+
+        if (craneUnit == null && craneInstance != null)
+        {
+            craneUnit = craneInstance.CraneUnit;
+        }
+
+        if (craneUnit == null)
+        {
+            craneUnit = GetComponent<CraneUnit>();
+        }
+
+        if (craneUnit == null)
+        {
+            craneUnit = GetComponentInParent<CraneUnit>();
+        }
+
+        if (craneUnit == null)
+        {
+            craneUnit = GetComponentInChildren<CraneUnit>(true);
+        }
+
+        if (isActiveAndEnabled)
+        {
+            RefreshTouchdownSubscription();
+        }
     }
 
     private string GetCraneLabel()
@@ -843,5 +1360,13 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         return string.IsNullOrWhiteSpace(craneInstance.DisplayName)
             ? $"Crane {craneInstance.CraneId}"
             : craneInstance.DisplayName;
+    }
+
+    private void OnValidate()
+    {
+        positionExitHysteresis = Mathf.Max(
+            0f,
+            positionExitHysteresis
+        );
     }
 }
