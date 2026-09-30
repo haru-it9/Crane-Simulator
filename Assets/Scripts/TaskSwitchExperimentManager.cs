@@ -110,11 +110,25 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool sourceMajorPhaseCompleted;
     private int activeCraneCountBeforeExperiment = -1;
 
+    [Header("複数回切替（実行時確認用）")]
+    [SerializeField]
+    [Min(0)]
+    private int currentSwitchIndex;
+
+    [SerializeField]
+    [Min(0)]
+    private int completedSwitchCount;
+
     public TaskSwitchMethod SwitchMethod => switchMethod;
     public TaskSwitchExperimentState CurrentState => currentState;
     public float CountdownRemaining => countdownRemaining;
     public TaskSwitchCraneCondition SourceCondition => sourceCondition;
     public TaskSwitchCraneCondition TargetCondition => targetCondition;
+    public int CurrentSwitchIndex => currentSwitchIndex;
+    public int CompletedSwitchCount => completedSwitchCount;
+    public bool CanRequestSwitch =>
+        currentState == TaskSwitchExperimentState.OperatingSource ||
+        currentState == TaskSwitchExperimentState.OperatingReturnedSource;
 
     public event Action<TaskSwitchEventData> ExperimentEventOccurred;
 
@@ -187,6 +201,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         experimentStartRealtime = Time.realtimeSinceStartup;
         sourceMajorPhaseCompleted = false;
+        currentSwitchIndex = 0;
+        completedSwitchCount = 0;
         HideAutomaticOperationObjects();
         HideTransitionPanels();
 
@@ -243,7 +259,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     public void RequestSwitch()
     {
-        if (currentState != TaskSwitchExperimentState.OperatingSource)
+        if (!CanRequestSwitch)
         {
             Debug.LogWarning(
                 $"現在の状態では切替要求を受け付けません: {currentState}"
@@ -251,7 +267,37 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        EmitEvent("SwitchRequested");
+        int nextSwitchIndex = currentSwitchIndex + 1;
+
+        // 1回目のTargetはStartExperiment()で準備済みです。
+        // 2回目以降は、前回のTarget作業で変更された板・位置・目標を
+        // 次の切替要求を受け付ける直前に同じ条件から再生成します。
+        if (nextSwitchIndex > 1 &&
+            initializeScenariosOnStartExperiment &&
+            !PrepareCondition(targetCondition, targetPhaseTracker))
+        {
+            EmitEvent(
+                "NextTargetPreparationFailed",
+                $"SwitchIndex={nextSwitchIndex}"
+            );
+            return;
+        }
+
+        currentSwitchIndex = nextSwitchIndex;
+        sourceMajorPhaseCompleted = false;
+
+        // 旧版でSource復帰後に使用していた状態から要求された場合も、
+        // 以降の判定を通常のSource操作状態へ統一します。
+        if (currentState ==
+            TaskSwitchExperimentState.OperatingReturnedSource)
+        {
+            SetState(TaskSwitchExperimentState.OperatingSource);
+        }
+
+        EmitEvent(
+            "SwitchRequested",
+            $"SwitchIndex={currentSwitchIndex}"
+        );
 
         switch (switchMethod)
         {
@@ -308,7 +354,11 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();
-        EmitEvent("ExperimentCompleted");
+        EmitEvent(
+            "ExperimentCompleted",
+            $"Requested={currentSwitchIndex};" +
+            $"Completed={completedSwitchCount}"
+        );
         SetState(TaskSwitchExperimentState.Completed);
         HideTransitionPanels();
     }
@@ -962,8 +1012,19 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         string resumeDetail = ResumeSourceWorkAfterReturn();
 
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
-        SetState(TaskSwitchExperimentState.OperatingReturnedSource);
-        EmitEvent("SourceOperationResumed", resumeDetail);
+        completedSwitchCount = Mathf.Max(
+            completedSwitchCount,
+            currentSwitchIndex
+        );
+        SetState(TaskSwitchExperimentState.OperatingSource);
+        EmitEvent(
+            "SourceOperationResumed",
+            $"SwitchIndex={currentSwitchIndex};{resumeDetail}"
+        );
+        EmitEvent(
+            "SwitchCompleted",
+            $"SwitchIndex={currentSwitchIndex}"
+        );
     }
 
     private void RecoverAfterFailedTargetSelection(string detail)
@@ -1206,6 +1267,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         experimentStateText.text =
             $"{switchMethod} / {currentState}\n" +
+            $"Switch: {currentSwitchIndex}  " +
+            $"Completed: {completedSwitchCount}\n" +
             $"Source: {sourceCondition.workPhase}, " +
             $"{sourceCondition.errorType}  ->  " +
             $"Target: {targetCondition.workPhase}, " +
@@ -1238,7 +1301,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         Debug.Log(
             $"TaskSwitch: {eventName}, Method={switchMethod}, " +
-            $"State={currentState}, Source={sourceCondition.craneIndex + 1}" +
+            $"State={currentState}, Switch={currentSwitchIndex}, " +
+            $"Source={sourceCondition.craneIndex + 1}" +
             $"({eventData.sourcePhase}/{sourceCondition.errorType}), " +
             $"Target={targetCondition.craneIndex + 1}" +
             $"({eventData.targetPhase}/{targetCondition.errorType}), " +
