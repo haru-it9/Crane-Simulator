@@ -138,6 +138,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool targetWorkPhaseSubscribed;
     private bool targetCycleSubscribed;
     private bool sourceMajorPhaseCompleted;
+    private string pendingTargetConfirmationDetail = "Confirmation";
     private int activeCraneCountBeforeExperiment = -1;
 
     [Header("複数回切替（実行時確認用）")]
@@ -393,18 +394,29 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        EmitEvent("ConfirmationPressed");
+        string confirmationDetail =
+            string.IsNullOrEmpty(pendingTargetConfirmationDetail)
+                ? "Confirmation"
+                : pendingTargetConfirmationDetail;
+
+        EmitEvent("ConfirmationPressed", confirmationDetail);
         SetPanelActive(confirmationPanel, false);
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingTarget);
 
         if (!StartTargetOperation())
         {
-            RecoverAfterFailedTargetOperationStart("Confirmation");
+            RecoverAfterFailedTargetOperationStart(
+                confirmationDetail
+            );
             return;
         }
 
-        EmitEvent("TargetOperationStarted", "Confirmation");
+        pendingTargetConfirmationDetail = string.Empty;
+        EmitEvent(
+            "TargetOperationStarted",
+            confirmationDetail
+        );
     }
 
     public void NotifySourcePhaseBoundary()
@@ -545,10 +557,11 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        pendingTargetConfirmationDetail = "Confirmation";
         SetState(TaskSwitchExperimentState.WaitingForConfirmation);
         SetPanelActive(confirmationPanel, true);
         EmitEvent("TargetDisplaySwitched", "Confirmation");
-        EmitEvent("ConfirmationDisplayed");
+        EmitEvent("ConfirmationDisplayed", "Confirmation");
     }
 
     private void StartCountdownSwitch()
@@ -600,16 +613,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         SetPanelActive(countdownPanel, false);
         EmitEvent("TargetDisplaySwitched", detail);
-        craneOperationManager.SetTaskSwitchOperationInputLocked(false);
-        SetState(TaskSwitchExperimentState.OperatingTarget);
 
-        if (!StartTargetOperation())
-        {
-            RecoverAfterFailedTargetOperationStart(detail);
-            return;
-        }
-
-        EmitEvent("TargetOperationStarted", detail);
+        // Countdown / PhaseBoundaryでも、表示切替直後には
+        // Target作業を開始せず、確認ボタン入力を待ちます。
+        pendingTargetConfirmationDetail = detail;
+        SetState(TaskSwitchExperimentState.WaitingForConfirmation);
+        SetPanelActive(confirmationPanel, true);
+        EmitEvent("ConfirmationDisplayed", detail);
     }
 
     /// <summary>
