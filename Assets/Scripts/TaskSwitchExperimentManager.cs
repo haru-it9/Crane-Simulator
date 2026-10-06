@@ -167,6 +167,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool pendingScheduledSwitch;
     private string pendingScheduledSwitchDetail = string.Empty;
     private bool scheduledSwitchCountdownActive;
+    private bool scheduledSwitchAwaitingCarryoverPhase;
     private float scheduledSwitchDueRealtime;
     private float scheduledSwitchDelaySeconds;
     private int scheduledSwitchOriginCycle;
@@ -239,6 +240,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void Update()
     {
         if (scheduledSwitchCountdownActive &&
+            !scheduledSwitchAwaitingCarryoverPhase &&
             CanRequestSwitch &&
             Time.realtimeSinceStartup >= scheduledSwitchDueRealtime)
         {
@@ -350,6 +352,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         pendingScheduledSwitch = false;
         pendingScheduledSwitchDetail = string.Empty;
         scheduledSwitchCountdownActive = false;
+        scheduledSwitchAwaitingCarryoverPhase = false;
         scheduledSwitchDueRealtime = 0f;
         scheduledSwitchDelaySeconds = 0f;
         currentSwitchIndex = 0;
@@ -424,6 +427,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         // 手動要求またはCSVタイマー発火のどちらでも、
         // 進行中の予約タイマーをここで終了します。
         scheduledSwitchCountdownActive = false;
+        scheduledSwitchAwaitingCarryoverPhase = false;
 
         ApplyTargetCycleStartCondition();
 
@@ -1021,6 +1025,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         if (scheduledSwitchCountdownActive)
         {
+            scheduledSwitchAwaitingCarryoverPhase = false;
+
             float remainingSeconds = Mathf.Max(
                 0f,
                 scheduledSwitchDueRealtime -
@@ -1088,6 +1094,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 Time.realtimeSinceStartup +
                 scheduledSwitchDelaySeconds;
             scheduledSwitchCountdownActive = true;
+            scheduledSwitchAwaitingCarryoverPhase = false;
 
             pendingScheduledSwitchDetail =
                 $"SwitchIndex={entry.switchIndex};" +
@@ -1113,6 +1120,25 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         CraneStatusManager.WorkPhase completedPhase
     )
     {
+        if (tracker == sourceWorkPhaseTracker &&
+            scheduledSwitchCountdownActive &&
+            completedPhase == scheduledSwitchOriginPhase)
+        {
+            scheduledSwitchAwaitingCarryoverPhase = true;
+
+            float remainingSeconds = Mathf.Max(
+                0f,
+                scheduledSwitchDueRealtime -
+                    Time.realtimeSinceStartup
+            );
+
+            EmitEvent(
+                "SwitchScheduleWaitingForCarryoverPhase",
+                $"ScheduledCycle={scheduledSwitchOriginCycle};" +
+                $"ScheduledPhase={scheduledSwitchOriginPhase};" +
+                $"RemainingSeconds={remainingSeconds:F3}"
+            );
+        }
         if (tracker != sourceWorkPhaseTracker)
         {
             return;
@@ -1641,6 +1667,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     {
         scheduledSwitches.Clear();
         scheduledSwitchCountdownActive = false;
+        scheduledSwitchAwaitingCarryoverPhase = false;
         pendingScheduledSwitch = false;
 
         if (!useSwitchScheduleCsv ||
