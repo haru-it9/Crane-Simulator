@@ -135,6 +135,9 @@ public class CraneWorkCycleController : MonoBehaviour
     private bool autoAdoptConsumed;
     private Coroutine advanceRoutine;
 
+    private const string LoadAcquisitionStepId =
+        "LiftUp.LoadAcquisition";
+
     public bool IsRunning => isRunning;
     public bool IsPaused => isPaused;
     public bool IsWaitingAtBoundary => waitingAtBoundary;
@@ -498,6 +501,67 @@ public class CraneWorkCycleController : MonoBehaviour
         }
 
         ScheduleNextPhase(completedPhase);
+    }
+
+    private void HandlePickupWeightInvalidated(
+        CraneWorkPhaseTracker tracker,
+        CraneStatusManager.WorkPhase invalidatedPhase,
+        string invalidatedStepId
+    )
+    {
+        if (!isRunning || tracker != phaseTracker)
+        {
+            return;
+        }
+
+        StopAdvanceRoutine();
+        waitingAtBoundary = false;
+        hasPendingNextPhase = false;
+        isPaused = false;
+
+        CraneStatusManager.WorkPhase restartPhase =
+            CraneStatusManager.WorkPhase.LiftUp;
+
+        if (!ApplyTargetForPhase(restartPhase) && requireValidTarget)
+        {
+            Debug.LogError(
+                $"CraneWorkCycle: {GetCraneLabel()}の重量逸脱後に" +
+                "吊り上げ先目標を復元できないため停止します。",
+                this
+            );
+            StopCycleInternal(true);
+            return;
+        }
+
+        currentPhase = restartPhase;
+
+        if (!phaseTracker.ConfigurePhaseAtStep(
+                restartPhase,
+                LoadAcquisitionStepId,
+                true
+            ))
+        {
+            Debug.LogError(
+                $"CraneWorkCycle: {GetCraneLabel()}を" +
+                $"{LoadAcquisitionStepId}へ戻せないため停止します。",
+                this
+            );
+            StopCycleInternal(false);
+            return;
+        }
+
+        Log(
+            $"PickupWeightRollback, Crane={GetCraneLabel()}, " +
+            $"From={invalidatedPhase}/{invalidatedStepId}, " +
+            $"To={restartPhase}/{LoadAcquisitionStepId}, " +
+            $"Cycle={CurrentCycleNumber}/{totalCycleCount}"
+        );
+
+        PhaseStarted?.Invoke(
+            this,
+            restartPhase,
+            CurrentCycleNumber
+        );
     }
 
     private void ScheduleNextPhase(
@@ -934,6 +998,8 @@ public class CraneWorkCycleController : MonoBehaviour
 
         phaseTracker.MajorPhaseCompleted +=
             HandleMajorPhaseCompleted;
+        phaseTracker.PickupWeightInvalidated +=
+            HandlePickupWeightInvalidated;
         trackerSubscribed = true;
     }
 
@@ -947,6 +1013,8 @@ public class CraneWorkCycleController : MonoBehaviour
 
         phaseTracker.MajorPhaseCompleted -=
             HandleMajorPhaseCompleted;
+        phaseTracker.PickupWeightInvalidated -=
+            HandlePickupWeightInvalidated;
         trackerSubscribed = false;
     }
 
