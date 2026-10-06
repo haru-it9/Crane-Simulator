@@ -47,6 +47,13 @@ public class BoardGenerator : MonoBehaviour
     [SerializeField] private float boardStageSizeZ = 1.7f;
 
     [Header("板の積み上げ間隔")]
+    [Tooltip(
+        "OFFの場合は板同士を接触状態で積層します。" +
+        "通常の吊り上げ実験ではOFFを使用してください。"
+    )]
+    [SerializeField] private bool useBoardGapY = false;
+
+    [Tooltip("Use Board Gap YがONの場合だけ使用する板間隔[m]です。")]
     [SerializeField] private float boardGapY = 0.05f;
 
     [Header("生成先の親オブジェクト")]
@@ -217,7 +224,7 @@ public class BoardGenerator : MonoBehaviour
 
                 CreateBoard(i, j, basePos, currentTopY, boardX, boardY, boardZ);
 
-                currentTopY += boardY + boardGapY;
+                currentTopY += boardY + GetEffectiveBoardGapY();
             }
         }
     }
@@ -270,7 +277,8 @@ public class BoardGenerator : MonoBehaviour
                     data.boardZ
                 );
 
-                currentTopY += data.boardY + boardGapY;
+                currentTopY +=
+                    data.boardY + GetEffectiveBoardGapY();
             }
         }
     }
@@ -336,6 +344,13 @@ public class BoardGenerator : MonoBehaviour
         );
 
         return board;
+    }
+
+    private float GetEffectiveBoardGapY()
+    {
+        return useBoardGapY
+            ? Mathf.Max(0f, boardGapY)
+            : 0f;
     }
 
     private float RoundToDigits(float value, int digits)
