@@ -91,6 +91,14 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     private float pickupWeightGuardToleranceKg = 100f;
 
     [Tooltip(
+        "目標重量から外れてから落下と確定するまでの継続時間です。" +
+        "配置着床と電流低下の同一フレーム競合を防ぎます。"
+    )]
+    [SerializeField]
+    [Min(0f)]
+    private float pickupWeightInvalidationStableSeconds = 0.2f;
+
+    [Tooltip(
         "ONの場合、重量逸脱時にリフマグから落下した板を" +
         "非表示にして削除します。配置工程で正常に離した板は削除しません。"
     )]
@@ -139,6 +147,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     private bool hasTouchdownReference;
     private float touchdownMainLifMagLocalY;
     private bool pickupWeightGuardArmed;
+    private float pickupWeightInvalidationElapsedSeconds;
     private readonly List<GameObject> guardedAttachedBoards =
         new List<GameObject>();
 
@@ -271,7 +280,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
         UpdateObservedState(deltaTime);
 
-        if (InvalidatePickupWeightIfNeeded())
+        if (InvalidatePickupWeightIfNeeded(deltaTime))
         {
             return;
         }
@@ -298,6 +307,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             phase == CraneStatusManager.WorkPhase.LiftUp)
         {
             pickupWeightGuardArmed = false;
+            pickupWeightInvalidationElapsedSeconds = 0f;
             guardedAttachedBoards.Clear();
         }
 
@@ -715,10 +725,29 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         }
     }
 
-    private bool InvalidatePickupWeightIfNeeded()
+    private bool InvalidatePickupWeightIfNeeded(float deltaTime)
     {
         if (!pickupWeightGuardArmed)
         {
+            pickupWeightInvalidationElapsedSeconds = 0f;
+            return false;
+        }
+
+        // Placement着床を受理した後の重量低下は正常な配置操作です。
+        // PlacementLoweringの0.1秒安定判定が終わる前でも、
+        // ここでは運搬中の落下として扱いません。
+        bool placementTouchdownAccepted =
+            touchdownObserved &&
+            observedTouchdownKind == CraneWorkTouchdownKind.Placement &&
+            (CurrentMajorPhase == CraneStatusManager.WorkPhase.Place ||
+             CurrentMajorPhase ==
+                 CraneStatusManager.WorkPhase.PlaceToTrack);
+
+        if (placementTouchdownAccepted)
+        {
+            pickupWeightGuardArmed = false;
+            pickupWeightInvalidationElapsedSeconds = 0f;
+            guardedAttachedBoards.Clear();
             return false;
         }
 
@@ -732,6 +761,16 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 toleranceKg
             ))
         {
+            pickupWeightInvalidationElapsedSeconds = 0f;
+            return false;
+        }
+
+        pickupWeightInvalidationElapsedSeconds +=
+            Mathf.Max(0f, deltaTime);
+
+        if (pickupWeightInvalidationElapsedSeconds <
+            Mathf.Max(0f, pickupWeightInvalidationStableSeconds))
+        {
             return false;
         }
 
@@ -743,6 +782,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             RemoveDroppedBoardsFromGuardSnapshot();
 
         pickupWeightGuardArmed = false;
+        pickupWeightInvalidationElapsedSeconds = 0f;
         conditionStableSeconds = 0f;
         isMonitoring = false;
 
@@ -1135,6 +1175,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         if (completedStep.stepId == "LiftUp.LoadAcquisition")
         {
             pickupWeightGuardArmed = true;
+            pickupWeightInvalidationElapsedSeconds = 0f;
             CaptureGuardedAttachedBoards();
         }
         else if (
@@ -1144,6 +1185,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         )
         {
             pickupWeightGuardArmed = false;
+            pickupWeightInvalidationElapsedSeconds = 0f;
             guardedAttachedBoards.Clear();
         }
 
@@ -1283,6 +1325,15 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         touchdownMainLifMagLocalY = mainLifMagLocalY;
         hasTouchdownReference = true;
         CurrentLiftMagClearance = 0f;
+
+        if (kind == CraneWorkTouchdownKind.Placement)
+        {
+            // 配置着床後の電流低下は意図した荷下ろしなので、
+            // 運搬中落下の重量監視をここで解除します。
+            pickupWeightGuardArmed = false;
+            pickupWeightInvalidationElapsedSeconds = 0f;
+            guardedAttachedBoards.Clear();
+        }
 
         if (logPhaseEvents)
         {
@@ -1592,6 +1643,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         pickupWeightGuardToleranceKg = Mathf.Max(
             0f,
             pickupWeightGuardToleranceKg
+        );
+        pickupWeightInvalidationStableSeconds = Mathf.Max(
+            0f,
+            pickupWeightInvalidationStableSeconds
         );
     }
 }
