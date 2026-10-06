@@ -116,13 +116,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool targetRunsFullCycle = true;
 
     [Tooltip(
-        "Targetの1サイクル作業で吊り上げる目標重量[kg]です。"
-    )]
-    [SerializeField]
-    [Min(0f)]
-    private float targetFullCyclePickupWeightKg = 1770f;
-
-    [Tooltip(
         "ONの場合、Task Switch開始時にSourceの実作業監視を自動開始し、" +
         "MajorPhaseCompletedをPhase Boundary切替へ使用します。"
     )]
@@ -1715,25 +1708,16 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return false;
         }
 
-        bool loadedFromBoardCsv =
-            targetLoadPlan.RefreshPickupTargetFromCurrentTarget();
-
-        if (!loadedFromBoardCsv)
+        if (!targetLoadPlan.RefreshPickupTargetFromCurrentTarget())
         {
-            if (targetFullCyclePickupWeightKg <= 0f)
-            {
-                Debug.LogError(
-                    "CSVから目標重量を取得できず、" +
-                    "Target Full Cycle Pickup Weight Kgも" +
-                    "0以下です。",
-                    this
-                );
-                return false;
-            }
-
-            targetLoadPlan.SetPickupTargetWeightKg(
-                targetFullCyclePickupWeightKg
+            Debug.LogError(
+                "Targetの選択座標にある板のCSV重量を" +
+                "取得できないため、1サイクル作業を開始できません。" +
+                "BoardGeneratorのCSV、Spawn Positions、" +
+                "Default Pickup Countを確認してください。",
+                targetCrane
             );
+            return false;
         }
 
         targetLoadPlan.SetTargetRemainingWeightKg(0f);
@@ -1741,8 +1725,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent(
             "TargetFullCycleLoadPlanPrepared",
             $"Pickup={targetLoadPlan.PickupTargetWeightKg:F1}kg;" +
-            "RemainingAfterPlacement=0.0kg;" +
-            $"Source={(loadedFromBoardCsv ? "BoardCsv" : "InspectorFallback")}"
+            "RemainingAfterPlacement=0.0kg;Source=BoardCsv"
         );
 
         return true;
