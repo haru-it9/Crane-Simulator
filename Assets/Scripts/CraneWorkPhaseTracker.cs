@@ -186,6 +186,14 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     public bool IsMonitoring => isMonitoring;
     public bool IsMajorPhaseCompleted => majorPhaseCompleted;
+
+    public bool IsPlacementTouchdownConfirmed =>
+        isMonitoring &&
+        touchdownObserved &&
+        observedTouchdownKind == CraneWorkTouchdownKind.Placement &&
+        (CurrentMajorPhase == CraneStatusManager.WorkPhase.Place ||
+         CurrentMajorPhase ==
+             CraneStatusManager.WorkPhase.PlaceToTrack);
     public float CurrentTargetErrorX { get; private set; }
     public float CurrentTargetErrorZ { get; private set; }
     public bool IsHoldingBoard { get; private set; }
@@ -831,7 +839,11 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     private int RemoveDroppedBoardsFromGuardSnapshot()
     {
+        // 落下板を消失させるのは運搬移動中のMove2だけです。
+        // LiftUpなど他フェーズでは作業フェーズ・目標の巻戻しだけ行い、
+        // 落下した板オブジェクト自体は残します。
         if (!destroyDroppedBoardsOnWeightInvalidation ||
+            CurrentMajorPhase != CraneStatusManager.WorkPhase.Move2 ||
             guardedAttachedBoards.Count == 0)
         {
             guardedAttachedBoards.Clear();
