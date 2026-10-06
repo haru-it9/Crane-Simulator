@@ -839,11 +839,15 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     private int RemoveDroppedBoardsFromGuardSnapshot()
     {
-        // 落下板を消失させるのは運搬移動中のMove2だけです。
-        // LiftUpなど他フェーズでは作業フェーズ・目標の巻戻しだけ行い、
+        // 落下板を消失させるのは移動フェーズ中だけです。
+        // LiftUp・Placeなどでは作業フェーズ・目標の巻戻しだけ行い、
         // 落下した板オブジェクト自体は残します。
+        bool isMovementPhase =
+            CurrentMajorPhase == CraneStatusManager.WorkPhase.Move1 ||
+            CurrentMajorPhase == CraneStatusManager.WorkPhase.Move2;
+
         if (!destroyDroppedBoardsOnWeightInvalidation ||
-            CurrentMajorPhase != CraneStatusManager.WorkPhase.Move2 ||
+            !isMovementPhase ||
             guardedAttachedBoards.Count == 0)
         {
             guardedAttachedBoards.Clear();
