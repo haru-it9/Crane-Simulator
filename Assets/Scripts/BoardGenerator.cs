@@ -33,10 +33,11 @@ public class BoardGenerator : MonoBehaviour
     [SerializeField] private Vector2 boardRandomZRange = new Vector2(0.5f, 1.65f);
 
     [Header("板重量設定")]
+    [Tooltip("Random生成時だけ使用する板密度[kg/m^3]です。")]
     [SerializeField] private float boardDensity = 7850f;
 
     [Tooltip(
-        "CSVにpickupCount列がない場合に、目標重量へ加算する上側の枚数です。"
+        "選択座標の上側から、目標重量へ加算する板枚数です。"
     )]
     [SerializeField]
     [Min(1)]
@@ -85,18 +86,14 @@ public class BoardGenerator : MonoBehaviour
         generatedBoardsBySpawnIndex =
             new Dictionary<int, List<GameObject>>();
 
-    private readonly Dictionary<int, int>
-        pickupCountBySpawnIndex =
-            new Dictionary<int, int>();
-
-    private class CsvBoardData
+     private class CsvBoardData
     {
         public int spawnIndex;
         public float stageY;
         public float boardX;
         public float boardY;
         public float boardZ;
-        public int pickupCount;
+        public float boardWeightKg;
     }
 
     [Header("起動時の生成")]
@@ -160,7 +157,6 @@ public class BoardGenerator : MonoBehaviour
 
         generatedObjects.Clear();
         generatedBoardsBySpawnIndex.Clear();
-        pickupCountBySpawnIndex.Clear();
 
         Transform spawnParent = GetSpawnParent();
 
@@ -290,16 +286,6 @@ public class BoardGenerator : MonoBehaviour
             CreateStage(spawnIndex, basePos, stageY);
 
             float currentTopY = basePos.y + stageY;
-            int configuredPickupCount =
-                boards
-                    .Where(data => data.pickupCount > 0)
-                    .Select(data => data.pickupCount)
-                    .FirstOrDefault();
-
-            pickupCountBySpawnIndex[spawnIndex] =
-                configuredPickupCount > 0
-                    ? configuredPickupCount
-                    : Mathf.Max(1, defaultPickupCount);
 
             for (int j = 0; j < boards.Count; j++)
             {
@@ -312,7 +298,8 @@ public class BoardGenerator : MonoBehaviour
                     currentTopY,
                     data.boardX,
                     data.boardY,
-                    data.boardZ
+                    data.boardZ,
+                    data.boardWeightKg
                 );
 
                 currentTopY +=
@@ -347,7 +334,8 @@ public class BoardGenerator : MonoBehaviour
         float currentTopY,
         float boardX,
         float boardY,
-        float boardZ
+        float boardZ,
+        float explicitWeightKg = -1f
     )
     {
         Vector3 boardPos = new Vector3(
@@ -388,12 +376,24 @@ public class BoardGenerator : MonoBehaviour
             boardInfo = board.AddComponent<BoardInfo>();
         }
 
-        boardInfo.SetBoardInfo(
-            boardX,
-            boardY,
-            boardZ,
-            boardDensity
-        );
+        if (explicitWeightKg > 0f)
+        {
+            boardInfo.SetBoardInfoWithWeight(
+                boardX,
+                boardY,
+                boardZ,
+                explicitWeightKg
+            );
+        }
+        else
+        {
+            boardInfo.SetBoardInfo(
+                boardX,
+                boardY,
+                boardZ,
+                boardDensity
+            );
+        }
 
         return board;
     }
@@ -438,13 +438,7 @@ public class BoardGenerator : MonoBehaviour
             return false;
         }
 
-        int requestedCount =
-            pickupCountBySpawnIndex.TryGetValue(
-                matchedSpawnIndex,
-                out int configuredCount
-            )
-                ? configuredCount
-                : Mathf.Max(1, defaultPickupCount);
+        int requestedCount = Mathf.Max(1, defaultPickupCount);
 
         List<GameObject> availableBoards =
             generatedBoards
@@ -509,9 +503,13 @@ public class BoardGenerator : MonoBehaviour
 
             string[] values = line.Split(',');
 
-            if (values.Length < 5)
+            if (values.Length < 6)
             {
-                Debug.LogWarning($"CSV {i + 1}行目の列数が不足しています: {line}");
+                Debug.LogWarning(
+                    $"CSV {i + 1}行目の列数が不足しています。" +
+                    "必要列: spawnIndex,stageY,boardX,boardY,boardZ,boardWeightKg: " +
+                    line
+                );
                 continue;
             }
 
@@ -522,11 +520,16 @@ public class BoardGenerator : MonoBehaviour
             data.boardX = float.Parse(values[2]);
             data.boardY = float.Parse(values[3]);
             data.boardZ = float.Parse(values[4]);
-            data.pickupCount =
-                values.Length >= 6 &&
-                int.TryParse(values[5], out int pickupCount)
-                    ? Mathf.Max(0, pickupCount)
-                    : 0;
+            data.boardWeightKg = float.Parse(values[5]);
+
+            if (data.boardWeightKg <= 0f)
+            {
+                Debug.LogWarning(
+                    $"CSV {i + 1}行目のboardWeightKgは" +
+                    $"0より大きい値にしてください: {line}"
+                );
+                continue;
+            }
 
             dataList.Add(data);
         }
