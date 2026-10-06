@@ -47,11 +47,15 @@ public class LifMagSystem : MonoBehaviour
     [Header("現在入力値吸着：つり上げ能力")]
     [SerializeField] private float boardDensity = 7850f; // BoardInfoがない場合の予備
 
-    [SerializeField] private float minLiftCapacityKg = 0f;
-    [SerializeField] private float maxLiftCapacityKg = 25000f;
+    [Tooltip("板重量1tあたりに必要な電流[A]です。")]
+    [SerializeField]
+    [Min(0.01f)]
+    private float currentAmperePerTon = 10f;
 
     [Header("入力値モード：電流値表示")]
-    [SerializeField] private float maxCurrentAmpere = 50f;
+    [SerializeField]
+    [Min(0.01f)]
+    private float maximumCurrentAmpere = 75f;
     [Header("介入開始時の仮想保持電流")]
     [SerializeField] private float interventionInitialCurrentAmpere = 40f;
 
@@ -493,7 +497,7 @@ public class LifMagSystem : MonoBehaviour
     private void HandleCurrentInputByWeightAttach()
     {
         float currentInput01 = GetCurrentSliderInput01();
-        float sliderCurrentA = currentInput01 * maxCurrentAmpere;
+        float sliderCurrentA = currentInput01 * maximumCurrentAmpere;
         bool taskSwitchSafeHoldReleased = false;
 
         // ================================
@@ -641,11 +645,14 @@ public class LifMagSystem : MonoBehaviour
 
     private float GetCurrentLiftCapacityKg(float currentInput01)
     {
-        return Mathf.Lerp(
-            minLiftCapacityKg,
-            maxLiftCapacityKg,
-            Mathf.Clamp01(currentInput01)
-        );
+        float currentA =
+            Mathf.Clamp01(currentInput01) *
+            Mathf.Max(0.01f, maximumCurrentAmpere);
+
+        // 必要電流 = 重量[t] × currentAmperePerTon の逆換算です。
+        return currentA /
+               Mathf.Max(0.01f, currentAmperePerTon) *
+               1000f;
     }
 
     private float GetRequiredCurrentAmpereForWeight(float weightKg)
@@ -655,21 +662,17 @@ public class LifMagSystem : MonoBehaviour
             return 0f;
         }
 
-        if (maxLiftCapacityKg <= minLiftCapacityKg)
-        {
-            return maxCurrentAmpere;
-        }
+        // capacityDetachMarginKgがある場合は、その重量分だけ
+        // 保持能力に余裕を持たせます。
+        float requiredWeightKg = Mathf.Max(
+            0f,
+            weightKg - capacityDetachMarginKg
+        );
 
-        // capacityDetachMarginKg がある場合は、その分だけ余裕を見た判定にする
-        float requiredCapacityKg = Mathf.Max(0f, weightKg - capacityDetachMarginKg);
-
-        float requiredInput01 =
-            (requiredCapacityKg - minLiftCapacityKg) /
-            (maxLiftCapacityKg - minLiftCapacityKg);
-
-        // ここではあえて Clamp01 しない
-        // 板が重すぎる場合、100Aを超える必要電流として表示できるようにする
-        return Mathf.Max(0f, requiredInput01 * maxCurrentAmpere);
+        // 板重量[t] × 10A/t（Inspectorで変更可能）
+        // MAXを超える重量では75Aを超える必要値も返します。
+        return requiredWeightKg / 1000f *
+               Mathf.Max(0.01f, currentAmperePerTon);
     }
 
     private bool ShouldDetachByCurrent(
@@ -802,7 +805,7 @@ public class LifMagSystem : MonoBehaviour
         // スライダーが40A相当まで入力されるまでは表示を40Aで固定する。
         if (isInterventionCurrentHoldMode)
         {
-            float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maxCurrentAmpere);
+            float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maximumCurrentAmpere);
 
             CurrentSliderInput01 = fixedInput01;
             CurrentElectricCurrentA = interventionInitialCurrentAmpere;
@@ -813,7 +816,7 @@ public class LifMagSystem : MonoBehaviour
         }
 
         CurrentSliderInput01 = GetCurrentSliderInput01();
-        CurrentElectricCurrentA = CurrentSliderInput01 * maxCurrentAmpere;
+        CurrentElectricCurrentA = CurrentSliderInput01 * maximumCurrentAmpere;
         CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(CurrentSliderInput01);
         CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(CurrentAttachedWeightKg);
     }
@@ -862,7 +865,7 @@ public class LifMagSystem : MonoBehaviour
         isTaskSwitchSafeCurrentHoldMode = true;
 
         float fixedInput01 = Mathf.Clamp01(
-            interventionInitialCurrentAmpere / maxCurrentAmpere
+            interventionInitialCurrentAmpere / maximumCurrentAmpere
         );
 
         CurrentSliderInput01 = fixedInput01;
@@ -1551,7 +1554,7 @@ public class LifMagSystem : MonoBehaviour
         isInterventionCurrentHoldMode = true;
         isTaskSwitchSafeCurrentHoldMode = false;
 
-        float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maxCurrentAmpere);
+        float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maximumCurrentAmpere);
         CurrentSliderInput01 = fixedInput01;
         CurrentElectricCurrentA = interventionInitialCurrentAmpere;
         CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(fixedInput01);
