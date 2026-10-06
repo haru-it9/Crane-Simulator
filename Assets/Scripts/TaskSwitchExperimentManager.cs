@@ -932,16 +932,34 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         CraneStatusManager.WorkPhase completedPhase
     )
     {
-        // 1サイクル方式では各大フェーズ完了で戻らず、
-        // CraneWorkCycleController.AllCyclesCompletedを待ちます。
-        if (targetRunsFullCycle)
+        if (tracker != targetWorkPhaseTracker ||
+            currentState != TaskSwitchExperimentState.OperatingTarget)
         {
             return;
         }
 
-        if (tracker != targetWorkPhaseTracker ||
-            currentState != TaskSwitchExperimentState.OperatingTarget)
+        // Targetの1サイクル方式では、配置後の上昇まで完了した時点で
+        // Place / PlaceToTrackのMajorPhaseCompletedが発行されます。
+        // CycleControllerのAllCyclesCompletedを主経路として残しつつ、
+        // この実作業フェーズ完了も独立した復帰経路にします。
+        // これによりController側のイベント購読やカウント更新が
+        // 外れた場合でも、実際の1サイクル完了後にSourceへ戻れます。
+        if (targetRunsFullCycle)
         {
+            bool cycleEndingPhase =
+                completedPhase == CraneStatusManager.WorkPhase.Place ||
+                completedPhase == CraneStatusManager.WorkPhase.PlaceToTrack;
+
+            if (!cycleEndingPhase)
+            {
+                return;
+            }
+
+            EmitEvent(
+                "TargetWorkCycleCompletedByPhase",
+                completedPhase.ToString()
+            );
+            ReturnControlToSource(completedPhase);
             return;
         }
 
