@@ -82,7 +82,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     [Header("吊荷重量逸脱監視")]
     [Tooltip(
-        "LoadAcquisition完了後からPlacementLowering完了前まで、" +
+        "LoadAcquisition完了後からPlacementLowering開始前まで、" +
         "吸着重量が目標からこの値を超えて外れた場合に" +
         "LoadAcquisitionへ戻します。"
     )]
@@ -1238,6 +1238,16 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         if (step == null)
         {
             return;
+        }
+
+        // 配置下降へ入った時点で運搬工程は終了したものとし、
+        // 以降の重量低下ではLoadAcquisitionへ戻しません。
+        if (step.stepId == "Place.PlacementLowering" ||
+            step.stepId == "PlaceToTrack.PlacementLowering")
+        {
+            pickupWeightGuardArmed = false;
+            pickupWeightInvalidationElapsedSeconds = 0f;
+            guardedAttachedBoards.Clear();
         }
 
         PrepareStepTouchdownObservation(step);
