@@ -446,29 +446,27 @@ public class LifMagSystem : MonoBehaviour
             out float requiredCurrentA
         ))
         {
+            int detachedCount =
+                DetachBoardsUntilSupportedByCurrent(
+                    sliderCurrentA
+                );
+
+            attachedWeightKg = GetAttachedTotalWeightKg();
+            CurrentAttachedWeightKg = attachedWeightKg;
+            CurrentRequiredCurrentA =
+                GetRequiredCurrentAmpereForWeight(
+                    attachedWeightKg
+                );
+
             Debug.LogWarning(
-                $"表示電流値が必要電流値を下回ったため吸着解除: " +
+                $"表示電流値で保持できない下層板を段階解除: " +
                 $"displayCurrent={sliderCurrentA:F1} A, " +
-                $"requiredCurrent={requiredCurrentA:F1} A, " +
+                $"requiredBefore={requiredCurrentA:F1} A, " +
                 $"capacity={liftCapacityKg:F1} kg, " +
-                $"attachedWeight={attachedWeightKg:F1} kg"
+                $"detachedCount={detachedCount}, " +
+                $"remainingBoards={attachedBoards.Count}, " +
+                $"remainingWeight={attachedWeightKg:F1} kg"
             );
-
-            DetachAll();
-
-            isAttachAccumulating = false;
-            sliderAccumulatedValue = 0f;
-            sliderSampleTimer = 0f;
-            isInterventionCurrentHoldMode = false;
-            isTaskSwitchSafeCurrentHoldMode = false;
-
-            CurrentSliderInput01 = 0f;
-            CurrentElectricCurrentA = 0f;
-            CurrentLiftCapacityKg = 0f;
-            CurrentAttachedWeightKg = 0f;
-            CurrentRequiredCurrentA = 0f;
-
-            return;
         }
 
         GameObject candidate = GetCurrentCandidateBoard();
@@ -590,6 +588,85 @@ public class LifMagSystem : MonoBehaviour
         }
 
         return displayedCurrentA + detachCurrentEpsilonAmpere < requiredCurrentA;
+    }
+
+    private int DetachBoardsUntilSupportedByCurrent(
+        float displayedCurrentA
+    )
+    {
+        int detachedCount = 0;
+
+        // attachedBoardsは上板から下板の順で追加されるため、
+        // 末尾が現在保持している最下層の板です。
+        while (HasAttachedBoard)
+        {
+            float attachedWeightKg =
+                GetAttachedTotalWeightKg();
+
+            if (!ShouldDetachByCurrent(
+                    displayedCurrentA,
+                    attachedWeightKg,
+                    out _
+                ))
+            {
+                break;
+            }
+
+            if (!DetachLastAttachedBoard())
+            {
+                break;
+            }
+
+            detachedCount++;
+        }
+
+        return detachedCount;
+    }
+
+    private bool DetachLastAttachedBoard()
+    {
+        if (attachedBoards.Count == 0)
+        {
+            return false;
+        }
+
+        int lastIndex = attachedBoards.Count - 1;
+        GameObject board = attachedBoards[lastIndex];
+        attachedBoards.RemoveAt(lastIndex);
+
+        if (board == null)
+        {
+            return true;
+        }
+
+        board.transform.SetParent(null, true);
+
+        Rigidbody rb = board.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            attachedRigidbodies.Remove(rb);
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        HoldBoardSensor sensor =
+            board.GetComponent<HoldBoardSensor>();
+        if (sensor != null)
+        {
+            attachedHoldSensors.Remove(sensor);
+            sensor.ClearOwnerBoard();
+        }
+
+        interventionForcedAttachedBoards.Remove(board);
+
+        Debug.Log(
+            $"下層板を1枚解除: {board.name}, " +
+            $"remainingBoards={attachedBoards.Count}"
+        );
+
+        return true;
     }
 
     private void UpdateCurrentInputDisplayValues()
