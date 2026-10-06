@@ -61,11 +61,11 @@ public class CraneWorkPhaseProfile : ScriptableObject
                 "Move1.PickupCoarseMove",
                 "吸着位置へ大まかに移動",
                 CraneStatusManager.WorkPhase.Move1,
-                0.20f,
+                0.40f,
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
-                    1.00f,
-                    1.00f
+                    0.50f,
+                    0.50f
                 ),
                 Condition(CraneWorkConditionType.BoardNotAttached)
             ),
@@ -73,11 +73,11 @@ public class CraneWorkPhaseProfile : ScriptableObject
                 "Move1.PickupFineAlign",
                 "吸着位置を微調整",
                 CraneStatusManager.WorkPhase.Move1,
-                0.30f,
+                0.20f,
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
-                    0.25f,
-                    0.25f
+                    0.05f,
+                    0.05f
                 ),
                 Condition(CraneWorkConditionType.BoardNotAttached),
                 Condition(
@@ -118,32 +118,32 @@ public class CraneWorkPhaseProfile : ScriptableObject
                     100f
                 ),
                 Condition(
-                    CraneWorkConditionType.LiftMagClearanceFromTouchdown,
-                    0.50f
+                    CraneWorkConditionType.MainLifMagLocalYAtLeast,
+                    -1.66f
                 )
             ),
             CreateStep(
                 "Move2.DestinationCoarseMove",
                 "配置位置へ大まかに移動",
                 CraneStatusManager.WorkPhase.Move2,
-                0.20f,
+                0.40f,
                 Condition(CraneWorkConditionType.BoardAttached),
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
-                    1.00f,
-                    1.00f
+                    0.50f,
+                    0.50f
                 )
             ),
             CreateStep(
                 "Move2.DestinationFineAlign",
                 "配置位置を微調整",
                 CraneStatusManager.WorkPhase.Move2,
-                0.30f,
+                0.20f,
                 Condition(CraneWorkConditionType.BoardAttached),
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
-                    0.25f,
-                    0.25f
+                    0.05f,
+                    0.05f
                 ),
                 Condition(
                     CraneWorkConditionType.HorizontalSpeedBelow,
@@ -158,8 +158,8 @@ public class CraneWorkPhaseProfile : ScriptableObject
                 Condition(CraneWorkConditionType.BoardAttached),
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
-                    0.25f,
-                    0.25f
+                    0.05f,
+                    0.05f
                 ),
                 Condition(CraneWorkConditionType.TouchdownObserved),
                 Condition(
@@ -189,8 +189,8 @@ public class CraneWorkPhaseProfile : ScriptableObject
                     100f
                 ),
                 Condition(
-                    CraneWorkConditionType.LiftMagClearanceFromTouchdown,
-                    0.50f
+                    CraneWorkConditionType.MainLifMagLocalYAtLeast,
+                    -1.66f
                 )
             ),
             CreateStep(
@@ -201,8 +201,8 @@ public class CraneWorkPhaseProfile : ScriptableObject
                 Condition(CraneWorkConditionType.BoardAttached),
                 Condition(
                     CraneWorkConditionType.PositionWithinTarget,
-                    0.25f,
-                    0.25f
+                    0.02f,
+                    0.02f
                 ),
                 Condition(CraneWorkConditionType.TouchdownObserved),
                 Condition(
@@ -232,8 +232,8 @@ public class CraneWorkPhaseProfile : ScriptableObject
                     100f
                 ),
                 Condition(
-                    CraneWorkConditionType.LiftMagClearanceFromTouchdown,
-                    0.50f
+                    CraneWorkConditionType.MainLifMagLocalYAtLeast,
+                    -1.66f
                 )
             )
         };
