@@ -376,6 +376,17 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     public void ConfirmTargetTask()
     {
+        // 既存の確認ボタンをTarget開始確認とSource復帰確認で共用します。
+        // InspectorのOnClick設定はConfirmTargetTask()のままで使用できます。
+        if (currentState ==
+            TaskSwitchExperimentState.WaitingForSourceConfirmation)
+        {
+            EmitEvent("SourceReturnConfirmationPressed");
+            SetPanelActive(confirmationPanel, false);
+            CompleteSourceReturnAfterConfirmation();
+            return;
+        }
+
         if (currentState !=
             TaskSwitchExperimentState.WaitingForConfirmation)
         {
@@ -1208,6 +1219,26 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         EmitEvent("SourceDisplayRestored");
+
+        // Source画面へ戻した後も入力ロックを維持し、
+        // 確認ボタンが押されるまで中断作業を再開しません。
+        SetState(
+            TaskSwitchExperimentState.WaitingForSourceConfirmation
+        );
+        SetPanelActive(confirmationPanel, true);
+        EmitEvent(
+            "SourceReturnConfirmationDisplayed",
+            completedTargetPhase.ToString()
+        );
+    }
+
+    private void CompleteSourceReturnAfterConfirmation()
+    {
+        if (currentState !=
+            TaskSwitchExperimentState.WaitingForSourceConfirmation)
+        {
+            return;
+        }
 
         string resumeDetail = ResumeSourceWorkAfterReturn();
 
