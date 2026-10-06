@@ -1154,6 +1154,27 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        // Phase Boundary方式では、切替要求を受けた時点で
+        // 実行中だった大フェーズの完了を直近境界として使用します。
+        // InspectorのSource Conditionに残っている開始フェーズとは
+        // 比較しません。
+        if (currentState ==
+            TaskSwitchExperimentState.WaitingForPhaseBoundary)
+        {
+            sourceMajorPhaseCompleted = true;
+            sourceCondition.workPhase = completedPhase;
+
+            EmitEvent(
+                "SourceMajorPhaseCompleted",
+                completedPhase.ToString()
+            );
+
+            CompletePhaseBoundarySwitch(
+                $"RealWork:{completedPhase}"
+            );
+            return;
+        }
+
         if (completedPhase != sourceCondition.workPhase)
         {
             return;
@@ -1163,10 +1184,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent(
             "SourceMajorPhaseCompleted",
             completedPhase.ToString()
-        );
-
-        CompletePhaseBoundarySwitch(
-            $"RealWork:{completedPhase}"
         );
     }
 
