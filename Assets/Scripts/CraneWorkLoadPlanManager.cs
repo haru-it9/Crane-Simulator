@@ -15,6 +15,11 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
         RemainingWeight
     }
 
+    [Header("目標重量CSV連携")]
+    [SerializeField] private CraneWorkTargetManager workTargetManager;
+    [SerializeField] private CraneInstance craneInstance;
+    [SerializeField] private BoardGenerator boardGenerator;
+
     [Header("吸着目標 [kg]")]
     [Tooltip("吊り上げ時に吸着すべき合計重量です。0以下では未設定です。")]
     [SerializeField]
@@ -73,6 +78,131 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     public bool HasPlacementPlan => placementPlanPrepared;
 
     public event Action<CraneWorkLoadPlanManager> PlanChanged;
+
+    private void Awake()
+    {
+        ResolveReferences();
+    }
+
+    private void OnEnable()
+    {
+        ResolveReferences();
+
+        if (workTargetManager != null)
+        {
+            workTargetManager.TargetChanged +=
+                HandleWorkTargetChanged;
+        }
+
+        RefreshPickupTargetFromCurrentTarget();
+    }
+
+    private void OnDisable()
+    {
+        if (workTargetManager != null)
+        {
+            workTargetManager.TargetChanged -=
+                HandleWorkTargetChanged;
+        }
+    }
+
+    public bool RefreshPickupTargetFromCurrentTarget()
+    {
+        ResolveReferences();
+
+        if (workTargetManager == null ||
+            boardGenerator == null ||
+            !workTargetManager.HasTarget)
+        {
+            return false;
+        }
+
+        CraneWorkTargetData target =
+            workTargetManager.CurrentTarget;
+
+        if (target.targetKind != CraneWorkTargetKind.Pickup)
+        {
+            return false;
+        }
+
+        if (!boardGenerator.TryGetPickupTargetWeightKg(
+                target.targetX,
+                target.targetZ,
+                out float csvTargetWeightKg,
+                out int pickupCount,
+                out int spawnIndex
+            ))
+        {
+            return false;
+        }
+
+        pickupTargetWeightKg =
+            Mathf.Max(0f, csvTargetWeightKg);
+        NotifyPlanChanged();
+
+        Debug.Log(
+            $"CraneWorkLoadPlan: CSVPickupTarget, " +
+            $"Crane={target.craneIndex + 1}, " +
+            $"Point={target.pointIndex}, Spawn={spawnIndex}, " +
+            $"PickupCount={pickupCount}, " +
+            $"Weight={pickupTargetWeightKg:F1}kg",
+            this
+        );
+
+        return true;
+    }
+
+    private void HandleWorkTargetChanged(
+        CraneWorkTargetManager manager,
+        CraneWorkTargetData target
+    )
+    {
+        if (manager == workTargetManager &&
+            target.isValid &&
+            target.targetKind == CraneWorkTargetKind.Pickup)
+        {
+            RefreshPickupTargetFromCurrentTarget();
+        }
+    }
+
+    private void ResolveReferences()
+    {
+        if (workTargetManager == null)
+        {
+            workTargetManager =
+                GetComponent<CraneWorkTargetManager>();
+        }
+
+        if (workTargetManager == null)
+        {
+            workTargetManager =
+                GetComponentInChildren<
+                    CraneWorkTargetManager
+                >(true);
+        }
+
+        if (craneInstance == null)
+        {
+            craneInstance = GetComponent<CraneInstance>();
+        }
+
+        if (craneInstance == null)
+        {
+            craneInstance = GetComponentInParent<CraneInstance>();
+        }
+
+        if (boardGenerator == null &&
+            craneInstance != null)
+        {
+            boardGenerator = craneInstance.BoardGenerator;
+        }
+
+        if (boardGenerator == null)
+        {
+            boardGenerator =
+                GetComponentInChildren<BoardGenerator>(true);
+        }
+    }
 
     public void SetPickupTargetWeightKg(float targetWeightKg)
     {
