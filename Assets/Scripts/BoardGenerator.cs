@@ -35,6 +35,20 @@ public class BoardGenerator : MonoBehaviour
     [Header("板重量設定")]
     [SerializeField] private float boardDensity = 7850f;
 
+    [Tooltip(
+        "CSVにpickupCount列がない場合に、目標重量へ加算する上側の枚数です。"
+    )]
+    [SerializeField]
+    [Min(1)]
+    private int defaultPickupCount = 1;
+
+    [Tooltip(
+        "目標座標と板置場座標を対応付けるXZ距離の許容値[m]です。"
+    )]
+    [SerializeField]
+    [Min(0f)]
+    private float targetMatchTolerance = 0.75f;
+
     [Header("ランダム生成サイズの丸め")]
     [SerializeField] private bool roundRandomBoardSize = true;
     [SerializeField] private int boardXDecimalDigits = 1;
@@ -64,7 +78,16 @@ public class BoardGenerator : MonoBehaviour
     [SerializeField] private string containerName = "GeneratedBoards";
 
     private Transform runtimeParentTransform;
-    private readonly List<GameObject> generatedObjects = new List<GameObject>();
+    private readonly List<GameObject> generatedObjects =
+        new List<GameObject>();
+
+    private readonly Dictionary<int, List<GameObject>>
+        generatedBoardsBySpawnIndex =
+            new Dictionary<int, List<GameObject>>();
+
+    private readonly Dictionary<int, int>
+        pickupCountBySpawnIndex =
+            new Dictionary<int, int>();
 
     private class CsvBoardData
     {
@@ -73,6 +96,7 @@ public class BoardGenerator : MonoBehaviour
         public float boardX;
         public float boardY;
         public float boardZ;
+        public int pickupCount;
     }
 
     [Header("起動時の生成")]
@@ -135,6 +159,8 @@ public class BoardGenerator : MonoBehaviour
         }
 
         generatedObjects.Clear();
+        generatedBoardsBySpawnIndex.Clear();
+        pickupCountBySpawnIndex.Clear();
 
         Transform spawnParent = GetSpawnParent();
 
@@ -208,6 +234,8 @@ public class BoardGenerator : MonoBehaviour
             GameObject stage = CreateStage(i, basePos, stageY);
 
             float currentTopY = basePos.y + stageY;
+            pickupCountBySpawnIndex[i] =
+                Mathf.Max(1, defaultPickupCount);
 
             for (int j = 0; j < boardsPerPoint; j++)
             {
@@ -262,6 +290,16 @@ public class BoardGenerator : MonoBehaviour
             CreateStage(spawnIndex, basePos, stageY);
 
             float currentTopY = basePos.y + stageY;
+            int configuredPickupCount =
+                boards
+                    .Where(data => data.pickupCount > 0)
+                    .Select(data => data.pickupCount)
+                    .FirstOrDefault();
+
+            pickupCountBySpawnIndex[spawnIndex] =
+                configuredPickupCount > 0
+                    ? configuredPickupCount
+                    : Mathf.Max(1, defaultPickupCount);
 
             for (int j = 0; j < boards.Count; j++)
             {
@@ -329,6 +367,20 @@ public class BoardGenerator : MonoBehaviour
         board.name = $"Board_{spawnIndex}_{boardIndex}";
         generatedObjects.Add(board);
 
+        if (!generatedBoardsBySpawnIndex.TryGetValue(
+                spawnIndex,
+                out List<GameObject> boardsAtPoint
+            ))
+        {
+            boardsAtPoint = new List<GameObject>();
+            generatedBoardsBySpawnIndex.Add(
+                spawnIndex,
+                boardsAtPoint
+            );
+        }
+
+        boardsAtPoint.Add(board);
+
         BoardInfo boardInfo = board.GetComponent<BoardInfo>();
 
         if (boardInfo == null)
@@ -344,6 +396,90 @@ public class BoardGenerator : MonoBehaviour
         );
 
         return board;
+    }
+
+    public bool TryGetPickupTargetWeightKg(
+        float targetX,
+        float targetZ,
+        out float targetWeightKg,
+        out int pickupCount,
+        out int matchedSpawnIndex
+    )
+    {
+        targetWeightKg = 0f;
+        pickupCount = 0;
+        matchedSpawnIndex = -1;
+
+        float bestDistance = float.PositiveInfinity;
+
+        for (int i = 0; i < spawnPositions.Count; i++)
+        {
+            Vector3 spawn = spawnPositions[i];
+            float distance = Vector2.Distance(
+                new Vector2(targetX, targetZ),
+                new Vector2(spawn.x, spawn.z)
+            );
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                matchedSpawnIndex = i;
+            }
+        }
+
+        if (matchedSpawnIndex < 0 ||
+            bestDistance > Mathf.Max(0f, targetMatchTolerance) ||
+            !generatedBoardsBySpawnIndex.TryGetValue(
+                matchedSpawnIndex,
+                out List<GameObject> generatedBoards
+            ))
+        {
+            matchedSpawnIndex = -1;
+            return false;
+        }
+
+        int requestedCount =
+            pickupCountBySpawnIndex.TryGetValue(
+                matchedSpawnIndex,
+                out int configuredCount
+            )
+                ? configuredCount
+                : Mathf.Max(1, defaultPickupCount);
+
+        List<GameObject> availableBoards =
+            generatedBoards
+                .Where(board =>
+                    board != null &&
+                    Vector2.Distance(
+                        new Vector2(
+                            board.transform.position.x,
+                            board.transform.position.z
+                        ),
+                        new Vector2(targetX, targetZ)
+                    ) <= Mathf.Max(0f, targetMatchTolerance)
+                )
+                .OrderByDescending(
+                    board => board.transform.position.y
+                )
+                .ToList();
+
+        pickupCount = Mathf.Min(
+            Mathf.Max(1, requestedCount),
+            availableBoards.Count
+        );
+
+        for (int i = 0; i < pickupCount; i++)
+        {
+            BoardInfo boardInfo =
+                availableBoards[i].GetComponent<BoardInfo>();
+
+            if (boardInfo != null)
+            {
+                targetWeightKg += boardInfo.Weight;
+            }
+        }
+
+        return pickupCount > 0 && targetWeightKg > 0f;
     }
 
     private float GetEffectiveBoardGapY()
@@ -386,6 +522,11 @@ public class BoardGenerator : MonoBehaviour
             data.boardX = float.Parse(values[2]);
             data.boardY = float.Parse(values[3]);
             data.boardZ = float.Parse(values[4]);
+            data.pickupCount =
+                values.Length >= 6 &&
+                int.TryParse(values[5], out int pickupCount)
+                    ? Mathf.Max(0, pickupCount)
+                    : 0;
 
             dataList.Add(data);
         }
