@@ -894,9 +894,19 @@ public class LifMagSystem : MonoBehaviour
     {
         if (board == null) return 0f;
 
-        // 介入開始時に生成・強制吸着した板は、
-        // CSVでサイズ変更されている可能性が高いので、
-        // BoardInfoよりも実際のCollider boundsを優先する
+        BoardInfo boardInfo = board.GetComponent<BoardInfo>();
+
+        // CSVで重量が明示されている板は、強制吸着時を含めて
+        // 体積・密度計算よりCSV重量を必ず優先します。
+        if (boardInfo != null &&
+            boardInfo.UsesExplicitWeight &&
+            boardInfo.Weight > 0f)
+        {
+            return boardInfo.Weight;
+        }
+
+        // 明示重量のない従来板だけ、介入開始時は
+        // Collider boundsから算出した重量を使用できます。
         if (useBoundsWeightForInterventionBoards &&
             interventionForcedAttachedBoards.Contains(board))
         {
@@ -907,8 +917,6 @@ public class LifMagSystem : MonoBehaviour
                 return boundsWeight;
             }
         }
-
-        BoardInfo boardInfo = board.GetComponent<BoardInfo>();
 
         if (boardInfo != null && boardInfo.Weight > 0f)
         {
