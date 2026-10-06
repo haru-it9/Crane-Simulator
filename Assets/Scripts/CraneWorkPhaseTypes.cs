@@ -37,7 +37,11 @@ public enum CraneWorkConditionType
     TouchdownObserved,
     AttachedWeightWithinTarget,
     PlacementRemainingWeightWithinTarget,
-    LiftMagClearanceFromTouchdown
+    LiftMagClearanceFromTouchdown,
+
+    // MainLifMagのローカルY座標を直接しきい値として使用します。
+    // enumの既存値を維持するため、必ず末尾へ追加します。
+    MainLifMagLocalYAtLeast
 }
 
 [Serializable]
@@ -51,14 +55,12 @@ public class CraneWorkConditionDefinition
         "条件の第1閾値です。座標ではX許容誤差、速度では上限、" +
         "重量では下側許容誤差[kg]、高さでは必要量[m]です。"
     )]
-    [Min(0f)]
     public float threshold = 0.25f;
 
     [Tooltip(
         "条件の第2閾値です。座標ではZ許容誤差、" +
         "重量では上側許容誤差[kg]です。"
     )]
-    [Min(0f)]
     public float secondaryThreshold = 0.25f;
 
     public CraneWorkConditionDefinition()
@@ -72,7 +74,12 @@ public class CraneWorkConditionDefinition
     )
     {
         conditionType = type;
-        threshold = Mathf.Max(0f, firstThreshold);
+        // MainLifMagのlocalYは負値を取るため、この条件だけは
+        // 符号付きのしきい値をそのまま保持します。
+        threshold = type ==
+            CraneWorkConditionType.MainLifMagLocalYAtLeast
+                ? firstThreshold
+                : Mathf.Max(0f, firstThreshold);
         secondaryThreshold = Mathf.Max(0f, secondThreshold);
     }
 }
