@@ -1421,22 +1421,29 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         ApplyTargetCycleStartCondition();
 
-        if (!PrepareTargetFullCycleLoadPlan())
+        // StartSingleCycle() applies the actual pickup point first.
+        // The CSV load plan must be resolved after that target change;
+        // before this call, the temporary TaskSwitch target can still be point 0,
+        // which is a standby position without boards.
+        bool started = targetCycleController.StartSingleCycle();
+
+        if (!started)
         {
             return false;
         }
 
-        bool started = targetCycleController.StartSingleCycle();
-
-        if (started)
+        if (!PrepareTargetFullCycleLoadPlan())
         {
-            EmitEvent(
-                "TargetWorkCycleStarted",
-                "Cycle=1/1;InitialPhase=Move1"
-            );
+            targetCycleController.StopCycleAndTracker();
+            return false;
         }
 
-        return started;
+        EmitEvent(
+            "TargetWorkCycleStarted",
+            "Cycle=1/1;InitialPhase=Move1"
+        );
+
+        return true;
     }
 
     private void StopTargetWorkPhaseMonitoring()
