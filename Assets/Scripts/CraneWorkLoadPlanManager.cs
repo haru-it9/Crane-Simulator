@@ -22,6 +22,13 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     private float pickupTargetWeightKg;
 
     [Header("配置計画 [kg]")]
+    [Tooltip(
+        "ONの場合、Place／PlaceToTrackの配置後残存目標を" +
+        "常に0kgとして全数配置します。"
+    )]
+    [SerializeField]
+    private bool forceZeroRemainingWeightOnPlacement = true;
+
     [SerializeField]
     private PlacementTargetMode placementTargetMode =
         PlacementTargetMode.ReleaseWeight;
@@ -59,6 +66,8 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     public float TargetRemainingWeightKg => targetRemainingWeightKg;
     public PlacementTargetMode CurrentPlacementTargetMode =>
         placementTargetMode;
+    public bool ForceZeroRemainingWeightOnPlacement =>
+        forceZeroRemainingWeightOnPlacement;
 
     public bool HasPickupTarget => pickupTargetWeightKg > 0f;
     public bool HasPlacementPlan => placementPlanPrepared;
@@ -102,6 +111,14 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     public bool PreparePlacementPlan(float currentAttachedWeightKg)
     {
         placementStartWeightKg = Mathf.Max(0f, currentAttachedWeightKg);
+
+        if (forceZeroRemainingWeightOnPlacement)
+        {
+            targetRemainingWeightKg = 0f;
+            placementPlanPrepared = true;
+            NotifyPlanChanged();
+            return true;
+        }
 
         switch (placementTargetMode)
         {
@@ -207,6 +224,13 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     )
     {
         displayTargetWeightKg = 0f;
+
+        if (forceZeroRemainingWeightOnPlacement)
+        {
+            // 配置時のUIも、配置後にリフマグへ残す目標重量を表示します。
+            // 全数配置のため0kgです。
+            return true;
+        }
 
         if (placementTargetMode == PlacementTargetMode.ReleaseWeight)
         {
