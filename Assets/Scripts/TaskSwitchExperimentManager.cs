@@ -1121,8 +1121,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     )
     {
         if (tracker == sourceWorkPhaseTracker &&
-            scheduledSwitchCountdownActive &&
-            completedPhase == scheduledSwitchOriginPhase)
+            scheduledSwitchCountdownActive)
         {
             scheduledSwitchAwaitingCarryoverPhase = true;
 
@@ -1136,6 +1135,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 "SwitchScheduleWaitingForCarryoverPhase",
                 $"ScheduledCycle={scheduledSwitchOriginCycle};" +
                 $"ScheduledPhase={scheduledSwitchOriginPhase};" +
+                $"CompletedPhase={completedPhase};" +
                 $"RemainingSeconds={remainingSeconds:F3}"
             );
         }
