@@ -1572,7 +1572,9 @@ public class LifMagSystem : MonoBehaviour
 
     public void ForceDetachAllForIntervention()
     {
-        DetachAllFromButton();
+        // シナリオの再生成・終了処理は管理操作なので、
+        // 操作者向けのフェーズ安全ロックを通さず確実に解除します。
+        DetachAll();
 
         attachedBoards.Clear();
         attachedRigidbodies.Clear();
