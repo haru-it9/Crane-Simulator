@@ -88,6 +88,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool targetRunsFullCycle = true;
 
     [Tooltip(
+        "Targetの1サイクル作業で吊り上げる目標重量[kg]です。"
+    )]
+    [SerializeField]
+    [Min(0f)]
+    private float targetFullCyclePickupWeightKg = 1770f;
+
+    [Tooltip(
         "ONの場合、Task Switch開始時にSourceの実作業監視を自動開始し、" +
         "MajorPhaseCompletedをPhase Boundary切替へ使用します。"
     )]
@@ -1097,6 +1104,11 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         ApplyTargetCycleStartCondition();
 
+        if (!PrepareTargetFullCycleLoadPlan())
+        {
+            return false;
+        }
+
         bool started = targetCycleController.StartSingleCycle();
 
         if (started)
@@ -1335,9 +1347,82 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     {
         if (targetRunsFullCycle && targetCondition != null)
         {
+            // Targetの1サイクル作業は、板を保持していないMove1から
+            // 開始します。ErrorCを残すと介入初期化側が厚板を
+            // 強制吸着するため、PickupCoarseMoveの
+            // BoardNotAttached条件を満たせなくなります。
             targetCondition.workPhase =
                 CraneStatusManager.WorkPhase.Move1;
+            targetCondition.errorType =
+                CraneStatusManager.ErrorType.None;
         }
+    }
+
+    private bool PrepareTargetFullCycleLoadPlan()
+    {
+        if (!targetRunsFullCycle)
+        {
+            return true;
+        }
+
+        if (targetFullCyclePickupWeightKg <= 0f)
+        {
+            Debug.LogError(
+                "Target Full Cycle Pickup Weight Kgは" +
+                "0より大きい値にしてください。",
+                this
+            );
+            return false;
+        }
+
+        CraneInstance targetCrane =
+            craneRegistry.GetCraneByRuntimeIndex(
+                targetCondition.craneIndex
+            );
+
+        if (targetCrane == null)
+        {
+            Debug.LogError(
+                "Targetクレーンを取得できないため、" +
+                "重量計画を設定できません。",
+                this
+            );
+            return false;
+        }
+
+        CraneWorkLoadPlanManager targetLoadPlan =
+            targetCrane.GetComponent<CraneWorkLoadPlanManager>();
+
+        if (targetLoadPlan == null)
+        {
+            targetLoadPlan =
+                targetCrane.GetComponentInChildren<
+                    CraneWorkLoadPlanManager
+                >(true);
+        }
+
+        if (targetLoadPlan == null)
+        {
+            Debug.LogError(
+                $"Crane {targetCondition.craneIndex + 1}に" +
+                "CraneWorkLoadPlanManagerがありません。",
+                targetCrane
+            );
+            return false;
+        }
+
+        targetLoadPlan.SetPickupTargetWeightKg(
+            targetFullCyclePickupWeightKg
+        );
+        targetLoadPlan.SetTargetRemainingWeightKg(0f);
+
+        EmitEvent(
+            "TargetFullCycleLoadPlanPrepared",
+            $"Pickup={targetFullCyclePickupWeightKg:F1}kg;" +
+            "RemainingAfterPlacement=0.0kg"
+        );
+
+        return true;
     }
 
     private void ResolveCycleControllers()
