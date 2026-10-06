@@ -16,7 +16,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         public int switchIndex;
         public int sourceCycle;
         public CraneStatusManager.WorkPhase sourcePhase;
-        public string sourceStep;
+        public float minimumDelaySeconds;
+        public float maximumDelaySeconds;
         public bool triggered;
     }
     [Header("既存Manager参照")]
@@ -69,7 +70,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool useSwitchScheduleCsv = true;
 
     [Tooltip(
-        "列: switchIndex,sourceCycle,sourcePhase,sourceStep"
+        "列: switchIndex,sourceCycle,sourcePhase," +
+        "minimumDelaySeconds,maximumDelaySeconds"
     )]
     [SerializeField]
     private TextAsset switchScheduleCsv;
@@ -157,13 +159,18 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool realSourceBoundarySubscribed;
     private bool legacySourceBoundarySubscribed;
     private bool targetWorkPhaseSubscribed;
-    private bool sourceStepSubscribed;
+    private bool sourceSchedulePhaseSubscribed;
     private bool targetCycleSubscribed;
     private bool sourceCycleSubscribed;
     private bool sourceMajorPhaseCompleted;
     private string pendingTargetConfirmationDetail = "Confirmation";
     private bool pendingScheduledSwitch;
     private string pendingScheduledSwitchDetail = string.Empty;
+    private bool scheduledSwitchCountdownActive;
+    private float scheduledSwitchDueRealtime;
+    private float scheduledSwitchDelaySeconds;
+    private int scheduledSwitchOriginCycle;
+    private CraneStatusManager.WorkPhase scheduledSwitchOriginPhase;
     private readonly List<ScheduledSwitchEntry> scheduledSwitches =
         new List<ScheduledSwitchEntry>();
     private int activeCraneCountBeforeExperiment = -1;
@@ -231,6 +238,39 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Update()
     {
+        if (scheduledSwitchCountdownActive &&
+            CanRequestSwitch &&
+            Time.realtimeSinceStartup >= scheduledSwitchDueRealtime)
+        {
+            scheduledSwitchCountdownActive = false;
+            pendingScheduledSwitch = true;
+
+            int actualCycle =
+                sourceCycleController != null &&
+                sourceCycleController.IsRunning
+                    ? sourceCycleController.CurrentCycleNumber
+                    : scheduledSwitchOriginCycle;
+
+            CraneStatusManager.WorkPhase actualPhase =
+                sourceCycleController != null &&
+                sourceCycleController.IsRunning
+                    ? sourceCycleController.CurrentPhase
+                    : sourceWorkPhaseTracker != null
+                        ? sourceWorkPhaseTracker.CurrentMajorPhase
+                        : scheduledSwitchOriginPhase;
+
+            pendingScheduledSwitchDetail +=
+                $";ActualCycle={actualCycle}" +
+                $";ActualPhase={actualPhase}" +
+                $";CarriedOver=" +
+                $"{(actualCycle != scheduledSwitchOriginCycle || actualPhase != scheduledSwitchOriginPhase)}";
+
+            EmitEvent(
+                "SwitchRandomDelayCompleted",
+                pendingScheduledSwitchDetail
+            );
+        }
+
         if (pendingScheduledSwitch && CanRequestSwitch)
         {
             pendingScheduledSwitch = false;
@@ -309,6 +349,9 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         sourceMajorPhaseCompleted = false;
         pendingScheduledSwitch = false;
         pendingScheduledSwitchDetail = string.Empty;
+        scheduledSwitchCountdownActive = false;
+        scheduledSwitchDueRealtime = 0f;
+        scheduledSwitchDelaySeconds = 0f;
         currentSwitchIndex = 0;
         completedSwitchCount = 0;
         HideAutomaticOperationObjects();
@@ -377,6 +420,10 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         int nextSwitchIndex = currentSwitchIndex + 1;
+
+        // 手動要求またはCSVタイマー発火のどちらでも、
+        // 進行中の予約タイマーをここで終了します。
+        scheduledSwitchCountdownActive = false;
 
         ApplyTargetCycleStartCondition();
 
@@ -913,15 +960,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             realSourceBoundarySubscribed = true;
         }
 
-        if (useSwitchScheduleCsv &&
-            !sourceStepSubscribed &&
-            sourceWorkPhaseTracker != null)
-        {
-            sourceWorkPhaseTracker.StepStarted +=
-                HandleSourceStepStarted;
-            sourceStepSubscribed = true;
-        }
-
         if (allowLegacyPhaseBoundaryFallback &&
             !legacySourceBoundarySubscribed &&
             sourcePhaseTracker != null)
@@ -949,13 +987,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 HandleSourceMajorPhaseCompleted;
         }
 
-        if (sourceStepSubscribed &&
-            sourceWorkPhaseTracker != null)
-        {
-            sourceWorkPhaseTracker.StepStarted -=
-                HandleSourceStepStarted;
-        }
-
         if (legacySourceBoundarySubscribed &&
             sourcePhaseTracker != null)
         {
@@ -971,30 +1002,51 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         realSourceBoundarySubscribed = false;
-        sourceStepSubscribed = false;
         legacySourceBoundarySubscribed = false;
         targetWorkPhaseSubscribed = false;
     }
 
-    private void HandleSourceStepStarted(
-        CraneWorkPhaseTracker tracker,
+    private void HandleSourceSchedulePhaseStarted(
+        CraneWorkCycleController controller,
         CraneStatusManager.WorkPhase phase,
-        string stepId
+        int cycleNumber
     )
     {
         if (!useSwitchScheduleCsv ||
-            tracker != sourceWorkPhaseTracker ||
-            pendingScheduledSwitch ||
+            controller != sourceCycleController ||
             scheduledSwitches.Count == 0)
         {
             return;
         }
 
-        int cycleNumber =
-            sourceCycleController != null &&
-            sourceCycleController.IsRunning
-                ? sourceCycleController.CurrentCycleNumber
-                : 1;
+        if (scheduledSwitchCountdownActive)
+        {
+            float remainingSeconds = Mathf.Max(
+                0f,
+                scheduledSwitchDueRealtime -
+                    Time.realtimeSinceStartup
+            );
+
+            if (cycleNumber != scheduledSwitchOriginCycle ||
+                phase != scheduledSwitchOriginPhase)
+            {
+                EmitEvent(
+                    "SwitchScheduleCarriedOver",
+                    $"ScheduledCycle={scheduledSwitchOriginCycle};" +
+                    $"ScheduledPhase={scheduledSwitchOriginPhase};" +
+                    $"CurrentCycle={cycleNumber};" +
+                    $"CurrentPhase={phase};" +
+                    $"RemainingSeconds={remainingSeconds:F3}"
+                );
+            }
+
+            return;
+        }
+
+        if (pendingScheduledSwitch)
+        {
+            return;
+        }
 
         foreach (ScheduledSwitchEntry entry in scheduledSwitches)
         {
@@ -1006,24 +1058,50 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
             if (entry.switchIndex != currentSwitchIndex + 1 ||
                 entry.sourceCycle != cycleNumber ||
-                entry.sourcePhase != phase ||
-                !string.Equals(
-                    entry.sourceStep,
-                    stepId,
-                    StringComparison.OrdinalIgnoreCase
-                ))
+                entry.sourcePhase != phase)
             {
                 continue;
             }
 
             entry.triggered = true;
-            pendingScheduledSwitch = true;
+
+            float minimumDelay = Mathf.Max(
+                0f,
+                entry.minimumDelaySeconds
+            );
+            float maximumDelay = Mathf.Max(
+                minimumDelay,
+                entry.maximumDelaySeconds
+            );
+
+            scheduledSwitchDelaySeconds =
+                Mathf.Approximately(minimumDelay, maximumDelay)
+                    ? minimumDelay
+                    : UnityEngine.Random.Range(
+                        minimumDelay,
+                        maximumDelay
+                    );
+
+            scheduledSwitchOriginCycle = cycleNumber;
+            scheduledSwitchOriginPhase = phase;
+            scheduledSwitchDueRealtime =
+                Time.realtimeSinceStartup +
+                scheduledSwitchDelaySeconds;
+            scheduledSwitchCountdownActive = true;
+
             pendingScheduledSwitchDetail =
                 $"SwitchIndex={entry.switchIndex};" +
-                $"Cycle={cycleNumber};Phase={phase};Step={stepId}";
+                $"ScheduledCycle={cycleNumber};" +
+                $"ScheduledPhase={phase};" +
+                $"RandomDelaySeconds=" +
+                $"{scheduledSwitchDelaySeconds:F3}";
 
             EmitEvent(
                 "SwitchScheduleMatched",
+                pendingScheduledSwitchDetail
+            );
+            EmitEvent(
+                "SwitchRandomDelayStarted",
                 pendingScheduledSwitchDetail
             );
             break;
@@ -1562,6 +1640,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void LoadSwitchSchedule()
     {
         scheduledSwitches.Clear();
+        scheduledSwitchCountdownActive = false;
+        pendingScheduledSwitch = false;
 
         if (!useSwitchScheduleCsv ||
             switchScheduleCsv == null)
@@ -1585,7 +1665,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
             string[] columns = line.Split(',');
 
-            if (columns.Length < 4 ||
+            if (columns.Length < 5 ||
                 !int.TryParse(
                     columns[0].Trim(),
                     out int switchIndex
@@ -1603,6 +1683,14 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                     columns[2].Trim(),
                     true,
                     out CraneStatusManager.WorkPhase sourcePhase
+                ) ||
+                !float.TryParse(
+                    columns[3].Trim(),
+                    out float minimumDelaySeconds
+                ) ||
+                !float.TryParse(
+                    columns[4].Trim(),
+                    out float maximumDelaySeconds
                 ))
             {
                 Debug.LogWarning(
@@ -1613,11 +1701,10 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 continue;
             }
 
-            string sourceStep = columns[3].Trim();
-
             if (switchIndex <= 0 ||
                 sourceCycle <= 0 ||
-                string.IsNullOrEmpty(sourceStep))
+                minimumDelaySeconds < 0f ||
+                maximumDelaySeconds < minimumDelaySeconds)
             {
                 Debug.LogWarning(
                     $"切替CSV {lineIndex + 1}行目の値が不正です: " +
@@ -1633,7 +1720,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                     switchIndex = switchIndex,
                     sourceCycle = sourceCycle,
                     sourcePhase = sourcePhase,
-                    sourceStep = sourceStep,
+                    minimumDelaySeconds = minimumDelaySeconds,
+                    maximumDelaySeconds = maximumDelaySeconds,
                     triggered = false
                 }
             );
@@ -1646,7 +1734,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         EmitEvent(
             "SwitchScheduleLoaded",
-            $"Count={scheduledSwitches.Count}"
+            $"Count={scheduledSwitches.Count};" +
+            $"File={switchScheduleCsv.name}"
         );
     }
 
@@ -1806,6 +1895,15 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             sourceCycleSubscribed = true;
         }
 
+        if (useSwitchScheduleCsv &&
+            !sourceSchedulePhaseSubscribed &&
+            sourceCycleController != null)
+        {
+            sourceCycleController.PhaseStarted +=
+                HandleSourceSchedulePhaseStarted;
+            sourceSchedulePhaseSubscribed = true;
+        }
+
         if (!targetCycleSubscribed &&
             targetCycleController != null)
         {
@@ -1824,6 +1922,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 HandleSourceAllCyclesCompleted;
         }
 
+        if (sourceSchedulePhaseSubscribed &&
+            sourceCycleController != null)
+        {
+            sourceCycleController.PhaseStarted -=
+                HandleSourceSchedulePhaseStarted;
+        }
+
         if (targetCycleSubscribed &&
             targetCycleController != null)
         {
@@ -1832,6 +1937,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         sourceCycleSubscribed = false;
+        sourceSchedulePhaseSubscribed = false;
         targetCycleSubscribed = false;
     }
 
