@@ -80,6 +80,16 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     [Min(0f)]
     private float positionExitHysteresis = 0.05f;
 
+    [Header("吊荷重量逸脱監視")]
+    [Tooltip(
+        "LoadAcquisition完了後からPlacementLowering完了前まで、" +
+        "吸着重量が目標からこの値を超えて外れた場合に" +
+        "LoadAcquisitionへ戻します。"
+    )]
+    [SerializeField]
+    [Min(0f)]
+    private float pickupWeightGuardToleranceKg = 100f;
+
     private bool runtimeTargetOverrideEnabled;
     private Vector2 runtimeTargetOverrideXZ;
 
@@ -121,6 +131,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     private CraneWorkTouchdownKind observedTouchdownKind;
     private bool hasTouchdownReference;
     private float touchdownMainLifMagLocalY;
+    private bool pickupWeightGuardArmed;
 
     private bool warnedMissingCraneInstance;
     private bool warnedMissingInformationTarget;
@@ -203,6 +214,12 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         CraneStatusManager.WorkPhase
     > MajorPhaseCompleted;
 
+    public event Action<
+        CraneWorkPhaseTracker,
+        CraneStatusManager.WorkPhase,
+        string
+    > PickupWeightInvalidated;
+
     private void Reset()
     {
         ResolveReferences();
@@ -244,6 +261,12 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             : Time.deltaTime;
 
         UpdateObservedState(deltaTime);
+
+        if (InvalidatePickupWeightIfNeeded())
+        {
+            return;
+        }
+
         EvaluateCurrentStep(deltaTime);
     }
 
@@ -261,6 +284,12 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
         CurrentMajorPhase = phase;
         LoadStepsForPhase(phase);
+
+        if (phase == CraneStatusManager.WorkPhase.Move1 ||
+            phase == CraneStatusManager.WorkPhase.LiftUp)
+        {
+            pickupWeightGuardArmed = false;
+        }
 
         if (activeSteps.Count == 0)
         {
@@ -320,6 +349,50 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         currentStepIndex = 0;
         ResetStepTimers();
 
+        isMonitoring = startMonitoring;
+
+        if (startMonitoring)
+        {
+            NotifyStepStarted();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 指定した詳細ステップから大フェーズの監視を開始します。
+    /// 吊荷重量逸脱後にLoadAcquisitionへ戻す場合に使用します。
+    /// </summary>
+    public bool ConfigurePhaseAtStep(
+        CraneStatusManager.WorkPhase phase,
+        string stepId,
+        bool startMonitoring = true
+    )
+    {
+        if (!ConfigurePhase(phase, false))
+        {
+            return false;
+        }
+
+        int targetStepIndex = activeSteps.FindIndex(
+            step => step != null && step.stepId == stepId
+        );
+
+        if (targetStepIndex < 0)
+        {
+            Debug.LogError(
+                $"{name}: {phase}内に詳細ステップ{stepId}がありません。",
+                this
+            );
+            currentStepIndex = -1;
+            isMonitoring = false;
+            return false;
+        }
+
+        currentStepIndex = targetStepIndex;
+        majorPhaseCompleted = false;
+        pickupWeightGuardArmed = false;
+        ResetStepTimers();
         isMonitoring = startMonitoring;
 
         if (startMonitoring)
@@ -632,6 +705,56 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         }
     }
 
+    private bool InvalidatePickupWeightIfNeeded()
+    {
+        if (!pickupWeightGuardArmed)
+        {
+            return false;
+        }
+
+        float toleranceKg = Mathf.Max(
+            0f,
+            pickupWeightGuardToleranceKg
+        );
+
+        if (IsAttachedWeightWithinTarget(
+                toleranceKg,
+                toleranceKg
+            ))
+        {
+            return false;
+        }
+
+        CraneStatusManager.WorkPhase invalidatedPhase =
+            CurrentMajorPhase;
+        string invalidatedStepId = CurrentStepId;
+
+        pickupWeightGuardArmed = false;
+        conditionStableSeconds = 0f;
+        isMonitoring = false;
+
+        if (logPhaseEvents)
+        {
+            Debug.LogWarning(
+                $"CraneWork: PickupWeightInvalidated, " +
+                $"Crane={GetCraneLabel()}, " +
+                $"Phase={invalidatedPhase}, " +
+                $"Step={invalidatedStepId}, " +
+                $"CurrentWeight={CurrentAttachedWeightKg:F1}kg, " +
+                $"Error={CurrentWeightErrorKg:F1}kg",
+                this
+            );
+        }
+
+        PickupWeightInvalidated?.Invoke(
+            this,
+            invalidatedPhase,
+            invalidatedStepId
+        );
+
+        return true;
+    }
+
     private bool AreAllConditionsSatisfied(
         CraneWorkStepDefinition step
     )
@@ -790,6 +913,18 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 CurrentLiftMagClearance = clearanceHeight;
                 return clearanceHeight >= condition.threshold;
 
+            case CraneWorkConditionType.MainLifMagLocalYAtLeast:
+                if (craneUnit == null)
+                {
+                    WarnMissingTouchdownSource();
+                    return false;
+                }
+
+                return craneUnit.TryGetMainLifMagLocalY(
+                           out float mainLifMagLocalY
+                       ) &&
+                       mainLifMagLocalY >= condition.threshold;
+
             case CraneWorkConditionType.BoardReleasedAfterHeld:
                 return boardReleasedAfterHeld && !IsHoldingBoard;
 
@@ -924,6 +1059,19 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         if (completedStep == null)
         {
             return;
+        }
+
+        if (completedStep.stepId == "LiftUp.LoadAcquisition")
+        {
+            pickupWeightGuardArmed = true;
+        }
+        else if (
+            completedStep.stepId == "Place.PlacementLowering" ||
+            completedStep.stepId ==
+                "PlaceToTrack.PlacementLowering"
+        )
+        {
+            pickupWeightGuardArmed = false;
         }
 
         if (logPhaseEvents)
@@ -1367,6 +1515,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         positionExitHysteresis = Mathf.Max(
             0f,
             positionExitHysteresis
+        );
+        pickupWeightGuardToleranceKg = Mathf.Max(
+            0f,
+            pickupWeightGuardToleranceKg
         );
     }
 }
