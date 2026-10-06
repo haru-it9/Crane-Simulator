@@ -298,7 +298,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         SubscribeToCycleEvents();
 
         ApplyTargetCycleStartCondition();
-        LoadSwitchSchedule();
 
         if (sourceCycleController != null)
         {
@@ -313,6 +312,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         experimentStartRealtime = Time.realtimeSinceStartup;
+        LoadSwitchSchedule();
         sourceMajorPhaseCompleted = false;
         pendingScheduledSwitch = false;
         pendingScheduledSwitchDetail = string.Empty;
@@ -1679,16 +1679,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return true;
         }
 
-        if (targetFullCyclePickupWeightKg <= 0f)
-        {
-            Debug.LogError(
-                "Target Full Cycle Pickup Weight Kgは" +
-                "0より大きい値にしてください。",
-                this
-            );
-            return false;
-        }
-
         CraneInstance targetCrane =
             craneRegistry.GetCraneByRuntimeIndex(
                 targetCondition.craneIndex
@@ -1725,15 +1715,34 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return false;
         }
 
-        targetLoadPlan.SetPickupTargetWeightKg(
-            targetFullCyclePickupWeightKg
-        );
+        bool loadedFromBoardCsv =
+            targetLoadPlan.RefreshPickupTargetFromCurrentTarget();
+
+        if (!loadedFromBoardCsv)
+        {
+            if (targetFullCyclePickupWeightKg <= 0f)
+            {
+                Debug.LogError(
+                    "CSVから目標重量を取得できず、" +
+                    "Target Full Cycle Pickup Weight Kgも" +
+                    "0以下です。",
+                    this
+                );
+                return false;
+            }
+
+            targetLoadPlan.SetPickupTargetWeightKg(
+                targetFullCyclePickupWeightKg
+            );
+        }
+
         targetLoadPlan.SetTargetRemainingWeightKg(0f);
 
         EmitEvent(
             "TargetFullCycleLoadPlanPrepared",
-            $"Pickup={targetFullCyclePickupWeightKg:F1}kg;" +
-            "RemainingAfterPlacement=0.0kg"
+            $"Pickup={targetLoadPlan.PickupTargetWeightKg:F1}kg;" +
+            "RemainingAfterPlacement=0.0kg;" +
+            $"Source={(loadedFromBoardCsv ? "BoardCsv" : "InspectorFallback")}"
         );
 
         return true;
