@@ -203,6 +203,25 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Update()
     {
+        if (currentState ==
+                TaskSwitchExperimentState.OperatingTarget &&
+            targetRunsFullCycle &&
+            targetCycleController != null &&
+            !targetCycleController.IsRunning &&
+            targetCycleController.CompletedCycleCount >=
+                targetCycleController.TotalCycleCount)
+        {
+            EmitEvent(
+                "TargetWorkCycleCompletionFallback",
+                $"CompletedCycles=" +
+                $"{targetCycleController.CompletedCycleCount}"
+            );
+            ReturnControlToSource(
+                targetCycleController.CurrentPhase
+            );
+            return;
+        }
+
         if (currentState != TaskSwitchExperimentState.CountingDown)
         {
             return;
