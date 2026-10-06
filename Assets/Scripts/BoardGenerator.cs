@@ -455,10 +455,18 @@ public class BoardGenerator : MonoBehaviour
                 )
                 .ToList();
 
-        pickupCount = Mathf.Min(
-            Mathf.Max(1, requestedCount),
-            availableBoards.Count
-        );
+        if (availableBoards.Count < requestedCount)
+        {
+            Debug.LogWarning(
+                $"目標座標({targetX:F2}, {targetZ:F2})の板枚数が不足しています。" +
+                $" Requested={requestedCount}, Available={availableBoards.Count}",
+                this
+            );
+            matchedSpawnIndex = -1;
+            return false;
+        }
+
+        pickupCount = requestedCount;
 
         for (int i = 0; i < pickupCount; i++)
         {
