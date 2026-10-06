@@ -10,6 +10,15 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class TaskSwitchExperimentManager : MonoBehaviour
 {
+    [Serializable]
+    private class ScheduledSwitchEntry
+    {
+        public int switchIndex;
+        public int sourceCycle;
+        public CraneStatusManager.WorkPhase sourcePhase;
+        public string sourceStep;
+        public bool triggered;
+    }
     [Header("既存Manager参照")]
     [SerializeField] private CraneOperationManager craneOperationManager;
     [SerializeField] private CraneRegistry craneRegistry;
@@ -45,6 +54,25 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField]
     [Min(0f)]
     private float countdownSeconds = 5f;
+
+    [Header("Source終了条件")]
+    [Tooltip(
+        "Sourceがこのサイクル数を累積完了したら実験を終了します。" +
+        "Targetへの切替を挟んでも完了数はリセットしません。"
+    )]
+    [SerializeField]
+    [Min(1)]
+    private int sourceTotalCycleCount = 3;
+
+    [Header("CSV切替スケジュール")]
+    [SerializeField]
+    private bool useSwitchScheduleCsv = true;
+
+    [Tooltip(
+        "列: switchIndex,sourceCycle,sourcePhase,sourceStep"
+    )]
+    [SerializeField]
+    private TextAsset switchScheduleCsv;
 
     [Header("フェーズ境界通知")]
     [SerializeField] private TaskSwitchPhaseTracker sourcePhaseTracker;
@@ -136,9 +164,15 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool realSourceBoundarySubscribed;
     private bool legacySourceBoundarySubscribed;
     private bool targetWorkPhaseSubscribed;
+    private bool sourceStepSubscribed;
     private bool targetCycleSubscribed;
+    private bool sourceCycleSubscribed;
     private bool sourceMajorPhaseCompleted;
     private string pendingTargetConfirmationDetail = "Confirmation";
+    private bool pendingScheduledSwitch;
+    private string pendingScheduledSwitchDetail = string.Empty;
+    private readonly List<ScheduledSwitchEntry> scheduledSwitches =
+        new List<ScheduledSwitchEntry>();
     private int activeCraneCountBeforeExperiment = -1;
 
     [Header("複数回切替（実行時確認用）")]
@@ -204,6 +238,17 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Update()
     {
+        if (pendingScheduledSwitch && CanRequestSwitch)
+        {
+            pendingScheduledSwitch = false;
+            EmitEvent(
+                "ScheduledSwitchRequested",
+                pendingScheduledSwitchDetail
+            );
+            RequestSwitch();
+            return;
+        }
+
         if (currentState ==
                 TaskSwitchExperimentState.OperatingTarget &&
             targetRunsFullCycle &&
@@ -253,6 +298,14 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         SubscribeToCycleEvents();
 
         ApplyTargetCycleStartCondition();
+        LoadSwitchSchedule();
+
+        if (sourceCycleController != null)
+        {
+            sourceCycleController.SetTotalCycleCount(
+                sourceTotalCycleCount
+            );
+        }
 
         if (!ValidateConfiguration())
         {
@@ -261,6 +314,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         experimentStartRealtime = Time.realtimeSinceStartup;
         sourceMajorPhaseCompleted = false;
+        pendingScheduledSwitch = false;
+        pendingScheduledSwitchDetail = string.Empty;
         currentSwitchIndex = 0;
         completedSwitchCount = 0;
         HideAutomaticOperationObjects();
@@ -310,6 +365,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingSource);
+        SetPanelActive(confirmationPanel, true);
 
         StartSourceWorkPhaseMonitoring();
 
@@ -383,7 +439,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             TaskSwitchExperimentState.WaitingForSourceConfirmation)
         {
             EmitEvent("SourceReturnConfirmationPressed");
-            SetPanelActive(confirmationPanel, false);
             CompleteSourceReturnAfterConfirmation();
             return;
         }
@@ -400,7 +455,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 : pendingTargetConfirmationDetail;
 
         EmitEvent("ConfirmationPressed", confirmationDetail);
-        SetPanelActive(confirmationPanel, false);
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingTarget);
 
@@ -866,6 +920,15 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             realSourceBoundarySubscribed = true;
         }
 
+        if (useSwitchScheduleCsv &&
+            !sourceStepSubscribed &&
+            sourceWorkPhaseTracker != null)
+        {
+            sourceWorkPhaseTracker.StepStarted +=
+                HandleSourceStepStarted;
+            sourceStepSubscribed = true;
+        }
+
         if (allowLegacyPhaseBoundaryFallback &&
             !legacySourceBoundarySubscribed &&
             sourcePhaseTracker != null)
@@ -893,6 +956,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 HandleSourceMajorPhaseCompleted;
         }
 
+        if (sourceStepSubscribed &&
+            sourceWorkPhaseTracker != null)
+        {
+            sourceWorkPhaseTracker.StepStarted -=
+                HandleSourceStepStarted;
+        }
+
         if (legacySourceBoundarySubscribed &&
             sourcePhaseTracker != null)
         {
@@ -908,8 +978,63 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         realSourceBoundarySubscribed = false;
+        sourceStepSubscribed = false;
         legacySourceBoundarySubscribed = false;
         targetWorkPhaseSubscribed = false;
+    }
+
+    private void HandleSourceStepStarted(
+        CraneWorkPhaseTracker tracker,
+        CraneStatusManager.WorkPhase phase,
+        string stepId
+    )
+    {
+        if (!useSwitchScheduleCsv ||
+            tracker != sourceWorkPhaseTracker ||
+            pendingScheduledSwitch ||
+            scheduledSwitches.Count == 0)
+        {
+            return;
+        }
+
+        int cycleNumber =
+            sourceCycleController != null &&
+            sourceCycleController.IsRunning
+                ? sourceCycleController.CurrentCycleNumber
+                : 1;
+
+        foreach (ScheduledSwitchEntry entry in scheduledSwitches)
+        {
+            if (entry.triggered ||
+                entry.switchIndex <= currentSwitchIndex)
+            {
+                continue;
+            }
+
+            if (entry.switchIndex != currentSwitchIndex + 1 ||
+                entry.sourceCycle != cycleNumber ||
+                entry.sourcePhase != phase ||
+                !string.Equals(
+                    entry.sourceStep,
+                    stepId,
+                    StringComparison.OrdinalIgnoreCase
+                ))
+            {
+                continue;
+            }
+
+            entry.triggered = true;
+            pendingScheduledSwitch = true;
+            pendingScheduledSwitchDetail =
+                $"SwitchIndex={entry.switchIndex};" +
+                $"Cycle={cycleNumber};Phase={phase};Step={stepId}";
+
+            EmitEvent(
+                "SwitchScheduleMatched",
+                pendingScheduledSwitchDetail
+            );
+            break;
+        }
     }
 
     private void HandleSourceMajorPhaseCompleted(
@@ -995,6 +1120,26 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         );
 
         ReturnControlToSource(completedPhase);
+    }
+
+    private void HandleSourceAllCyclesCompleted(
+        CraneWorkCycleController controller,
+        int completedCycles
+    )
+    {
+        if (controller != sourceCycleController ||
+            currentState == TaskSwitchExperimentState.Idle ||
+            currentState == TaskSwitchExperimentState.Completed)
+        {
+            return;
+        }
+
+        EmitEvent(
+            "SourceAllCyclesCompleted",
+            $"CompletedCycles={completedCycles};" +
+            $"TargetCycles={sourceTotalCycleCount}"
+        );
+        CompleteExperiment();
     }
 
     private void HandleTargetAllCyclesCompleted(
@@ -1270,7 +1415,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void RecoverAfterFailedTargetSelection(string detail)
     {
-        SetPanelActive(confirmationPanel, false);
+        SetPanelActive(confirmationPanel, true);
         SetPanelActive(countdownPanel, false);
 
         string resumeDetail = ResumeSourceWorkAfterReturn();
@@ -1286,7 +1431,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void RecoverAfterFailedTargetOperationStart(string detail)
     {
         EmitEvent("TargetOperationStartFailed", detail);
-        SetPanelActive(confirmationPanel, false);
+        SetPanelActive(confirmationPanel, true);
         SetPanelActive(countdownPanel, false);
 
         if (!craneOperationManager.SelectCraneForTaskSwitch(
@@ -1419,6 +1564,97 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             default:
                 return CraneStatusManager.WorkPhase.Move1;
         }
+    }
+
+    private void LoadSwitchSchedule()
+    {
+        scheduledSwitches.Clear();
+
+        if (!useSwitchScheduleCsv ||
+            switchScheduleCsv == null)
+        {
+            return;
+        }
+
+        string[] lines = switchScheduleCsv.text.Split('\n');
+
+        for (int lineIndex = 0;
+             lineIndex < lines.Length;
+             lineIndex++)
+        {
+            string line = lines[lineIndex].Trim();
+
+            if (string.IsNullOrEmpty(line) ||
+                line.StartsWith("#"))
+            {
+                continue;
+            }
+
+            string[] columns = line.Split(',');
+
+            if (columns.Length < 4 ||
+                !int.TryParse(
+                    columns[0].Trim(),
+                    out int switchIndex
+                ))
+            {
+                // ヘッダ行は読み飛ばします。
+                continue;
+            }
+
+            if (!int.TryParse(
+                    columns[1].Trim(),
+                    out int sourceCycle
+                ) ||
+                !Enum.TryParse(
+                    columns[2].Trim(),
+                    true,
+                    out CraneStatusManager.WorkPhase sourcePhase
+                ))
+            {
+                Debug.LogWarning(
+                    $"切替CSV {lineIndex + 1}行目を解析できません: " +
+                    line,
+                    this
+                );
+                continue;
+            }
+
+            string sourceStep = columns[3].Trim();
+
+            if (switchIndex <= 0 ||
+                sourceCycle <= 0 ||
+                string.IsNullOrEmpty(sourceStep))
+            {
+                Debug.LogWarning(
+                    $"切替CSV {lineIndex + 1}行目の値が不正です: " +
+                    line,
+                    this
+                );
+                continue;
+            }
+
+            scheduledSwitches.Add(
+                new ScheduledSwitchEntry
+                {
+                    switchIndex = switchIndex,
+                    sourceCycle = sourceCycle,
+                    sourcePhase = sourcePhase,
+                    sourceStep = sourceStep,
+                    triggered = false
+                }
+            );
+        }
+
+        scheduledSwitches.Sort(
+            (left, right) =>
+                left.switchIndex.CompareTo(right.switchIndex)
+        );
+
+        EmitEvent(
+            "SwitchScheduleLoaded",
+            $"Count={scheduledSwitches.Count}"
+        );
     }
 
     private void ApplyTargetCycleStartCondition()
@@ -1570,6 +1806,14 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void SubscribeToCycleEvents()
     {
+        if (!sourceCycleSubscribed &&
+            sourceCycleController != null)
+        {
+            sourceCycleController.AllCyclesCompleted +=
+                HandleSourceAllCyclesCompleted;
+            sourceCycleSubscribed = true;
+        }
+
         if (!targetCycleSubscribed &&
             targetCycleController != null)
         {
@@ -1581,6 +1825,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void UnsubscribeFromCycleEvents()
     {
+        if (sourceCycleSubscribed &&
+            sourceCycleController != null)
+        {
+            sourceCycleController.AllCyclesCompleted -=
+                HandleSourceAllCyclesCompleted;
+        }
+
         if (targetCycleSubscribed &&
             targetCycleController != null)
         {
@@ -1588,6 +1839,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 HandleTargetAllCyclesCompleted;
         }
 
+        sourceCycleSubscribed = false;
         targetCycleSubscribed = false;
     }
 
