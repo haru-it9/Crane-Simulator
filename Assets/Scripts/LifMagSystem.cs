@@ -18,6 +18,7 @@ public class LifMagSystem : MonoBehaviour
 
     [Header("作業フェーズ安全連携")]
     [SerializeField] private CraneWorkPhaseTracker workPhaseTracker;
+    [SerializeField] private CraneUnit craneUnit;
 
     [Tooltip(
         "Move1/Move2中、このMainLifMagローカルY以上では" +
@@ -220,9 +221,11 @@ public class LifMagSystem : MonoBehaviour
         if (phase == CraneStatusManager.WorkPhase.Move1 ||
             phase == CraneStatusManager.WorkPhase.Move2)
         {
+            float mainLifMagLocalY = 0f;
+
             if (craneUnit != null &&
                 craneUnit.TryGetMainLifMagLocalY(
-                    out float mainLifMagLocalY
+                    out mainLifMagLocalY
                 ) &&
                 mainLifMagLocalY >= transportReleaseLockLocalY)
             {
@@ -265,6 +268,22 @@ public class LifMagSystem : MonoBehaviour
                 GetComponentInChildren<
                     CraneWorkPhaseTracker
                 >(true);
+        }
+
+        if (craneUnit == null)
+        {
+            craneUnit = GetComponent<CraneUnit>();
+        }
+
+        if (craneUnit == null)
+        {
+            craneUnit = GetComponentInParent<CraneUnit>();
+        }
+
+        if (craneUnit == null)
+        {
+            craneUnit =
+                GetComponentInChildren<CraneUnit>(true);
         }
     }
 
