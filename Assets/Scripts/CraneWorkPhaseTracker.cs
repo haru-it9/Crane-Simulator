@@ -90,6 +90,13 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     [Min(0f)]
     private float pickupWeightGuardToleranceKg = 100f;
 
+    [Tooltip(
+        "ONの場合、重量逸脱時にリフマグから落下した板を" +
+        "非表示にして削除します。配置工程で正常に離した板は削除しません。"
+    )]
+    [SerializeField]
+    private bool destroyDroppedBoardsOnWeightInvalidation = true;
+
     private bool runtimeTargetOverrideEnabled;
     private Vector2 runtimeTargetOverrideXZ;
 
@@ -132,6 +139,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     private bool hasTouchdownReference;
     private float touchdownMainLifMagLocalY;
     private bool pickupWeightGuardArmed;
+    private readonly List<GameObject> guardedAttachedBoards =
+        new List<GameObject>();
 
     private bool warnedMissingCraneInstance;
     private bool warnedMissingInformationTarget;
@@ -289,6 +298,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             phase == CraneStatusManager.WorkPhase.LiftUp)
         {
             pickupWeightGuardArmed = false;
+            guardedAttachedBoards.Clear();
         }
 
         if (activeSteps.Count == 0)
@@ -729,6 +739,9 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             CurrentMajorPhase;
         string invalidatedStepId = CurrentStepId;
 
+        int removedBoardCount =
+            RemoveDroppedBoardsFromGuardSnapshot();
+
         pickupWeightGuardArmed = false;
         conditionStableSeconds = 0f;
         isMonitoring = false;
@@ -741,7 +754,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 $"Phase={invalidatedPhase}, " +
                 $"Step={invalidatedStepId}, " +
                 $"CurrentWeight={CurrentAttachedWeightKg:F1}kg, " +
-                $"Error={CurrentWeightErrorKg:F1}kg",
+                $"Error={CurrentWeightErrorKg:F1}kg, " +
+                $"RemovedBoards={removedBoardCount}",
                 this
             );
         }
@@ -753,6 +767,63 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         );
 
         return true;
+    }
+
+    private void CaptureGuardedAttachedBoards()
+    {
+        guardedAttachedBoards.Clear();
+
+        LifMagSystem lifMagSystem = GetLifMagSystem();
+        if (lifMagSystem == null)
+        {
+            return;
+        }
+
+        foreach (GameObject board in lifMagSystem.AttachedBoards)
+        {
+            if (board != null &&
+                !guardedAttachedBoards.Contains(board))
+            {
+                guardedAttachedBoards.Add(board);
+            }
+        }
+    }
+
+    private int RemoveDroppedBoardsFromGuardSnapshot()
+    {
+        if (!destroyDroppedBoardsOnWeightInvalidation ||
+            guardedAttachedBoards.Count == 0)
+        {
+            guardedAttachedBoards.Clear();
+            return 0;
+        }
+
+        LifMagSystem lifMagSystem = GetLifMagSystem();
+        int removedCount = 0;
+
+        foreach (GameObject board in guardedAttachedBoards)
+        {
+            if (board == null)
+            {
+                continue;
+            }
+
+            bool isStillAttached =
+                lifMagSystem != null &&
+                lifMagSystem.IsAttachedBoard(board);
+
+            if (isStillAttached)
+            {
+                continue;
+            }
+
+            board.SetActive(false);
+            Destroy(board);
+            removedCount++;
+        }
+
+        guardedAttachedBoards.Clear();
+        return removedCount;
     }
 
     private bool AreAllConditionsSatisfied(
@@ -1064,6 +1135,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         if (completedStep.stepId == "LiftUp.LoadAcquisition")
         {
             pickupWeightGuardArmed = true;
+            CaptureGuardedAttachedBoards();
         }
         else if (
             completedStep.stepId == "Place.PlacementLowering" ||
@@ -1072,6 +1144,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         )
         {
             pickupWeightGuardArmed = false;
+            guardedAttachedBoards.Clear();
         }
 
         if (logPhaseEvents)
