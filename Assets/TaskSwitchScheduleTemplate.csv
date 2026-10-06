@@ -1,0 +1,4 @@
+switchIndex,sourceCycle,sourcePhase,sourceStep
+1,1,LiftUp,LiftUp.PickupLowering
+2,2,Move2,Move2.DestinationCoarseMove
+3,3,Place,Place.PlacementLowering
