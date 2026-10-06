@@ -227,6 +227,11 @@ public class CraneWorkCycleController : MonoBehaviour
         return StartCycle();
     }
 
+    public void SetTotalCycleCount(int requestedTotalCycleCount)
+    {
+        totalCycleCount = Mathf.Max(1, requestedTotalCycleCount);
+    }
+
     /// <summary>
     /// Move1から1サイクルだけ実行します。
     /// Task Switchの切替先作業で使用します。
