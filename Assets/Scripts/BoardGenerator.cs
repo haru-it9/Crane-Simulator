@@ -230,8 +230,6 @@ public class BoardGenerator : MonoBehaviour
             GameObject stage = CreateStage(i, basePos, stageY);
 
             float currentTopY = basePos.y + stageY;
-            pickupCountBySpawnIndex[i] =
-                Mathf.Max(1, defaultPickupCount);
 
             for (int j = 0; j < boardsPerPoint; j++)
             {
