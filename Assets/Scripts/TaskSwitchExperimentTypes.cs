@@ -16,6 +16,7 @@ public enum TaskSwitchExperimentState
     WaitingForPhaseBoundary,
     OperatingTarget,
     ReturningToSource,
+    WaitingForSourceConfirmation,
     OperatingReturnedSource,
     Completed
 }
