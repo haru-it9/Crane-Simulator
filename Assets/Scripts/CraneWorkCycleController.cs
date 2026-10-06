@@ -214,6 +214,28 @@ public class CraneWorkCycleController : MonoBehaviour
     /// <summary>
     /// Initial Phaseから新しくサイクルを開始します。
     /// </summary>
+    public bool StartCycle(
+        int requestedTotalCycleCount,
+        CraneStatusManager.WorkPhase requestedInitialPhase
+    )
+    {
+        totalCycleCount = Mathf.Max(1, requestedTotalCycleCount);
+        initialPhase = requestedInitialPhase;
+        return StartCycle();
+    }
+
+    /// <summary>
+    /// Move1から1サイクルだけ実行します。
+    /// Task Switchの切替先作業で使用します。
+    /// </summary>
+    public bool StartSingleCycle()
+    {
+        return StartCycle(
+            1,
+            CraneStatusManager.WorkPhase.Move1
+        );
+    }
+
     public bool StartCycle()
     {
         ResolveReferences();
