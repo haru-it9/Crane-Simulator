@@ -16,6 +16,15 @@ public class LifMagSystem : MonoBehaviour
     [Header("CraneOperationManager")]
     [SerializeField] private CraneOperationManager craneOperationManager;
 
+    [Header("作業フェーズ安全連携")]
+    [SerializeField] private CraneWorkPhaseTracker workPhaseTracker;
+
+    [Tooltip(
+        "Move1/Move2中、このMainLifMagローカルY以上では" +
+        "電流や解除ボタンによる板の切離しを禁止します。"
+    )]
+    [SerializeField] private float transportReleaseLockLocalY = -1.66f;
+
     [Header("入力")]
     [SerializeField] private KeyCode attachKey = KeyCode.E;
     [SerializeField] private KeyCode detachKey = KeyCode.R;
@@ -147,8 +156,18 @@ public class LifMagSystem : MonoBehaviour
     private readonly List<Collider> debugOverlapHits = new List<Collider>();
     private GameObject debugSelectedCandidate;
 
+    private void Awake()
+    {
+        ResolveWorkPhaseTracker();
+    }
+
     private void Update()
     {
+        if (workPhaseTracker == null)
+        {
+            ResolveWorkPhaseTracker();
+        }
+
         if (!SimulatorStartManager.IsOperationEnabled)
         {
             return;
@@ -178,6 +197,71 @@ public class LifMagSystem : MonoBehaviour
         if (craneOperationManager.CurrentCrane == null) return false;
 
         return craneOperationManager.CurrentCrane.LifMagSystem == this;
+    }
+
+    private bool IsBoardReleaseProtected(out string reason)
+    {
+        reason = string.Empty;
+
+        if (!HasAttachedBoard ||
+            workPhaseTracker == null ||
+            !workPhaseTracker.IsMonitoring)
+        {
+            return false;
+        }
+
+        CraneStatusManager.WorkPhase phase =
+            workPhaseTracker.CurrentMajorPhase;
+
+        if (phase == CraneStatusManager.WorkPhase.Move1 ||
+            phase == CraneStatusManager.WorkPhase.Move2)
+        {
+            if (craneUnit != null &&
+                craneUnit.TryGetMainLifMagLocalY(
+                    out float mainLifMagLocalY
+                ) &&
+                mainLifMagLocalY >= transportReleaseLockLocalY)
+            {
+                reason =
+                    $"TransportRaised:{phase}," +
+                    $"LocalY={mainLifMagLocalY:F3}";
+                return true;
+            }
+        }
+
+        if ((phase == CraneStatusManager.WorkPhase.Place ||
+             phase ==
+                 CraneStatusManager.WorkPhase.PlaceToTrack) &&
+            !workPhaseTracker.IsPlacementTouchdownConfirmed)
+        {
+            reason = $"PlacementBeforeTouchdown:{phase}";
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ResolveWorkPhaseTracker()
+    {
+        if (workPhaseTracker == null)
+        {
+            workPhaseTracker =
+                GetComponent<CraneWorkPhaseTracker>();
+        }
+
+        if (workPhaseTracker == null)
+        {
+            workPhaseTracker =
+                GetComponentInParent<CraneWorkPhaseTracker>();
+        }
+
+        if (workPhaseTracker == null)
+        {
+            workPhaseTracker =
+                GetComponentInChildren<
+                    CraneWorkPhaseTracker
+                >(true);
+        }
     }
 
     private int GetEnabledMagnetCount()
@@ -276,15 +360,30 @@ public class LifMagSystem : MonoBehaviour
                 HasAttachedBoard)
             {
                 float attachedWeightKg = GetAttachedTotalWeightKg();
-                float requiredCurrentA = GetRequiredCurrentAmpereForWeight(attachedWeightKg);
+                float requiredCurrentA =
+                    GetRequiredCurrentAmpereForWeight(
+                        attachedWeightKg
+                    );
 
-                Debug.LogWarning(
-                    $"リフマグ電流OFFのため吸着解除: " +
-                    $"requiredCurrent={requiredCurrentA:F1} A, " +
-                    $"attachedWeight={attachedWeightKg:F1} kg"
-                );
+                if (IsBoardReleaseProtected(out string lockReason))
+                {
+                    Debug.LogWarning(
+                        $"安全インターロックにより電流OFF解除を抑止: " +
+                        $"Reason={lockReason}, " +
+                        $"requiredCurrent={requiredCurrentA:F1} A, " +
+                        $"attachedWeight={attachedWeightKg:F1} kg"
+                    );
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"リフマグ電流OFFのため吸着解除: " +
+                        $"requiredCurrent={requiredCurrentA:F1} A, " +
+                        $"attachedWeight={attachedWeightKg:F1} kg"
+                    );
 
-                DetachAll();
+                    DetachAll();
+                }
             }
 
             isAttachAccumulating = false;
@@ -296,8 +395,11 @@ public class LifMagSystem : MonoBehaviour
             CurrentSliderInput01 = 0f;
             CurrentElectricCurrentA = 0f;
             CurrentLiftCapacityKg = 0f;
-            CurrentAttachedWeightKg = 0f;
-            CurrentRequiredCurrentA = 0f;
+            CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
+            CurrentRequiredCurrentA =
+                GetRequiredCurrentAmpereForWeight(
+                    CurrentAttachedWeightKg
+                );
 
             return;
         }
@@ -440,11 +542,12 @@ public class LifMagSystem : MonoBehaviour
         // ================================
         // 表示電流値による強制吸着板の解除判定
         // ================================
-        if (ShouldDetachByCurrent(
-            sliderCurrentA,
-            attachedWeightKg,
-            out float requiredCurrentA
-        ))
+        if (!IsBoardReleaseProtected(out _) &&
+            ShouldDetachByCurrent(
+                sliderCurrentA,
+                attachedWeightKg,
+                out float requiredCurrentA
+            ))
         {
             int detachedCount =
                 DetachBoardsUntilSupportedByCurrent(
@@ -1187,6 +1290,15 @@ public class LifMagSystem : MonoBehaviour
 
     public void DetachAllFromButton()
     {
+        if (IsBoardReleaseProtected(out string lockReason))
+        {
+            Debug.LogWarning(
+                $"安全インターロックにより解除ボタンを抑止: " +
+                $"Reason={lockReason}"
+            );
+            return;
+        }
+
         DetachAll();
 
         // 念のため積算状態もリセット
@@ -1197,8 +1309,18 @@ public class LifMagSystem : MonoBehaviour
 
     private void HandleDetachInput() // 黒ボタン入力を処理し、全板解除する
     {
-        if (Input.GetKeyDown(detachKey) || Input.GetButtonDown(joyStick2BlackButton))
+        if (Input.GetKeyDown(detachKey) ||
+            Input.GetButtonDown(joyStick2BlackButton))
         {
+            if (IsBoardReleaseProtected(out string lockReason))
+            {
+                Debug.LogWarning(
+                    $"安全インターロックにより解除入力を抑止: " +
+                    $"Reason={lockReason}"
+                );
+                return;
+            }
+
             DetachAll();
 
             // 念のため積算状態もリセット
