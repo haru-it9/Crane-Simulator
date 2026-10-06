@@ -65,6 +65,28 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField]
     private CraneWorkPhaseTracker targetWorkPhaseTracker;
 
+    [Header("作業サイクル連携")]
+    [Tooltip(
+        "Sourceの3サイクル進行を管理するControllerです。" +
+        "未設定時はSource Crane Indexから自動取得します。"
+    )]
+    [SerializeField]
+    private CraneWorkCycleController sourceCycleController;
+
+    [Tooltip(
+        "Targetの1サイクル進行を管理するControllerです。" +
+        "未設定時はTarget Crane Indexから自動取得します。"
+    )]
+    [SerializeField]
+    private CraneWorkCycleController targetCycleController;
+
+    [Tooltip(
+        "ONの場合、TargetではMove1からPlaceまでの1サイクルを実行し、" +
+        "サイクル完了後にSourceへ戻ります。"
+    )]
+    [SerializeField]
+    private bool targetRunsFullCycle = true;
+
     [Tooltip(
         "ONの場合、Task Switch開始時にSourceの実作業監視を自動開始し、" +
         "MajorPhaseCompletedをPhase Boundary切替へ使用します。"
@@ -107,6 +129,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private bool realSourceBoundarySubscribed;
     private bool legacySourceBoundarySubscribed;
     private bool targetWorkPhaseSubscribed;
+    private bool targetCycleSubscribed;
     private bool sourceMajorPhaseCompleted;
     private int activeCraneCountBeforeExperiment = -1;
 
@@ -126,6 +149,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     public TaskSwitchCraneCondition TargetCondition => targetCondition;
     public int CurrentSwitchIndex => currentSwitchIndex;
     public int CompletedSwitchCount => completedSwitchCount;
+    public bool TargetRunsFullCycle => targetRunsFullCycle;
     public bool CanRequestSwitch =>
         currentState == TaskSwitchExperimentState.OperatingSource ||
         currentState == TaskSwitchExperimentState.OperatingReturnedSource;
@@ -142,16 +166,21 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void OnEnable()
     {
         ResolveWorkPhaseTrackers();
+        ResolveCycleControllers();
         SubscribeToWorkPhaseEvents();
+        SubscribeToCycleEvents();
     }
 
     private void OnDisable()
     {
         UnsubscribeFromWorkPhaseEvents();
+        UnsubscribeFromCycleEvents();
     }
 
     private void OnDestroy()
     {
+        UnsubscribeFromCycleEvents();
+
         if (craneOperationManager != null &&
             craneOperationManager.IsTaskSwitchExperimentMode)
         {
@@ -192,7 +221,11 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     {
         FindReferences();
         ResolveWorkPhaseTrackers();
+        ResolveCycleControllers();
         SubscribeToWorkPhaseEvents();
+        SubscribeToCycleEvents();
+
+        ApplyTargetCycleStartCondition();
 
         if (!ValidateConfiguration())
         {
@@ -269,6 +302,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         int nextSwitchIndex = currentSwitchIndex + 1;
 
+        ApplyTargetCycleStartCondition();
+
         // 1回目のTargetはStartExperiment()で準備済みです。
         // 2回目以降は、前回のTarget作業で変更された板・位置・目標を
         // 次の切替要求を受け付ける直前に同じ条件から再生成します。
@@ -325,7 +360,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         SetPanelActive(confirmationPanel, false);
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingTarget);
-        StartTargetWorkPhaseMonitoring();
+
+        if (!StartTargetOperation())
+        {
+            RecoverAfterFailedTargetOperationStart("Confirmation");
+            return;
+        }
+
         EmitEvent("TargetOperationStarted", "Confirmation");
     }
 
@@ -457,7 +498,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void StartConfirmationSwitch()
     {
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
-        StopSourceWorkPhaseMonitoring();
+        PauseSourceWorkForSwitch();
 
         if (!craneOperationManager.SelectCraneForTaskSwitch(
                 targetCondition.craneIndex
@@ -490,6 +531,12 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void StartPhaseBoundarySwitch()
     {
+        if (sourceCycleController != null &&
+            sourceCycleController.IsRunning)
+        {
+            sourceCycleController.RequestHoldAfterCurrentPhase();
+        }
+
         SetState(TaskSwitchExperimentState.WaitingForPhaseBoundary);
         EmitEvent("WaitingForSourcePhaseBoundary");
 
@@ -504,7 +551,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void SwitchControlToTarget(string detail)
     {
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
-        StopSourceWorkPhaseMonitoring();
+        PauseSourceWorkForSwitch();
 
         if (!craneOperationManager.SelectCraneForTaskSwitch(
                 targetCondition.craneIndex
@@ -518,7 +565,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent("TargetDisplaySwitched", detail);
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingTarget);
-        StartTargetWorkPhaseMonitoring();
+
+        if (!StartTargetOperation())
+        {
+            RecoverAfterFailedTargetOperationStart(detail);
+            return;
+        }
+
         EmitEvent("TargetOperationStarted", detail);
     }
 
@@ -853,6 +906,13 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         CraneStatusManager.WorkPhase completedPhase
     )
     {
+        // 1サイクル方式では各大フェーズ完了で戻らず、
+        // CraneWorkCycleController.AllCyclesCompletedを待ちます。
+        if (targetRunsFullCycle)
+        {
+            return;
+        }
+
         if (tracker != targetWorkPhaseTracker ||
             currentState != TaskSwitchExperimentState.OperatingTarget)
         {
@@ -870,6 +930,26 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         );
 
         ReturnControlToSource(completedPhase);
+    }
+
+    private void HandleTargetAllCyclesCompleted(
+        CraneWorkCycleController controller,
+        int completedCycles
+    )
+    {
+        if (!targetRunsFullCycle ||
+            controller != targetCycleController ||
+            currentState != TaskSwitchExperimentState.OperatingTarget)
+        {
+            return;
+        }
+
+        EmitEvent(
+            "TargetWorkCycleCompleted",
+            $"CompletedCycles={completedCycles}"
+        );
+
+        ReturnControlToSource(controller.CurrentPhase);
     }
 
     private void HandleLegacySourcePhaseBoundary(
@@ -927,6 +1007,30 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             "SourceWorkPhaseMonitoringStarted",
             sourceCondition.workPhase.ToString()
         );
+
+        if (sourceCycleController != null &&
+            !sourceCycleController.IsRunning)
+        {
+            sourceCycleController.AdoptRunningTrackerAsCycleStart();
+        }
+    }
+
+    private void PauseSourceWorkForSwitch()
+    {
+        if (sourceCycleController != null &&
+            sourceCycleController.IsRunning)
+        {
+            // Phase Boundaryで既に境界待機中なら、保留状態を維持します。
+            if (!sourceCycleController.IsWaitingAtBoundary &&
+                !sourceCycleController.HasPendingNextPhase)
+            {
+                sourceCycleController.PauseCycle();
+            }
+
+            return;
+        }
+
+        StopSourceWorkPhaseMonitoring();
     }
 
     private void StopSourceWorkPhaseMonitoring()
@@ -967,8 +1071,55 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         );
     }
 
+    private bool StartTargetOperation()
+    {
+        if (!targetRunsFullCycle)
+        {
+            StartTargetWorkPhaseMonitoring();
+            return targetWorkPhaseTracker != null &&
+                   targetWorkPhaseTracker.IsMonitoring;
+        }
+
+        if (targetCycleController == null)
+        {
+            Debug.LogError(
+                "TargetのCraneWorkCycleControllerがないため、" +
+                "1サイクル作業を開始できません。",
+                this
+            );
+            return false;
+        }
+
+        if (targetCycleController.IsRunning)
+        {
+            targetCycleController.StopCycleAndTracker();
+        }
+
+        ApplyTargetCycleStartCondition();
+
+        bool started = targetCycleController.StartSingleCycle();
+
+        if (started)
+        {
+            EmitEvent(
+                "TargetWorkCycleStarted",
+                "Cycle=1/1;InitialPhase=Move1"
+            );
+        }
+
+        return started;
+    }
+
     private void StopTargetWorkPhaseMonitoring()
     {
+        if (targetRunsFullCycle &&
+            targetCycleController != null &&
+            targetCycleController.IsRunning)
+        {
+            targetCycleController.StopCycleAndTracker();
+            return;
+        }
+
         if (targetWorkPhaseTracker != null &&
             targetWorkPhaseTracker.IsMonitoring)
         {
@@ -1032,22 +1183,71 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         SetPanelActive(confirmationPanel, false);
         SetPanelActive(countdownPanel, false);
 
-        // Confirm・Countdownで停止した実作業監視だけを再開します。
-        // PhaseBoundaryでは完了済みのため、再監視せず切替再要求を待ちます。
-        if (!sourceMajorPhaseCompleted &&
-            sourceWorkPhaseTracker != null &&
-            !sourceWorkPhaseTracker.IsMonitoring)
-        {
-            sourceWorkPhaseTracker.ResumeMonitoring();
-        }
+        string resumeDetail = ResumeSourceWorkAfterReturn();
 
         craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingSource);
-        EmitEvent("TargetSelectionFailed", detail);
+        EmitEvent(
+            "TargetSelectionFailed",
+            $"{detail};{resumeDetail}"
+        );
+    }
+
+    private void RecoverAfterFailedTargetOperationStart(string detail)
+    {
+        EmitEvent("TargetOperationStartFailed", detail);
+        SetPanelActive(confirmationPanel, false);
+        SetPanelActive(countdownPanel, false);
+
+        if (!craneOperationManager.SelectCraneForTaskSwitch(
+                sourceCondition.craneIndex
+            ))
+        {
+            craneOperationManager.SetTaskSwitchOperationInputLocked(false);
+            EmitEvent("SourceReturnFailed", "TargetStartFailure");
+            return;
+        }
+
+        string resumeDetail = ResumeSourceWorkAfterReturn();
+        craneOperationManager.SetTaskSwitchOperationInputLocked(false);
+        SetState(TaskSwitchExperimentState.OperatingSource);
+        EmitEvent(
+            "SourceOperationResumed",
+            $"TargetStartFailure;{resumeDetail}"
+        );
     }
 
     private string ResumeSourceWorkAfterReturn()
     {
+        if (sourceCycleController != null &&
+            sourceCycleController.IsRunning)
+        {
+            bool resumed;
+            string resumeKind;
+
+            if (sourceCycleController.IsWaitingAtBoundary ||
+                sourceCycleController.HasPendingNextPhase)
+            {
+                resumed = sourceCycleController.ContinueAfterBoundary();
+                resumeKind = "ContinueAfterBoundary";
+            }
+            else
+            {
+                resumed = sourceCycleController.ResumeCycle();
+                resumeKind = "ResumeCycle";
+            }
+
+            sourceMajorPhaseCompleted = false;
+            sourceCondition.workPhase =
+                sourceCycleController.CurrentPhase;
+
+            return resumed
+                ? $"{resumeKind}:" +
+                  $"{sourceCycleController.CurrentPhase}/" +
+                  $"Cycle={sourceCycleController.CurrentCycleNumber}"
+                : $"{resumeKind}Failed";
+        }
+
         if (sourceWorkPhaseTracker == null)
         {
             return "TrackerUnavailable";
@@ -1129,6 +1329,103 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             default:
                 return CraneStatusManager.WorkPhase.Move1;
         }
+    }
+
+    private void ApplyTargetCycleStartCondition()
+    {
+        if (targetRunsFullCycle && targetCondition != null)
+        {
+            targetCondition.workPhase =
+                CraneStatusManager.WorkPhase.Move1;
+        }
+    }
+
+    private void ResolveCycleControllers()
+    {
+        if (craneRegistry == null ||
+            sourceCondition == null ||
+            targetCondition == null)
+        {
+            return;
+        }
+
+        CraneWorkCycleController resolvedSource =
+            FindCycleController(sourceCondition.craneIndex);
+        CraneWorkCycleController resolvedTarget =
+            FindCycleController(targetCondition.craneIndex);
+
+        bool sourceChanged =
+            resolvedSource != null &&
+            resolvedSource != sourceCycleController;
+        bool targetChanged =
+            resolvedTarget != null &&
+            resolvedTarget != targetCycleController;
+
+        if (!sourceChanged && !targetChanged)
+        {
+            return;
+        }
+
+        UnsubscribeFromCycleEvents();
+
+        if (sourceChanged)
+        {
+            sourceCycleController = resolvedSource;
+        }
+
+        if (targetChanged)
+        {
+            targetCycleController = resolvedTarget;
+        }
+
+        SubscribeToCycleEvents();
+    }
+
+    private CraneWorkCycleController FindCycleController(int craneIndex)
+    {
+        CraneInstance crane =
+            craneRegistry.GetCraneByRuntimeIndex(craneIndex);
+
+        if (crane == null)
+        {
+            return null;
+        }
+
+        CraneWorkCycleController controller =
+            crane.GetComponent<CraneWorkCycleController>();
+
+        if (controller == null)
+        {
+            controller =
+                crane.GetComponentInChildren<
+                    CraneWorkCycleController
+                >(true);
+        }
+
+        return controller;
+    }
+
+    private void SubscribeToCycleEvents()
+    {
+        if (!targetCycleSubscribed &&
+            targetCycleController != null)
+        {
+            targetCycleController.AllCyclesCompleted +=
+                HandleTargetAllCyclesCompleted;
+            targetCycleSubscribed = true;
+        }
+    }
+
+    private void UnsubscribeFromCycleEvents()
+    {
+        if (targetCycleSubscribed &&
+            targetCycleController != null)
+        {
+            targetCycleController.AllCyclesCompleted -=
+                HandleTargetAllCyclesCompleted;
+        }
+
+        targetCycleSubscribed = false;
     }
 
     private void ResolveWorkPhaseTrackers()
@@ -1271,7 +1568,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             $"Completed: {completedSwitchCount}\n" +
             $"Source: {sourceCondition.workPhase}, " +
             $"{sourceCondition.errorType}  ->  " +
-            $"Target: {targetCondition.workPhase}, " +
+            $"Target: " +
+            $"{(targetRunsFullCycle ? "FullCycle" : targetCondition.workPhase.ToString())}, " +
             $"{targetCondition.errorType}";
     }
 
@@ -1284,11 +1582,15 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             state = currentState,
             sourceCraneIndex = sourceCondition.craneIndex,
             targetCraneIndex = targetCondition.craneIndex,
-            sourcePhase = sourcePhaseTracker != null
-                ? sourcePhaseTracker.CurrentPhase
+            sourcePhase = sourceWorkPhaseTracker != null
+                ? sourceWorkPhaseTracker.CurrentMajorPhase
+                : sourcePhaseTracker != null
+                    ? sourcePhaseTracker.CurrentPhase
                 : sourceCondition.workPhase,
-            targetPhase = targetPhaseTracker != null
-                ? targetPhaseTracker.CurrentPhase
+            targetPhase = targetWorkPhaseTracker != null
+                ? targetWorkPhaseTracker.CurrentMajorPhase
+                : targetPhaseTracker != null
+                    ? targetPhaseTracker.CurrentPhase
                 : targetCondition.workPhase,
             sourceErrorType = sourceCondition.errorType,
             targetErrorType = targetCondition.errorType,
@@ -1332,6 +1634,25 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         {
             Debug.LogError("切替元と切替先には別のクレーンを指定してください。");
             return false;
+        }
+
+        if (targetRunsFullCycle && targetCycleController == null)
+        {
+            Debug.LogError(
+                "Target Runs Full CycleがONですが、Targetクレーンに" +
+                "CraneWorkCycleControllerがありません。",
+                this
+            );
+            return false;
+        }
+
+        if (sourceCycleController == null)
+        {
+            Debug.LogWarning(
+                "SourceのCraneWorkCycleControllerが見つかりません。" +
+                "復帰時は旧CraneWorkPhaseTracker経路を使用します。",
+                this
+            );
         }
 
         return true;
