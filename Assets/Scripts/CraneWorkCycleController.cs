@@ -354,9 +354,12 @@ public class CraneWorkCycleController : MonoBehaviour
             return false;
         }
 
-        // Task Switch中に別クレーンの目標が更新されても、
-        // Source復帰時は中断していたフェーズの目標を再適用します。
-        if (!ApplyTargetForPhase(currentPhase) && requireValidTarget)
+        // 中断前の目標はクレーンごとのTargetManagerが保持しています。
+        // Tracker引継ぎ時の実験目標とサイクル設定の地点が異なる場合も、
+        // フェーズ途中の復帰では保持中の座標をそのまま使用します。
+        // 目標が失われている場合だけ、サイクル設定から復元します。
+        if ((targetManager == null || !targetManager.HasTarget) &&
+            !ApplyTargetForPhase(currentPhase) && requireValidTarget)
         {
             isPaused = true;
 
