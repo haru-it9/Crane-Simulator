@@ -8,6 +8,12 @@ public class TaskSwitchVisualSettings
 {
     [Tooltip("右＋ / 左−、中立0の専用Input Manager軸。右の赤＝＋、左の赤＝−。")]
     public string pedalAxisName = "TaskSwitchPedal";
+    [Tooltip("＋／−キーを送る足ペダルを直接受け取る。設定した軸入力も継続。")]
+    public bool usePlusMinusKeys = true;
+    [Tooltip("右＋の物理キー。通常はEquals。テンキー＋も受理。")]
+    public KeyCode positivePedalKey = KeyCode.Equals;
+    [Tooltip("左−の物理キー。通常はMinus。テンキー−も受理。")]
+    public KeyCode negativePedalKey = KeyCode.Minus;
     public bool invertPedalAxis = false;
     [UnityEngine.Range(0.01f, 1f)] public float pressThreshold = 0.5f;
     [UnityEngine.Range(0f, 0.99f)] public float releaseThreshold = 0.2f;
@@ -22,6 +28,7 @@ public class TaskSwitchVisualSettings
     {
         return new TaskSwitchAuditorySettings {
             pedalAxisName = pedalAxisName, invertPedalAxis = invertPedalAxis,
+            usePlusMinusKeys = usePlusMinusKeys, positivePedalKey = positivePedalKey, negativePedalKey = negativePedalKey,
             pressThreshold = pressThreshold, releaseThreshold = releaseThreshold,
             minimumIntervalSeconds = minimumIntervalSeconds, maximumIntervalSeconds = maximumIntervalSeconds,
             minimumValidReactionSeconds = minimumValidReactionSeconds,

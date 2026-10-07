@@ -47,6 +47,8 @@ namespace UnityEngine
     public static class Mathf { public static float Max(float a,float b) => Math.Max(a,b); public static int Max(int a,int b) => Math.Max(a,b); public static float Abs(float v) => Math.Abs(v); public static float Clamp(float v,float a,float b) => Math.Min(b,Math.Max(a,v)); }
     public static class Input
     {
+        public static HashSet<KeyCode> keys = new HashSet<KeyCode>();
+        public static bool GetKey(KeyCode key) { return keys.Contains(key); }
         public static Dictionary<string,float> axes = new Dictionary<string,float>();
         public static Dictionary<string,bool> buttons = new Dictionary<string,bool>();
         public static string ErrorAxis;
@@ -77,6 +79,11 @@ namespace UnityEngine
     public class Min : Attribute { public Min(float v) {} }
     public class Range : Attribute { public Range(float a,float b) {} }
     public class HideInInspector : Attribute {}
+    public class TextArea : Attribute { public TextArea(int min,int max) {} }
+    public class ContextMenu : Attribute { public ContextMenu(string label) {} }
+    public enum KeyCode { None=0,Minus=45,Equals=61,Semicolon=59,KeypadMinus=269,KeypadPlus=270 }
+    public enum EventType { KeyDown,KeyUp,Repaint }
+    public class Event { public static Event current; public EventType type; public KeyCode keyCode; }
     public struct Color
     {
         public float r,g,b,a;

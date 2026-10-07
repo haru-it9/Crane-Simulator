@@ -8,7 +8,9 @@
 | 高音 / 低音 | 1000 Hz / 500 Hz |
 | 反応の対応 | 高音＝右＋、低音＝左− |
 | High Tone Uses Positive Pedal | ON。OFFで対応を反転 |
-| Invert Pedal Axis | OFF。機器の軸方向が逆の場合にON |
+| Use Plus Minus Keys | ON。通常キーとテンキーの＋/−を軸入力と併用 |
+| Positive / Negative Pedal Key | Equals / Minus。通常キーの物理キーコード。KeypadPlus / KeypadMinusも常に受理 |
+| Invert Pedal Axis | OFF。キーと軸を統合した入力の符号を反転 |
 | Press / Release Threshold | 0.5 / 0.2。中立に戻ってから次の押下を受理 |
 | Tone Duration / Volume | 0.2秒 / 0.2（AudioSourceの相対音量） |
 | Minimum / Maximum Interval | 3～5秒、音の予定開始時刻から次の開始時刻までを一様乱数で選択 |
@@ -20,16 +22,18 @@
 
 ## ペダルの接続
 
-新設の `TaskSwitchPedal` は機器未指定のため、初期設定では検証用の **`]` キー＝＋、`[` キー＝−** としています。既存のクレーン用ジョイスティックをペダルとして推測して割り当てることはしません。
+**キーボード型USBペダル**はUse Plus Minus KeysをONにして使用します。右の通常＋（物理Equalsキー）またはテンキー＋は+1、左の通常−またはテンキー−は−1として直接取得します。キー押下中は軸より優先します。キーコードが異なる場合はManagerのPedal Input DiagnosticsのLastKeyDownを見てPositive / Negative Pedal Keyを変更し、None→Auditoryで設定を適用してください。両キー同時押下は回答にせず、両方を離してから次の押下を受理します。
 
-実機では **Edit → Project Settings → Input Manager → Axes → TaskSwitchPedal** で以下を設定してください。
+`TaskSwitchPedal` 軸の初期設定は検証用の **`]` キー＝＋、`[` キー＝−** です。＋/−キーはこの軸の割当とは別に取得します。
+
+**軸型ペダル**ではUse Plus Minus KeysをOFFにして、**Edit → Project Settings → Input Manager → Axes → TaskSwitchPedal** で以下を設定してください。
 
 1. **Type = Joystick Axis**、**Joy Num** と **Axis** を使用するペダルのデバイス・軸番号に合わせる。
 2. **Gravity = 0 / Sensitivity = 1 / Snap = OFF** とし、Deadは機器のノイズに応じて設定する（初期値0.001）。キーボード割当は不要なら空欄にする。
 3. 未押下＝0、右ペダル＝＋、左ペダル＝−になることを確認する。軸方向が逆ならInput ManagerのInvertかサブタスクのInvert Pedal Axisのいずれか一方で反転する。
 4. 必要ならPress Threshold/Release Thresholdを実測範囲に合わせる。ReleaseはPressより小さくする。
 
-この実装は**1本の符号付き軸・中立0**を前提とします。左右が別々の軸、未押下が−1などの機器には、機器側または別の入力変換でこの形式へ合わせる必要があります。両ペダル同時押下は単一軸の値だけから識別できません。機器の型番・実際の軸番号は今回固定していません。
+軸型の入力は**1本の符号付き軸・中立0**を前提とします。左右が別々の軸、未押下が−1などの機器には、機器側または別の入力変換でこの形式へ合わせる必要があります。両ペダル同時押下は単一軸の値だけから識別できません。機器の型番・実際の軸番号は今回固定していません。
 
 ## 主タスク・一時停止との関係
 
@@ -40,7 +44,7 @@
 - 起動直後/一時停止解除直後は中立を一度観測するまで押下を受理しません。押しっぱなし、＋から中立を経ずに−へ変えた入力は新しい押下にしません。
 - 提示後の最初の有効な押下で判定を確定します。間違えてから正しい側を踏んでも正解に書き換えません。100 ms未満の反応も最初の反応として確定し、TooEarlyとして分けます。
 
-## CSV（schema_version = 6）
+## CSV（schema_version = 7）
 
 聴覚サブタスク用に以下の2ファイルを出力します（Pause区間を含めてセッションは計12ファイル）。サブタスクOFFでもヘッダーを作成し、提示/応答の行は書きません。
 
@@ -52,6 +56,8 @@
 `session.csv` に有効設定と設定JSON、`input.csv` にサブタスクの有効/動作状態・軸名・生ペダル値・次の押下を受理可能かを追加します。停止中・無効時のinputの生ペダル値は空欄です。ペダルイベントはManagerのUpdateごとに検出し、通常の0.05秒サンプル周期とは独立して記録します。
 
 共通キーは `session_id, participant_id, block_id, experiment_run_index`。提示はこれに `trial_index` を加えて識別します。trial_indexは実験内で増加し、有効化を切り替えても同じ番号に戻りません。実験再開始時にリセットします。`activation_index` はサブタスク有効化の回数です。提示と無関係なイベントのtrial_indexは空欄です。
+
+schema 7では音・視覚イベント/試行ファイルとinput.csvに `pedal_axis_raw, pedal_positive_key, pedal_negative_key, pedal_input_source, pedal_input_conflict, plus_minus_keys_enabled` を追加します。raw_pedalはキーまたは軸を統合した未反転値、pedal_axis_rawは元のInput Manager軸値です。SourceはAxis / PlusMinusKeys / ConflictingKeysで入力元を区別します。同時押下時のraw_pedalは空欄です。Pause中のinputの実入力列は空欄ですが、Inspectorの診断表示でライブ入力を確認できます。
 
 各行には以下を保存します。
 
@@ -82,6 +88,6 @@
 
 `Tests/TaskSwitchLogging/run.sh` は実際の判定・音生成/予約コード・CSV実装を代替Unity APIで実行します。正誤、早過ぎる入力、無反応、遅延入力、入力保持、中立復帰、軸反転、設定検証、音のフェード/長さ、早い反応で音が切れないこと、クレーン入力ロック中の応答、一時停止・再開、CSV停止、OFFを検証します。CSVの列数、結果行と元イベントの一致、欠測空欄、共通時計、提示時と応答時の切替状態もPythonで確認します。Unity Editor・実際のスピーカー・足ペダルでの実行は別途確認が必要です。
 
-## Pauseをまたぐ提示（schema 6）
+## Pauseをまたぐ提示（schema 7）
 
 PauseでTrialFinishedを発生させず、TrialPaused/TrialResumedを履歴に残します。結果行のpause_countはその提示がまたいだPauseの回数、paused_duration_sはその継続時間です。reaction_time_sはPauseを除いたDSP反応時間、wall_reaction_time_sは予定開始から応答フレームまでの壁時計の時間です。音開始前にPauseした場合はonset_estimated_real_sをそのPause分だけ先へ移し、反応時間に開始前のPauseを含めません。記録停止などによる最終打切りは従来通りInterrupted/CancelledBeforeOnsetで記録します。Pauseが介在した試行を分析で区別できるよう、pause_countを併用してください。Pause/Startの詳細は [TaskSwitchPause.md](TaskSwitchPause.md) を参照してください。

@@ -6,6 +6,12 @@ public class TaskSwitchAuditorySettings
 {
     [Tooltip("右＋ / 左−、中立0の専用Input Manager軸。")]
     public string pedalAxisName = "TaskSwitchPedal";
+    [Tooltip("キーボードを模擬する足ペダルの＋／−キーを直接受け取る。設定した軸入力も継続。")]
+    public bool usePlusMinusKeys = true;
+    [Tooltip("右＋の物理キー。UnityのUse Physical KeysがONなら通常の＋はEquals。テンキー＋も受理。")]
+    public KeyCode positivePedalKey = KeyCode.Equals;
+    [Tooltip("左−の物理キー。テンキー−も受理。違うキーを送る機器はここで変更。")]
+    public KeyCode negativePedalKey = KeyCode.Minus;
     public bool invertPedalAxis = false;
     public bool highToneUsesPositivePedal = true;
     [UnityEngine.Range(0.01f, 1f)] public float pressThreshold = 0.5f;
@@ -32,6 +38,7 @@ public class TaskSwitchAuditorySettings
     public string ValidatePedalAndTiming(bool hasResponseDeadline = true)
     {
         if (string.IsNullOrWhiteSpace(pedalAxisName)) return "Pedal Axis Name is empty";
+        if (usePlusMinusKeys && positivePedalKey != KeyCode.None && positivePedalKey == negativePedalKey) return "Positive and negative pedal keys must differ";
         if (!(releaseThreshold >= 0 && releaseThreshold < pressThreshold && pressThreshold <= 1)) return "Require 0 <= release < press <= 1";
         if (!(minimumValidReactionSeconds >= 0 && !float.IsInfinity(minimumValidReactionSeconds))) return "Invalid minimum reaction time";
         if (hasResponseDeadline && !(minimumValidReactionSeconds < responseTimeoutSeconds)) return "Invalid reaction time limits";
@@ -59,6 +66,9 @@ public class TaskSwitchAuditoryEvent
     public string FirstResponseOutcome = "";
     public bool? FirstResponseCorrect;
     public double FirstReactionSeconds = double.NaN, FirstResponseReal = double.NaN, FirstWallReactionSeconds = double.NaN;
+    public float PedalAxisRaw;
+    public bool PedalPositiveKey, PedalNegativeKey, PedalInputConflict;
+    public string PedalInputSource = "";
 }
 
 // Pure state machine: a pedal must return to neutral before another press is accepted.
@@ -81,6 +91,8 @@ public sealed class TaskSwitchAuditoryTrial
     public bool HasPendingTrial => pending;
     public bool PedalArmed => armed;
     public int LastTrialIndex => sequence;
+    public string CurrentStimulus => pending && presented ? tone : "";
+    public int CurrentExpectedSign => pending && presented ? expected : 0;
     public event Action<TaskSwitchAuditoryEvent> EventOccurred;
 
     public TaskSwitchAuditoryTrial(TaskSwitchAuditorySettings settings, int firstIndex = 0, bool finishOnCorrectSideOnly = false)

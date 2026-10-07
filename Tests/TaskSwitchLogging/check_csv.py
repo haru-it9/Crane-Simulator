@@ -26,7 +26,7 @@ for folder in folders:
 d = next(data for data in all_data if data['crane_state'])
 assert not d['auditory_subtask'] and not d['auditory_trials'], 'disabled subtask must produce no trials'
 assert not d['visual_subtask'] and not d['visual_trials']
-assert all(r['schema_version'] == '6' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
+assert all(r['schema_version'] == '7' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
 assert len(d['switch_summary']) == 3
 complete, incomplete, no_input = d['switch_summary']
 assert complete['outcome'] == 'Completed'
@@ -172,7 +172,7 @@ for path in visual_folder.glob('*.csv'):
     assert all(r['participant_id'] == 'P04' and r['block_id'] == 'visual' for r in visual_data[path.stem])
 assert len({r['session_id'] for data in visual_data.values() for r in data}) == 1
 assert not visual_data['auditory_subtask'] and not visual_data['auditory_trials'], 'visual mode emitted auditory events'
-assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '6' for r in visual_data['session'])
+assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '7' for r in visual_data['session'])
 trials = visual_data['visual_trials']
 history = visual_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
@@ -245,3 +245,34 @@ for image_id, rect_id, go_id, side, x in [('9000001004', '9000001002', '90000010
     assert f'm_AnchoredPosition: {{x: {x}, y: 140}}' in blocks[rect_id]
     assert f'{{fileID: {rect_id}}}' in blocks['1796973733']
 print('PASS: Unity scene marker references, left/right placement, blue initial state, hidden auditory-mode UI and noninteractive Images')
+
+# Keyboard-emulating pedals must be scored when the legacy TaskSwitchPedal axis is still zero.
+keyboard_folder, = root.glob('keyboard-pedal-test_*')
+keyboard_data = {}
+assert {p.name for p in keyboard_folder.iterdir()} == required
+for path in keyboard_folder.glob('*.csv'):
+    with path.open(encoding='utf-8-sig', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert len(set(rows[0])) == len(rows[0]) and all(len(r) == len(rows[0]) for r in rows[1:]), path
+    keyboard_data[path.stem] = [dict(zip(rows[0], r)) for r in rows[1:]]
+    assert all(r['participant_id'] == 'P05' and r['block_id'] == 'pedal_keys' for r in keyboard_data[path.stem])
+assert all(r['schema_version'] == '7' for r in keyboard_data['session'])
+trials = keyboard_data['visual_trials']
+history = keyboard_data['visual_subtask']
+assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
+assert [r['outcome'] for r in trials] == ['Correct', 'Correct', 'Correct', 'CancelledBeforeOnset', 'Correct', 'CancelledBeforeOnset']
+assert all(r['pedal_axis_raw'] == '0.000000' and r['pedal_input_source'] == 'PlusMinusKeys' and
+           r['plus_minus_keys_enabled'] == '1' and abs(float(r['raw_pedal'])) == 1 for r in trials[:3])
+assert trials[0]['response_count'] == '2' and trials[0]['first_response_correct'] == '0'
+assert trials[1]['pause_count'] == '1' and trials[1]['reaction_time_s'] == '0.400000' and trials[1]['paused_duration_s'] == '5.000000'
+assert trials[4]['pedal_input_source'] == 'Axis' and trials[4]['plus_minus_keys_enabled'] == '0' and abs(float(trials[4]['pedal_axis_raw'])) == .8
+for row in (r for r in history if r['event_type'] == 'PedalPressed' and r['pedal_input_source'] == 'PlusMinusKeys'):
+    assert row['pedal_input_conflict'] == '0'
+    assert int(row['pedal_positive_key']) + int(row['pedal_negative_key']) == 1
+    assert int(row['response_sign']) == (1 if row['pedal_positive_key'] == '1' else -1)
+inputs = keyboard_data['input']
+assert any(r['pedal_input_conflict'] == '1' and r['raw_pedal'] == '' and r['pedal_armed'] == '0' for r in inputs), 'simultaneous pedals looked neutral/armed'
+assert any(r['pedal_input_source'] == 'PlusMinusKeys' and r['pedal_axis_raw'] == '0.000000' for r in inputs)
+assert all(r['pedal_axis_raw'] == r['pedal_positive_key'] == r['pedal_negative_key'] == r['raw_pedal'] == ''
+           for r in inputs if r['global_paused'] == '1'), 'paused unpolled input was reported as live'
+print('PASS: keyboard pedal CSV zero-axis/nonzero-response provenance, wrong-then-correct trial, paused input blanks, simultaneous-key conflict and axis-only compatibility')

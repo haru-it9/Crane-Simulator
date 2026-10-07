@@ -19,7 +19,9 @@ RemoteManagementScene(union)の `TaskSwitchUIRoot/TouchPanel/TextandButton` に 
 | Visual Settings | 既定値 / 動作 |
 | --- | --- |
 | Pedal Axis Name | `TaskSwitchPedal`。右＋ / 左−、中立0の1本の軸 |
-| Invert Pedal Axis | OFF。機器の軸方向が逆の場合にON |
+| Use Plus Minus Keys | ON。通常キーとテンキーの＋/−を軸入力と併用 |
+| Positive / Negative Pedal Key | Equals / Minus。通常キーの物理キーコード。KeypadPlus / KeypadMinusも常に受理 |
+| Invert Pedal Axis | OFF。キーと軸を統合した入力の符号を反転 |
 | Press / Release Threshold | 0.5 / 0.2。中立を観測してから次の押下を受理 |
 | Minimum / Maximum Interval | 2～5秒。初回は開始からの待ち、その後は正しい側の押下で青に戻った時点からの待ちを一様乱数で選択 |
 | Minimum Valid Reaction | 0.1秒。これ未満の入力はTooEarlyとして記録。早い入力でも正しい側なら青に戻り、誤った側なら赤を維持 |
@@ -27,7 +29,13 @@ RemoteManagementScene(union)の `TaskSwitchUIRoot/TouchPanel/TextandButton` に 
 
 設定は有効化時にコピーします。実行中に数値を変更した場合は、Noneを経由してVisualへ戻すか、実験を再開始して適用してください。フレーム停止で次の予定時刻を過ぎた場合は、再開フレームで一度だけ赤にします。回答待ちの間に次の提示を予約しないため、過去の提示をまとめて出しません。UIの未割当・非表示、軸設定やタイミングの不整合はSubtaskErrorで記録して視覚タスクを停止します。主作業の状態は変更しません。修正後は実験またはCSVを再開始してください。
 
-ペダルの実機設定は [TaskSwitchAuditorySubtask.md](TaskSwitchAuditorySubtask.md) の「ペダルの接続」と共通です。未設定時の検証用入力は `]`＝右＋、`[`＝左−です。機器の軸番号は自動推定しません。
+ペダルの実機設定は [TaskSwitchAuditorySubtask.md](TaskSwitchAuditorySubtask.md) の「ペダルの接続」と共通です。キーボード型USBペダルの＋/−を直接受け取り、通常キーとテンキーの両方に対応します。既存の `]`＝右＋、`[`＝左−という検証用軸入力も使用できます。機器の軸番号は自動推定しません。
+
+## 入力が反応しない場合
+
+Play中のManagerの **Pedal Input Diagnostics** に、入力元（Source）、元の軸値（AxisRaw）、＋/−キー状態、反転後の値（Effective）、入力受付状態（Armed）、回答待ちの側（Expected）、直前の判定（LastResponse）、直前に押された物理キー（LastKeyDown）、エラーを表示します。Gameビューを選択してペダルを押し、入力値が変わるか確認してください。Inspectorを見る間にGameビューのフォーカスが外れる場合は、コンポーネントのメニューから **Log Pedal Input Status** でConsoleへ状態を出力できます。
+
+＋/−でキー状態が変わらない場合はLastKeyDownを確認し、Positive / Negative Pedal Keyを実際のキーコードへ設定してください（キーボード配列や機器設定で異なる場合があります）。設定変更後はNone→Visualで適用します。Armed=Falseなら両ペダルを離してから踏み直します。Pause中の表示は診断用で、回答には使用しません。両キー同時押下はConflict=Trueとなり、両方を離すまで新しい回答を受理しません。
 
 ## Pauseと作業切替
 
@@ -35,7 +43,7 @@ RemoteManagementScene(union)の `TaskSwitchUIRoot/TouchPanel/TextandButton` に 
 
 全体Pauseでは、現在の色・未提示の残り待ち・提示済みの回答待ちを保持します。停止中の入力は判定しません。Startで同じ提示から再開し、再開後に中立を観測してから次の押下を受理します。赤のままPauseしても新しい提示に置き換えません。開始前にPauseした場合も、残り待ちを再開します。停止時間は反応時間に含めません。
 
-## CSV（schema_version = 6）
+## CSV（schema_version = 7）
 
 保存先とセッション識別は [TaskSwitchLogging.md](TaskSwitchLogging.md) と共通です。既定の保存先は `C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData\` のセッションフォルダです。
 
@@ -60,6 +68,8 @@ visual_subtask.csvのPedalPressedには全回答を記録します。Incorrect�
 
 視覚では時間切れによるMissやLateResponseを自動生成しません。無回答の赤が記録停止などで終了した場合はInterrupted、まだ青の待ち中ならCancelledBeforeOnsetです。中断時に最終反応時間を0にせず空欄にし、既にあった初回回答は残します。presentedとoutcomeで分析対象を選んでください。音の従来の回答期限・Miss判定は維持します。
 
+schema 7では音・視覚のイベント/試行ファイルとinput.csvに `pedal_axis_raw, pedal_positive_key, pedal_negative_key, pedal_input_source, pedal_input_conflict, plus_minus_keys_enabled` を追加します。raw_pedalはキーまたは軸を統合した未反転値、pedal_axis_rawはInput Managerの元値です。SourceはAxis / PlusMinusKeys / ConflictingKeys。キーによる回答では元軸が0でも応答できます。同時押下のraw_pedalは空欄で、conflict列で識別します。Pause中のinput.csvの実入力列は空欄です。
+
 ## 検証
 
-`Tests/TaskSwitchLogging/run.sh` で実際の判定・スケジュール・UI色設定・CSV実装を代替Unity APIで実行します。左右とペダル対応、誤回答を繰り返してからの訂正、早すぎる応答、無反応でも赤を維持すること、中立復帰、入力保持、描画フレーム遅延、音声デバイス/DSPに依存しない動作、主操作ロック、Pause前後の同じ提示と初回回答の保持、青から2～5秒のランダム待ち、ランダムな左右、記録停止、3択の切替、旧設定の移行を検証します。CSVの列数、元イベントと結果行の一致、作業切替文脈、Pause時間、欠測、シーンの左右参照と配置も確認します。Unity Editorでの描画・実際のディスプレイと足ペダルの動作は未確認です。時刻はUnityのフレーム観測であり、物理的な発光/ペダル接点の外部測定値ではありません。
+`Tests/TaskSwitchLogging/run.sh` で実際の判定・スケジュール・UI色設定・CSV実装を代替Unity APIで実行します。通常キー/テンキーの＋/−、カスタムキー、軸値0からの回答、両キー同時押下、中立復帰後の訂正、軸のみの設定、診断表示、左右とペダル対応、誤回答を繰り返してからの訂正、早すぎる応答、無反応でも赤を維持すること、中立復帰、入力保持、描画フレーム遅延、音声デバイス/DSPに依存しない動作、主操作ロック、Pause前後の同じ提示と初回回答の保持、青から2～5秒のランダム待ち、ランダムな左右、記録停止、3択の切替、旧設定の移行を検証します。CSVの列数、元イベントと結果行の一致、作業切替文脈、Pause時間、欠測、シーンの左右参照と配置も確認します。Unity Editorでの描画・実際のディスプレイと足ペダルの動作は未確認です。時刻はUnityのフレーム観測であり、物理的な発光/ペダル接点の外部測定値ではありません。

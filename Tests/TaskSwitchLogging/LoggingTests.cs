@@ -85,6 +85,7 @@ class LoggingTests
         AuditorySubtaskTests.Run(output);
         PauseTests.Run(output);
         VisualSubtaskTests.Run(output);
+        PedalInputTests.Run(output);
         Console.WriteLine(first);return 0;
     }
 }

@@ -80,7 +80,7 @@ public partial class TaskSwitchExperimentCsvLogger
         displayLayout = FindObjectOfType<DisplayLayoutManager>(true);
         sessionFile = Open("session", IdentityHeader + ",record_type,utc_timestamp,real_elapsed_s,operator_file_label,schema_version,unity_version,application_version,source_revision,scene,switch_method,source_crane_index,target_crane_index,target_runs_full_cycle,sample_interval_s,active_crane_count,movement_dead_zone,manager_configuration_json,operation_configuration_json,aoi_configuration_json,source_total_cycle_count,countdown_s,switch_schedule_csv,auditory_subtask_enabled,auditory_configuration_json,secondary_task_mode,visual_subtask_enabled,visual_configuration_json");
         stateFile = Open("crane_state", SampleHeader + ",crane_index,role,cycle_instance_id,cycle_number,phase,step,monitoring,cycle_running,cycle_paused,boundary_waiting,step_elapsed_s,condition_stable_s,position_condition_latched,position_exit_hysteresis,world_x,world_y,world_z,target_world_x,target_world_z,signed_error_x,signed_error_z,abs_error_x,abs_error_z,display_x,display_z,attached_board_count,attached_weight_kg,pickup_target_weight_kg,placement_remaining_target_kg,pickup_weight_error_kg,electric_current_a,required_current_a,lift_capacity_kg,safe_current_hold_active,maximum_current_a,safe_hold_release_threshold_a,step_configuration_json,display_weight_ton,x_highlighted,z_highlighted,weight_highlighted,achievement_frame,display_align_tolerance,x_within_display_tolerance,z_within_display_tolerance");
-        inputFile = Open("input", SampleHeader + ",input_mode,movement_dead_zone,joystick2_horizontal,joystick2_vertical,joystick3_vertical,joystick3_slider,slider_axis,raw_current_slider,requested_current_a,requested_move_x,requested_move_y,requested_move_z,requested_spread,last_accepted_move_x,last_accepted_move_y,last_accepted_move_z,last_accepted_spread,accepted_command_frame,command_accepted_this_frame,applied_current_a,safe_current_hold_active,confirmation_button,detach_button,auditory_subtask_enabled,auditory_subtask_running,pedal_axis,raw_pedal,pedal_armed,secondary_task_mode,visual_subtask_enabled,visual_subtask_running,visual_left_red,visual_right_red");
+        inputFile = Open("input", SampleHeader + ",input_mode,movement_dead_zone,joystick2_horizontal,joystick2_vertical,joystick3_vertical,joystick3_slider,slider_axis,raw_current_slider,requested_current_a,requested_move_x,requested_move_y,requested_move_z,requested_spread,last_accepted_move_x,last_accepted_move_y,last_accepted_move_z,last_accepted_spread,accepted_command_frame,command_accepted_this_frame,applied_current_a,safe_current_hold_active,confirmation_button,detach_button,auditory_subtask_enabled,auditory_subtask_running,pedal_axis,raw_pedal,pedal_armed,secondary_task_mode,visual_subtask_enabled,visual_subtask_running,visual_left_red,visual_right_red,pedal_axis_raw,pedal_positive_key,pedal_negative_key,pedal_input_source,pedal_input_conflict,plus_minus_keys_enabled");
         gazeFile = Open("gaze", SampleHeader + ",is_connected,app_focused,is_valid,game_screen_x,game_screen_y,clamped_game_screen_x,clamped_game_screen_y,viewport_x,viewport_y,raw_screen_x,raw_screen_y,screen_width,screen_height,aoi,aoi_layout_json");
         switchFile = Open("switch_summary", IdentityHeader + ",switch_index,switch_method,outcome,logical_completed,source_input_observed,source_phase_at_suspend,source_step_at_suspend,source_cycle_at_suspend,step_elapsed_at_suspend_s,position_latched_at_suspend,board_count_at_suspend,target_input_held_at_unlock,source_input_held_at_unlock,weight_invalidations,current_drop_events," + TaskSwitchTimingSummary.Header);
         cycleFile = Open("cycle_summary", IdentityHeader + ",cycle_instance_id,crane_index,cycle_number,switch_index_at_start,first_phase,outcome,start_s,end_s,elapsed_s,monitoring_s,control_available_s,global_pause_s,steps_completed,weight_invalidations,current_drop_events,rollbacks,duration_sampled_until_s");
@@ -121,7 +121,7 @@ public partial class TaskSwitchExperimentCsvLogger
     {
         if (sessionFile == null) return;
         sessionFile.Write(Join(Identity(), type, DateTime.UtcNow.ToString("O"), RealSeconds, operatorFileLabel,
-            6, Application.unityVersion, Application.version, BuildRevision,
+            7, Application.unityVersion, Application.version, BuildRevision,
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
             taskSwitchExperimentManager.SwitchMethod, taskSwitchExperimentManager.SourceCondition.craneIndex,
             taskSwitchExperimentManager.TargetCondition.craneIndex, taskSwitchExperimentManager.TargetRunsFullCycle,
@@ -482,6 +482,8 @@ public partial class TaskSwitchExperimentCsvLogger
         Vector3 command = craneOperationManager != null ? craneOperationManager.ReadMovementCommand() : Vector3.zero;
         Vector3 accepted = craneOperationManager != null ? craneOperationManager.LastAcceptedMovement : Vector3.zero;
         int acceptedFrame = craneOperationManager != null ? craneOperationManager.LastAcceptedInputFrame : -1;
+        bool hasPedalSample = taskSwitchExperimentManager.SecondarySubtaskRunning && !ExperimentPauseManager.IsPaused && SimulatorStartManager.IsOperationEnabled;
+        TaskSwitchPedalSample pedalSample = taskSwitchExperimentManager.SecondaryPedalSample;
         inputFile.Write(Join(context, craneOperationManager != null ? craneOperationManager.MovementInputMode : "Unknown",
             craneOperationManager != null ? (object)craneOperationManager.MovementDeadZone : null,
             Input.GetAxis("JoyStick2Horizontal"), Input.GetAxis("JoyStick2Vertical"), Input.GetAxis("JoyStick3Vertical"), Input.GetAxis("JoyStick3Slider"),
@@ -495,7 +497,10 @@ public partial class TaskSwitchExperimentCsvLogger
             taskSwitchExperimentManager.SecondarySubtaskRunning && !ExperimentPauseManager.IsPaused && SimulatorStartManager.IsOperationEnabled ? (object)taskSwitchExperimentManager.SecondaryRawPedal : null,
             taskSwitchExperimentManager.SecondarySubtaskRunning && taskSwitchExperimentManager.SecondaryPedalArmed,
             taskSwitchExperimentManager.SecondaryTaskMode, taskSwitchExperimentManager.VisualSubtaskEnabled,
-            taskSwitchExperimentManager.VisualSubtaskRunning, taskSwitchExperimentManager.VisualLeftRed, taskSwitchExperimentManager.VisualRightRed));
+            taskSwitchExperimentManager.VisualSubtaskRunning, taskSwitchExperimentManager.VisualLeftRed, taskSwitchExperimentManager.VisualRightRed,
+            hasPedalSample ? (object)pedalSample.AxisRaw : null, hasPedalSample ? (object)pedalSample.PositiveKey : null,
+            hasPedalSample ? (object)pedalSample.NegativeKey : null, hasPedalSample ? pedalSample.Source : "",
+            hasPedalSample ? (object)pedalSample.ConflictingKeys : null, taskSwitchExperimentManager.SecondaryPlusMinusKeysEnabled));
     }
     [Serializable] private class GazeLayout { public List<GazeRectangle> areas = new List<GazeRectangle>(); }
     [Serializable] private class GazeRectangle { public string label; public bool active; public Vector2[] screenCorners; }

@@ -9,6 +9,7 @@ trap 'rm -rf "$output"' EXIT
     "$root/Assets/Scripts/TaskSwitchAuditorySubtask.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentManager.AuditorySubtask.cs" \
     "$root/Assets/Scripts/TaskSwitchVisualSubtask.cs" \
+    "$root/Assets/Scripts/TaskSwitchPedalInput.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentManager.VisualSubtask.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentCsvLogger.VisualSubtask.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentCsvLogger.AuditorySubtask.cs" \
@@ -19,6 +20,7 @@ trap 'rm -rf "$output"' EXIT
     "$root/Tests/TaskSwitchLogging/PauseTests.cs" \
     "$root/Tests/TaskSwitchLogging/AuditorySubtaskTests.cs" \
     "$root/Tests/TaskSwitchLogging/VisualSubtaskTests.cs" \
+    "$root/Tests/TaskSwitchLogging/PedalInputTests.cs" \
     "$root/Tests/TaskSwitchLogging/UnityStubs.cs" "$root/Tests/TaskSwitchLogging/LoggingTests.cs"
 "${MONO:-mono}" "$output/test.exe" "$output/data"
 python3 "$root/Tests/TaskSwitchLogging/check_csv.py" "$output/data"

@@ -15,6 +15,12 @@ public partial class TaskSwitchExperimentManager
     [SerializeField] private Image visualLeftIndicator;
     [Tooltip("作業情報パネル右側のImage。Visual以外では非表示。Raycastを無効にします。")]
     [SerializeField] private Image visualRightIndicator;
+    [Header("Pedal Input Check / ペダル入力確認")]
+    [Tooltip("Play中の実入力・判定状態。Pause中も入力値だけ確認でき、回答判定は停止します。")]
+    [SerializeField, TextArea(5, 12)] private string pedalInputDiagnostics = "Enter Play Mode to check pedal input.";
+    private string secondaryPedalLastOutcome = "", secondaryPedalError = "";
+    private string secondaryLastKeyDown = "";
+    private TaskSwitchPedalSample visualPedalSample;
 
     private TaskSwitchVisualSettings visualRunSettings;
     private TaskSwitchAuditoryTrial visualTrial;
@@ -41,6 +47,10 @@ public partial class TaskSwitchExperimentManager
         ? (VisualRunSettings != null ? VisualRunSettings.pedalAxisName : "") : AuditoryPedalAxis;
     public float SecondaryRawPedal => visualRunning ? visualRawPedal : auditoryRawPedal;
     public bool SecondaryPedalArmed => visualRunning ? visualTrial.PedalArmed : auditoryRunning && AuditoryPedalArmed;
+    public TaskSwitchPedalSample SecondaryPedalSample => visualRunning || VisualSubtaskEnabled ? visualPedalSample : auditoryPedalSample;
+    public string PedalInputDiagnostics => pedalInputDiagnostics;
+    public bool SecondaryPlusMinusKeysEnabled => SecondaryTaskMode != TaskSwitchSecondaryTaskMode.None &&
+        (visualRunning || VisualSubtaskEnabled ? VisualRunSettings != null && VisualRunSettings.usePlusMinusKeys : AuditoryRunSettings != null && AuditoryRunSettings.usePlusMinusKeys);
     public event Action<TaskSwitchAuditoryEvent> VisualSubtaskEventOccurred;
 
     private void MigrateSecondaryTaskSelection()
@@ -72,6 +82,7 @@ public partial class TaskSwitchExperimentManager
         ResetAuditoryExperiment();
         visualLastTrialIndex = visualActivationIndex = 0;
         visualSuppressed = false;
+        secondaryPedalError = secondaryPedalLastOutcome = "";
     }
     public void SuspendSecondaryForLoggingStop()
     {
@@ -81,6 +92,7 @@ public partial class TaskSwitchExperimentManager
     public void ResumeSecondaryForLoggingStart()
     {
         auditorySuppressed = visualSuppressed = false;
+        secondaryPedalError = "";
         StartSecondarySubtask();
     }
     private void StartSecondarySubtask()
@@ -97,6 +109,7 @@ public partial class TaskSwitchExperimentManager
         if (!VisualSubtaskEnabled && visualRunning) StopVisualSubtask("InspectorDisabled");
         UpdateAuditorySubtask();
         UpdateVisualSubtask();
+        UpdatePedalDiagnostics();
     }
     private void StopSecondarySubtask(string reason)
     {
@@ -123,7 +136,7 @@ public partial class TaskSwitchExperimentManager
             if (error != null) throw new InvalidOperationException(error);
             if (visualRunSettings.randomSeed == 0) visualRunSettings.randomSeed = Guid.NewGuid().GetHashCode();
             visualRandom = new System.Random(visualRunSettings.randomSeed);
-            visualRawPedal = Input.GetAxisRaw(visualRunSettings.pedalAxisName);
+            ReadVisualPedal();
             visualTrial = new TaskSwitchAuditoryTrial(visualRunSettings.PedalSettings(), visualLastTrialIndex, true);
             visualTrial.EventOccurred += HandleVisualTrialEvent;
             SetVisualColors(false, false);
@@ -166,7 +179,8 @@ public partial class TaskSwitchExperimentManager
         try
         {
             ValidateVisualVisibility();
-            visualRawPedal = Input.GetAxisRaw(visualRunSettings.pedalAxisName);
+            ReadVisualPedal();
+            if (visualPedalSample.ConflictingKeys) visualTrial.RequireNeutral();
             double clock = ExperimentPauseManager.ActiveRealtime, real = Time.realtimeSinceStartupAsDouble;
             if (visualWaitingForOnset && clock >= visualScheduledClock)
             {
@@ -209,6 +223,8 @@ public partial class TaskSwitchExperimentManager
     {
         data.PlannedOnsetClock = visualScheduledClock; data.PlannedOnsetReal = visualScheduledReal;
         data.VisualLeftRed = visualLeftRed; data.VisualRightRed = visualRightRed;
+        AddPedalInputContext(data, visualPedalSample);
+        RememberPedalOutcome(data);
         VisualSubtaskEventOccurred?.Invoke(data);
     }
     private void EmitVisualLifecycle(string type, string detail)
@@ -251,6 +267,59 @@ public partial class TaskSwitchExperimentManager
         StopVisualSubtask("ConfigurationError");
         visualSuppressed = true;
         Debug.LogError("Visual subtask disabled: " + reason);
+        secondaryPedalError = reason;
         EmitVisualLifecycle("SubtaskError", reason);
+    }
+    private void ReadVisualPedal()
+    {
+        visualPedalSample = TaskSwitchPedalInput.Read(visualRunSettings.pedalAxisName, visualRunSettings.usePlusMinusKeys,
+            visualRunSettings.positivePedalKey, visualRunSettings.negativePedalKey);
+        visualRawPedal = visualPedalSample.Value;
+        secondaryPedalError = "";
+    }
+    private void AddPedalInputContext(TaskSwitchAuditoryEvent data, TaskSwitchPedalSample sample)
+    {
+        data.PedalAxisRaw = sample.AxisRaw; data.PedalPositiveKey = sample.PositiveKey; data.PedalNegativeKey = sample.NegativeKey;
+        data.PedalInputConflict = sample.ConflictingKeys; data.PedalInputSource = sample.Source;
+    }
+    private void RememberPedalOutcome(TaskSwitchAuditoryEvent data)
+    {
+        if (data.EventType == "PedalPressed") secondaryPedalLastOutcome = data.Outcome + " (sign=" + data.ResponseSign + ")";
+    }
+    private void UpdatePedalDiagnostics()
+    {
+        TaskSwitchAuditorySettings settings = VisualSubtaskEnabled ? VisualRunSettings?.PedalSettings() : AuditoryRunSettings;
+        TaskSwitchPedalSample sample = SecondaryPedalSample;
+        // Observe live input while paused/idle without changing the trial's neutral gate or CSV samples.
+        if (settings != null && SecondaryTaskMode != TaskSwitchSecondaryTaskMode.None && string.IsNullOrEmpty(secondaryPedalError))
+        {
+            try { sample = TaskSwitchPedalInput.Read(settings.pedalAxisName, settings.usePlusMinusKeys, settings.positivePedalKey, settings.negativePedalKey); }
+            catch (Exception exception) { secondaryPedalError = exception.Message; }
+        }
+        string expected = visualLeftRed ? "Left (-)" : visualRightRed ? "Right (+)" : "Waiting for stimulus";
+        if (auditoryRunning && auditoryTrial.CurrentExpectedSign != 0)
+            expected = auditoryTrial.CurrentStimulus + (auditoryTrial.CurrentExpectedSign > 0 ? " / Right (+)" : " / Left (-)");
+        float effective = settings != null && settings.invertPedalAxis ? -sample.Value : sample.Value;
+        pedalInputDiagnostics = "Mode=" + SecondaryTaskMode + ", Running=" + SecondarySubtaskRunning + ", Paused=" + ExperimentPauseManager.IsPaused +
+            ", Focused=" + Application.isFocused + ", OperationEnabled=" + SimulatorStartManager.IsOperationEnabled +
+            "\nAxis=" + SecondaryPedalAxis + ", AxisRaw=" + sample.AxisRaw.ToString("F3", System.Globalization.CultureInfo.InvariantCulture) +
+            ", Source=" + sample.Source + "\nPlusKey=" + sample.PositiveKey + ", MinusKey=" + sample.NegativeKey + ", Conflict=" + sample.ConflictingKeys +
+            ", Effective=" + effective.ToString("F3", System.Globalization.CultureInfo.InvariantCulture) +
+            "\nArmed=" + SecondaryPedalArmed + ", Expected=" + expected + ", LastResponse=" + secondaryPedalLastOutcome +
+            "\nRightKey=" + (settings != null ? settings.positivePedalKey.ToString() : "") +
+            ", LeftKey=" + (settings != null ? settings.negativePedalKey.ToString() : "") + ", LastKeyDown=" + secondaryLastKeyDown +
+            ", Error=" + secondaryPedalError;
+    }
+    // Observe the actual physical key code for keyboard-emulating pedals/layouts; do not consume the event.
+    private void OnGUI()
+    {
+        if (Event.current != null && Event.current.type == EventType.KeyDown && Event.current.keyCode != KeyCode.None)
+            secondaryLastKeyDown = Event.current.keyCode.ToString();
+    }
+    [ContextMenu("Log Pedal Input Status")]
+    private void LogPedalInputStatus()
+    {
+        UpdatePedalDiagnostics();
+        Debug.Log(pedalInputDiagnostics);
     }
 }

@@ -29919,6 +29919,9 @@ MonoBehaviour:
   visualRightIndicator: {fileID: 9000001008}
   visualSubtask:
     pedalAxisName: TaskSwitchPedal
+    usePlusMinusKeys: 1
+    positivePedalKey: 61
+    negativePedalKey: 45
     invertPedalAxis: 0
     pressThreshold: 0.5
     releaseThreshold: 0.2
@@ -29928,6 +29931,9 @@ MonoBehaviour:
     randomSeed: 0
   auditorySubtask:
     pedalAxisName: TaskSwitchPedal
+    usePlusMinusKeys: 1
+    positivePedalKey: 61
+    negativePedalKey: 45
     invertPedalAxis: 0
     highToneUsesPositivePedal: 1
     pressThreshold: 0.5

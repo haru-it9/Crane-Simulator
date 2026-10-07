@@ -17,6 +17,7 @@ public partial class TaskSwitchExperimentManager
     private int auditoryLastTrialIndex, auditoryActivationIndex;
     private double auditoryLastScheduledDsp = double.NaN;
     private float auditoryRawPedal;
+    private TaskSwitchPedalSample auditoryPedalSample;
 
     public bool AuditorySubtaskEnabled => SecondaryTaskMode == TaskSwitchSecondaryTaskMode.Auditory;
     public bool AuditorySubtaskRunning => auditoryRunning;
@@ -53,7 +54,7 @@ public partial class TaskSwitchExperimentManager
             if (error != null) throw new InvalidOperationException(error);
             if (auditoryRunSettings.randomSeed == 0) auditoryRunSettings.randomSeed = Guid.NewGuid().GetHashCode();
             auditoryRandom = new System.Random(auditoryRunSettings.randomSeed);
-            auditoryRawPedal = Input.GetAxisRaw(auditoryRunSettings.pedalAxisName);
+            ReadAuditoryPedal();
             DisposeAuditoryClips();
             auditoryLowClip = CreateAuditoryTone("TaskSwitchLow", auditoryRunSettings.lowToneHz, sampleRate);
             auditoryHighClip = CreateAuditoryTone("TaskSwitchHigh", auditoryRunSettings.highToneHz, sampleRate);
@@ -112,7 +113,8 @@ public partial class TaskSwitchExperimentManager
         if (!auditoryRunning || auditoryPaused) return;
         try
         {
-            auditoryRawPedal = Input.GetAxisRaw(auditoryRunSettings.pedalAxisName);
+            ReadAuditoryPedal();
+            if (auditoryPedalSample.ConflictingKeys) auditoryTrial.RequireNeutral();
             auditoryTrial.Tick(AudioSettings.dspTime, Time.realtimeSinceStartupAsDouble, auditoryRawPedal);
             // Changing AudioSource.clip before the current tone ends would truncate an early-response tone.
             if (!auditoryTrial.HasPendingTrial && AudioSettings.dspTime >= auditoryLastScheduledDsp + auditoryRunSettings.toneDurationSeconds + 0.05)
@@ -144,12 +146,16 @@ public partial class TaskSwitchExperimentManager
     private void HandleAuditoryTrialEvent(TaskSwitchAuditoryEvent data)
     {
         auditoryLastTrialIndex = auditoryTrial.LastTrialIndex;
+        AddPedalInputContext(data, auditoryPedalSample);
+        RememberPedalOutcome(data);
         AuditorySubtaskEventOccurred?.Invoke(data);
     }
     private void EmitAuditoryLifecycle(string type, string detail)
     {
-        AuditorySubtaskEventOccurred?.Invoke(new TaskSwitchAuditoryEvent { EventType = type, Detail = detail,
-            RealTime = Time.realtimeSinceStartupAsDouble, DspTime = AudioSettings.dspTime, RawPedal = auditoryRawPedal });
+        var data = new TaskSwitchAuditoryEvent { EventType = type, Detail = detail,
+            RealTime = Time.realtimeSinceStartupAsDouble, DspTime = AudioSettings.dspTime, RawPedal = auditoryRawPedal };
+        AddPedalInputContext(data, auditoryPedalSample);
+        AuditorySubtaskEventOccurred?.Invoke(data);
     }
     private void StopAuditorySubtask(string reason)
     {
@@ -165,6 +171,7 @@ public partial class TaskSwitchExperimentManager
         StopAuditorySubtask("ConfigurationError");
         auditorySuppressed = true;
         Debug.LogError("Auditory subtask disabled: " + reason);
+        secondaryPedalError = reason;
         EmitAuditoryLifecycle("SubtaskError", reason);
     }
     private void DisposeAuditoryClips()
@@ -172,6 +179,13 @@ public partial class TaskSwitchExperimentManager
         if (auditoryLowClip != null) Destroy(auditoryLowClip);
         if (auditoryHighClip != null) Destroy(auditoryHighClip);
         auditoryLowClip = auditoryHighClip = null;
+    }
+    private void ReadAuditoryPedal()
+    {
+        auditoryPedalSample = TaskSwitchPedalInput.Read(auditoryRunSettings.pedalAxisName, auditoryRunSettings.usePlusMinusKeys,
+            auditoryRunSettings.positivePedalKey, auditoryRunSettings.negativePedalKey);
+        auditoryRawPedal = auditoryPedalSample.Value;
+        secondaryPedalError = "";
     }
     private void DisposeAuditorySubtask()
     {
