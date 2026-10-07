@@ -80,6 +80,19 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     [Min(0f)]
     private float positionExitHysteresis = 0.05f;
 
+    [Header("吊り上げ位置安全条件")]
+    [Tooltip(
+        "ONの場合、LiftUp中は全詳細ステップで吊り上げ目標X・Zとの" +
+        "位置誤差を確認し、範囲外ではステップを完了させません。"
+    )]
+    [SerializeField]
+    private bool requireLiftUpPositionInterlock = true;
+
+    [Tooltip("LiftUp中に許容する吊り上げ目標からのX・Z誤差[m]です。")]
+    [SerializeField]
+    [Min(0f)]
+    private float liftUpPositionTolerance = 0.05f;
+
     [Header("吊荷重量逸脱監視")]
     [Tooltip(
         "LoadAcquisition完了後からPlacementLowering開始前まで、" +
@@ -901,6 +914,13 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             return false;
         }
 
+        // Move1の完了状態やTask Switch復帰状態に不整合があっても、
+        // 吊り上げ目標位置から外れた場所でLiftUpを完了させません。
+        if (!IsLiftUpPositionInterlockSatisfied())
+        {
+            return false;
+        }
+
         foreach (CraneWorkConditionDefinition condition in
                  step.completionConditions)
         {
@@ -911,6 +931,38 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         }
 
         return true;
+    }
+
+    private bool IsLiftUpPositionInterlockSatisfied()
+    {
+        if (!requireLiftUpPositionInterlock ||
+            CurrentMajorPhase != CraneStatusManager.WorkPhase.LiftUp)
+        {
+            return true;
+        }
+
+        Transform informationTarget = GetInformationTarget();
+
+        if (informationTarget == null ||
+            !TryGetTargetPosition(
+                out float targetX,
+                out float targetZ
+            ))
+        {
+            return false;
+        }
+
+        CurrentTargetErrorX = Mathf.Abs(
+            informationTarget.position.x - targetX
+        );
+        CurrentTargetErrorZ = Mathf.Abs(
+            informationTarget.position.z - targetZ
+        );
+
+        float tolerance = Mathf.Max(0f, liftUpPositionTolerance);
+
+        return CurrentTargetErrorX <= tolerance &&
+               CurrentTargetErrorZ <= tolerance;
     }
 
     private bool EvaluateCondition(
@@ -1220,7 +1272,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 $"CraneWork: StepCompleted, " +
                 $"Crane={GetCraneLabel()}, " +
                 $"Phase={CurrentMajorPhase}, " +
-                $"Step={completedStep.stepId}",
+                $"Step={completedStep.stepId}, " +
+                GetPositionLogDetail(),
                 this
             );
         }
@@ -1474,6 +1527,30 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         positionConditionLatched = false;
     }
 
+    private string GetPositionLogDetail()
+    {
+        Transform informationTarget = GetInformationTarget();
+
+        if (informationTarget == null ||
+            !TryGetTargetPosition(
+                out float targetX,
+                out float targetZ
+            ))
+        {
+            return "Position=Unavailable";
+        }
+
+        float currentX = informationTarget.position.x;
+        float currentZ = informationTarget.position.z;
+        float errorX = Mathf.Abs(currentX - targetX);
+        float errorZ = Mathf.Abs(currentZ - targetZ);
+
+        return
+            $"CurrentX={currentX:F3}, CurrentZ={currentZ:F3}, " +
+            $"TargetX={targetX:F3}, TargetZ={targetZ:F3}, " +
+            $"ErrorX={errorX:F3}, ErrorZ={errorZ:F3}";
+    }
+
     private bool TryGetTargetPosition(
         out float targetX,
         out float targetZ
@@ -1713,6 +1790,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         positionExitHysteresis = Mathf.Max(
             0f,
             positionExitHysteresis
+        );
+        liftUpPositionTolerance = Mathf.Max(
+            0f,
+            liftUpPositionTolerance
         );
         pickupWeightGuardToleranceKg = Mathf.Max(
             0f,
