@@ -68,6 +68,18 @@ public class CraneInformationDisplay : MonoBehaviour
     private bool hasReachedMaxWeight;
     private bool shouldResetWeight;
 
+    private struct WeightDisplayState
+    {
+        public float liftStartY;
+        public bool wasHolding;
+        public bool hasReachedMaxWeight;
+        public bool shouldResetWeight;
+        public GameObject lastAttachedBoard;
+    }
+
+    private readonly Dictionary<LifMagSystem, WeightDisplayState>
+        weightDisplayStates = new Dictionary<LifMagSystem, WeightDisplayState>();
+
     private readonly Dictionary<Text, Color> defaultValueColors =
         new Dictionary<Text, Color>();
 
@@ -107,18 +119,57 @@ public class CraneInformationDisplay : MonoBehaviour
     {
         RestoreDefaultValueColors();
 
+        // 共有UIの操作対象を変更しても、各クレーンの吊上げ表示状態を保持します。
+        if (lifMagSystem != null)
+        {
+            weightDisplayStates[lifMagSystem] = new WeightDisplayState
+            {
+                liftStartY = liftStartY,
+                wasHolding = wasHoldingLastFrame,
+                hasReachedMaxWeight = hasReachedMaxWeight,
+                shouldResetWeight = shouldResetWeight,
+                lastAttachedBoard = lifMagSystem.LastAttachedBoard
+            };
+        }
+
         targetTransform = newTargetTransform;
         lifMagSystem = newLifMagSystem;
         ResolveWorkReferences(newLifMagSystem);
         ResetCoordinateHighlightState();
 
-        wasHoldingLastFrame = false;
-        hasReachedMaxWeight = false;
-        shouldResetWeight = false;
+        bool isHolding = lifMagSystem != null && lifMagSystem.HasAttachedBoard;
+
+        if (lifMagSystem != null &&
+            weightDisplayStates.TryGetValue(lifMagSystem, out WeightDisplayState state) &&
+            state.wasHolding == isHolding &&
+            state.lastAttachedBoard == lifMagSystem.LastAttachedBoard)
+        {
+            liftStartY = state.liftStartY;
+            wasHoldingLastFrame = state.wasHolding;
+            hasReachedMaxWeight = state.hasReachedMaxWeight;
+            shouldResetWeight = state.shouldResetWeight;
+        }
+        else
+        {
+            // 初めて選択した時点で保持中なら、新規吸着として扱わず実重量を表示します。
+            liftStartY = targetTransform != null ? targetTransform.position.y : 0f;
+            wasHoldingLastFrame = isHolding;
+            hasReachedMaxWeight = isHolding;
+            shouldResetWeight = false;
+        }
+
         CurrentDisplayWeightTon = 0f;
 
         UpdatePositionText();
-        ResetWeightDisplay();
+
+        if (lifMagSystem != null)
+        {
+            UpdateWeightText();
+        }
+        else
+        {
+            ResetWeightDisplay();
+        }
     }
 
     private void UpdatePositionText()

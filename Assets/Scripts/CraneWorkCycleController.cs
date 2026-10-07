@@ -120,6 +120,15 @@ public class CraneWorkCycleController : MonoBehaviour
     private bool hasPendingNextPhase;
 
     [SerializeField]
+    private int activePickupPointIndex;
+
+    [SerializeField]
+    private int activeDestinationPointIndex;
+
+    [SerializeField]
+    private int activeTrailerPointIndex;
+
+    [SerializeField]
     private CraneWorkTargetXSelection activePickupXSelection =
         CraneWorkTargetXSelection.First;
 
@@ -258,7 +267,7 @@ public class CraneWorkCycleController : MonoBehaviour
         ResetRuntimeState();
         isRunning = true;
         autoAdoptConsumed = true;
-        ResolveActiveXSelections(false);
+        ResolveActiveTargets(false);
 
         Log(
             $"Started, Crane={GetCraneLabel()}, " +
@@ -290,7 +299,7 @@ public class CraneWorkCycleController : MonoBehaviour
         currentPhase = phaseTracker.CurrentMajorPhase;
         isRunning = true;
         autoAdoptConsumed = true;
-        ResolveActiveXSelections(true);
+        ResolveActiveTargets(true);
 
         Log(
             $"Adopted, Crane={GetCraneLabel()}, " +
@@ -510,7 +519,7 @@ public class CraneWorkCycleController : MonoBehaviour
             // Random指定の場合も、同じサイクル内のMove1/LiftUp、
             // Move2/Placeでは同じXを維持し、次サイクル開始時だけ
             // 新しいX候補を選び直します。
-            ResolveActiveXSelections(false);
+            ResolveActiveTargets(false);
         }
 
         pendingNextPhase = GetNextPhase(completedPhase);
@@ -739,19 +748,19 @@ public class CraneWorkCycleController : MonoBehaviour
         {
             case CraneStatusManager.WorkPhase.Move1:
             case CraneStatusManager.WorkPhase.LiftUp:
-                return pickupPointIndex;
+                return activePickupPointIndex;
 
             case CraneStatusManager.WorkPhase.PlaceToTrack:
-                return trailerPointIndex;
+                return activeTrailerPointIndex;
 
             case CraneStatusManager.WorkPhase.Move2:
                 return useTrailerPlacement
-                    ? trailerPointIndex
-                    : destinationPointIndex;
+                    ? activeTrailerPointIndex
+                    : activeDestinationPointIndex;
 
             case CraneStatusManager.WorkPhase.Place:
             default:
-                return destinationPointIndex;
+                return activeDestinationPointIndex;
         }
     }
 
@@ -779,8 +788,12 @@ public class CraneWorkCycleController : MonoBehaviour
         }
     }
 
-    private void ResolveActiveXSelections(bool adoptCurrentTarget)
+    private void ResolveActiveTargets(bool adoptCurrentTarget)
     {
+        activePickupPointIndex = pickupPointIndex;
+        activeDestinationPointIndex = destinationPointIndex;
+        activeTrailerPointIndex = trailerPointIndex;
+
         activePickupXSelection =
             ResolveConfiguredXSelection(pickupXSelection);
         activeDestinationXSelection =
@@ -799,30 +812,55 @@ public class CraneWorkCycleController : MonoBehaviour
             targetManager.CurrentTarget;
         CraneWorkTargetXSelection adoptedSelection =
             GetXSelectionFromTargetX(currentTarget.targetX);
+        bool canAdoptPoint =
+            currentTarget.pointIndex >= 0 &&
+            currentTarget.pointIndex < CraneWorkCoordinateUtility.PointCount;
 
+        // 外部Managerが開始した作業は、地点番号と選択済みXを一緒に引き継ぎます。
+        // Move1→LiftUp、Move2→Placeでも同じ作業地点を使用します。
         switch (currentPhase)
         {
             case CraneStatusManager.WorkPhase.Move1:
             case CraneStatusManager.WorkPhase.LiftUp:
+                if (canAdoptPoint)
+                {
+                    activePickupPointIndex = currentTarget.pointIndex;
+                }
                 activePickupXSelection = adoptedSelection;
                 break;
 
             case CraneStatusManager.WorkPhase.PlaceToTrack:
+                if (canAdoptPoint)
+                {
+                    activeTrailerPointIndex = currentTarget.pointIndex;
+                }
                 activeTrailerXSelection = adoptedSelection;
                 break;
 
             case CraneStatusManager.WorkPhase.Move2:
                 if (useTrailerPlacement)
                 {
+                    if (canAdoptPoint)
+                    {
+                        activeTrailerPointIndex = currentTarget.pointIndex;
+                    }
                     activeTrailerXSelection = adoptedSelection;
                 }
                 else
                 {
+                    if (canAdoptPoint)
+                    {
+                        activeDestinationPointIndex = currentTarget.pointIndex;
+                    }
                     activeDestinationXSelection = adoptedSelection;
                 }
                 break;
 
             case CraneStatusManager.WorkPhase.Place:
+                if (canAdoptPoint)
+                {
+                    activeDestinationPointIndex = currentTarget.pointIndex;
+                }
                 activeDestinationXSelection = adoptedSelection;
                 break;
         }
@@ -973,6 +1011,9 @@ public class CraneWorkCycleController : MonoBehaviour
         currentPhase = initialPhase;
         pendingNextPhase = initialPhase;
         hasPendingNextPhase = false;
+        activePickupPointIndex = pickupPointIndex;
+        activeDestinationPointIndex = destinationPointIndex;
+        activeTrailerPointIndex = trailerPointIndex;
         activePickupXSelection =
             CraneWorkTargetXSelection.First;
         activeDestinationXSelection =
