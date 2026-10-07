@@ -100,7 +100,7 @@ public class CraneInformationDisplay : MonoBehaviour
         CacheDefaultValueColors();
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         UpdatePositionText();
         UpdateWeightText();
@@ -351,11 +351,22 @@ public class CraneInformationDisplay : MonoBehaviour
         xWithinTarget = false;
         zWithinTarget = false;
 
-        if (!isMonitoring || workPhaseTracker == null)
+        if (!isMonitoring || workPhaseTracker == null ||
+            targetTransform == null ||
+            !workPhaseTracker.TryGetTargetPosition(
+                out float targetX,
+                out float targetZ
+            ))
         {
             ResetCoordinateHighlightState();
             return;
         }
+
+        // 表示と同じTransformの最新位置で判定します。
+        // Trackerの保存済み誤差は、条件評価されないステップでは更新されません。
+        Vector3 currentPosition = targetTransform.position;
+        float currentErrorX = Mathf.Abs(currentPosition.x - targetX);
+        float currentErrorZ = Mathf.Abs(currentPosition.z - targetZ);
 
         CraneStatusManager.WorkPhase phase =
             workPhaseTracker.CurrentMajorPhase;
@@ -378,9 +389,9 @@ public class CraneInformationDisplay : MonoBehaviour
                 );
 
                 retainedXHighlight =
-                    workPhaseTracker.CurrentTargetErrorX <= tolerance;
+                    currentErrorX <= tolerance;
                 retainedZHighlight =
-                    workPhaseTracker.CurrentTargetErrorZ <= tolerance;
+                    currentErrorZ <= tolerance;
 
                 if (!TryGetMainLifMagLocalY(out float localY) ||
                     localY <= coordinateHighlightReleaseLocalY)
@@ -406,9 +417,9 @@ public class CraneInformationDisplay : MonoBehaviour
             float tolerance = Mathf.Max(0f, fineAlignTolerance);
 
             xWithinTarget =
-                workPhaseTracker.CurrentTargetErrorX <= tolerance;
+                currentErrorX <= tolerance;
             zWithinTarget =
-                workPhaseTracker.CurrentTargetErrorZ <= tolerance;
+                currentErrorZ <= tolerance;
 
             retainedXHighlight = xWithinTarget;
             retainedZHighlight = zWithinTarget;
@@ -430,6 +441,12 @@ public class CraneInformationDisplay : MonoBehaviour
             retainedZHighlight = false;
             return;
         }
+
+        // 縦作業へ移った後に位置を合わせ直した場合も、各軸の成立を反映します。
+        // 成立した色は、既存の下降高さ条件で解除されるまで保持します。
+        float retainedTolerance = Mathf.Max(0f, fineAlignTolerance);
+        retainedXHighlight |= currentErrorX <= retainedTolerance;
+        retainedZHighlight |= currentErrorZ <= retainedTolerance;
 
         xWithinTarget = retainedXHighlight;
         zWithinTarget = retainedZHighlight;

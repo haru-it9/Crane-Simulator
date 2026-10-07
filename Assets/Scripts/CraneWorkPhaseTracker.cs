@@ -1551,7 +1551,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             $"ErrorX={errorX:F3}, ErrorZ={errorZ:F3}";
     }
 
-    private bool TryGetTargetPosition(
+    /// <summary>
+    /// 作業判定と表示から、同じ優先順位で現在の目標座標を取得します。
+    /// </summary>
+    public bool TryGetTargetPosition(
         out float targetX,
         out float targetZ
     )
