@@ -61,7 +61,7 @@ public class LifMagSystem : MonoBehaviour
     [SerializeField] private float interventionInitialCurrentAmpere = 40f;
 
     [Tooltip("介入開始時、スライダー電流がこの値以上になったら通常のスライダー制御に移行する")]
-    [SerializeField] private float interventionReleaseCurrentAmpere = 40f;
+    [SerializeField] private float interventionReleaseCurrentAmpere = 70f;
 
     [Tooltip("介入開始時の仮想保持電流モード中かどうか")]
     [SerializeField] private bool isInterventionCurrentHoldMode = false;
@@ -184,7 +184,7 @@ public class LifMagSystem : MonoBehaviour
         }
 
         // 確認画面表示中など、Task Switch側が操作入力をロックしている間は
-        // スライダーが40Aを超えていても安全電流保持を解除しません。
+        // スライダーが解除閾値以上でも安全電流保持を解除しません。
         if (craneOperationManager.IsTaskSwitchExperimentMode &&
             craneOperationManager.IsOperationInputLocked)
         {
@@ -524,7 +524,7 @@ public class LifMagSystem : MonoBehaviour
         // ================================
         if (isInterventionCurrentHoldMode)
         {
-            if (sliderCurrentA > interventionReleaseCurrentAmpere)
+            if (sliderCurrentA >= interventionReleaseCurrentAmpere)
             {
                 isInterventionCurrentHoldMode = false;
                 taskSwitchSafeHoldReleased =
@@ -539,7 +539,7 @@ public class LifMagSystem : MonoBehaviour
             }
             else
             {
-                // まだスライダーが40A相当まで入っていないので、
+                // スライダー電流が解除閾値に達していないので、
                 // 板は保持したまま、通常の重量判定は行わない。
                 return;
             }
@@ -821,7 +821,7 @@ public class LifMagSystem : MonoBehaviour
         // 介入開始時の仮想保持電流表示
         // ================================
         // 厚板吸着状態で開始した直後は、
-        // スライダーが40A相当まで入力されるまでは表示を40Aで固定する。
+        // スライダー電流が解除閾値に達するまでは、設定された仮想保持電流を表示する。
         if (isInterventionCurrentHoldMode)
         {
             float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maximumCurrentAmpere);
@@ -868,7 +868,7 @@ public class LifMagSystem : MonoBehaviour
     /// <summary>
     /// Task Switchで板を保持中のクレーンへ操作を切り替える際、
     /// 古いスライダー入力を直ちに適用せず、安全な仮想保持電流から再開します。
-    /// スライダー入力が解除電流を超えるまで、表示・判定電流を固定します。
+    /// スライダー入力が解除電流に達するまで、表示・判定電流を固定します。
     /// </summary>
     public bool BeginTaskSwitchSafeCurrentHold()
     {
@@ -897,7 +897,7 @@ public class LifMagSystem : MonoBehaviour
         Debug.Log(
             $"Task Switch安全電流保持を開始: " +
             $"current={interventionInitialCurrentAmpere:F1} A, " +
-            $"releaseWhenGreaterThan={interventionReleaseCurrentAmpere:F1} A, " +
+            $"releaseWhenAtLeast={interventionReleaseCurrentAmpere:F1} A, " +
             $"attachedWeight={CurrentAttachedWeightKg:F1} kg"
         );
 

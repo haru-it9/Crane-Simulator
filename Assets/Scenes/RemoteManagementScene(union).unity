@@ -418,7 +418,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -14839,7 +14839,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -19691,7 +19691,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -29946,7 +29946,7 @@ MonoBehaviour:
   confirmationPanel: {fileID: 104696218}
   countdownPanel: {fileID: 429858653}
   countdownText: {fileID: 376037744}
-  experimentStateText: {fileID: 840980743}
+  experimentStateText: {fileID: 0}
   objectsHiddenDuringExperiment:
   - {fileID: 1237738884}
   - {fileID: 1564791259}
@@ -51307,7 +51307,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -55513,7 +55513,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -65575,7 +65575,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -83149,7 +83149,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -98412,7 +98412,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -124007,7 +124007,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -137017,7 +137017,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -182282,7 +182282,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -187506,7 +187506,7 @@ MonoBehaviour:
   currentAmperePerTon: 10
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
-  interventionReleaseCurrentAmpere: 40
+  interventionReleaseCurrentAmpere: 70
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
