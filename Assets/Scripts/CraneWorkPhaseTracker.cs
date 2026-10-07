@@ -1365,6 +1365,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             Debug.Log(
                 $"CraneWork: PickupTouchdownDerivedFromAttachment, " +
                 $"Crane={GetCraneLabel()}, " +
+                $"Phase={CurrentMajorPhase}, " +
+                $"Step={CurrentStepId}, " +
                 $"MainLifMagLocalY={mainLifMagLocalY:F3}",
                 this
             );
