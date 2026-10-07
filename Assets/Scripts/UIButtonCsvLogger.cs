@@ -8,7 +8,7 @@ public class UIButtonCsvLogger : MonoBehaviour
     [Header("保存先フォルダ")]
     [SerializeField]
     private string saveFolderPath =
-        @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
+        @"C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData";
 
     private StreamWriter currentWriter;
     private StreamWriter speedWriter;

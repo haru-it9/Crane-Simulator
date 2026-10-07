@@ -15,7 +15,7 @@ public class ControllerInputCsvLogger : MonoBehaviour
 
     [Header("保存先フォルダ")]
     [SerializeField] private string saveFolderPath =
-        @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
+        @"C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData";
 
     [Header("記録間隔")]
     [SerializeField]

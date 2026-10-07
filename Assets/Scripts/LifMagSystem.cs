@@ -58,7 +58,7 @@ public class LifMagSystem : MonoBehaviour
     [Min(0.01f)]
     private float maximumCurrentAmpere = 75f;
     [Header("介入開始時の仮想保持電流")]
-    [SerializeField] private float interventionInitialCurrentAmpere = 40f;
+    [SerializeField] private float interventionInitialCurrentAmpere = 70f;
 
     [Tooltip("介入開始時、スライダー電流がこの値以上になったら通常のスライダー制御に移行する")]
     [SerializeField] private float interventionReleaseCurrentAmpere = 70f;

@@ -24,7 +24,7 @@ public class ExtendedExperimentCsvLogger : MonoBehaviour
     [Header("保存先フォルダ")]
     [SerializeField]
     private string saveFolderPath =
-        @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
+        @"C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData";
 
     [Header("Manager参照（未設定時は自動検索）")]
     [SerializeField]

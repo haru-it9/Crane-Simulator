@@ -2,6 +2,8 @@
 
 Task SwitchモードでStartを押すと、保存先の中に `<入力ファイル名>_<UTC時刻>_<UUID>/` を作成します。同じ名前で開始しても以前の実験を上書きしません。1セッションの標準出力は次の10ファイルです。通常の自動管理モードは既存のLoggerを使用します。Debug開始はCSVを出力しません。
 
+既定の保存先は `C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData\` です。スクリプトの初期値とRemoteManagementScene(union)の7つのLogger設定を同じ保存先にしています。Task SwitchのCSVは、その下に作成するセッションフォルダ内に保存します。
+
 | ファイル | まとめ方と主な内容 |
 | --- | --- |
 | `session.csv` | 記録開始・実験開始・記録終了時の設定。被験者・ブロックID、Unity/アプリ版、任意のソース版、切替方式、クレーン条件、サイクル数、カウントダウン、スケジュールCSV全文、入力設定、AOI設定 |
@@ -63,6 +65,26 @@ Task SwitchモードでStartを押すと、保存先の中に `<入力ファイ�
 ## 視線・質問紙
 
 既存のTobii取得APIを使い、raw/viewport/画面座標・有効性・接続・フォーカスを保持します。これはUnity側のポーリング時刻であり、視線装置の独立したハードウェア時刻や新規サンプル保証ではありません。
+
+Tobii Experienceでは取得できているのにUnityでは取得できない場合は、次の順で確認してください。
+
+1. Package Managerの`com.tobii.gaming.sdk`が正常に読み込まれているか確認します。本プロジェクトは `C:/Users/harui/Downloads/TobiiUnitySDK_5.0.0.3` のローカルSDKを参照します。Consoleの赤いエラー、Missing Script、Missing Prefab、DLL読み込みエラーを先に解消します。
+2. シーンの`Tobii`配下にある`Tobii Initializer`が有効で、Missing Prefab/Scriptになっていないか確認します。`TobiiGamingStarter.cs`は現在このシーンには配置されていません。診断目的で手動Startを追加する前に、SDKのInitializerの初期化結果を確認してください。
+3. Play後、Tobiiで設定したモニターにGameビューを置いてクリックし、フォーカスを与えます。Consoleを見るためにGameビューからフォーカスを外すと、`Application.isFocused`がfalseになるので、CSVの`app_focused`も併せて確認します。切り分けとして同じモニターでWindowsビルドも試します。
+4. 既存の`TobiiDebug`のConsole出力を確認します。1秒ごとに`IsConnected`、`IsValid`、Screen、Viewport、AppFocused、ExperimentPaused、GameScreenを表示します。実験のPause中も出力します。Unity Editor自体のPauseボタンで実行を停止した場合は出力しません。
+
+| 診断結果 | 次に確認する箇所 |
+| --- | --- |
+| `IsConnected=false`が継続 | SDKの読み込み・Initializerの有効性・初期化エラー。起動直後1回だけのfalseで判断しない |
+| 接続true、`IsValid=false`が継続 | Game/ビルドのフォーカス、Tobiiで設定したモニター上で視線を向けているか。SDK付属サンプルでも同じ症状か |
+| 接続true、有効true、CSV座標あり | 取得は成功。Viewport/画面寸法と対象Canvasの画面を照合し、表示・AOIの座標変換を確認 |
+| 診断は有効、CSVがない | Debug開始ではなくTask SwitchのStartから記録開始したか、上記保存先の新しいセッションフォルダか、Loggerが有効か |
+
+`gaze.csv`では、上記の状態を`is_connected,app_focused,is_valid`（1/0）で記録します。無効な視線は座標を空欄で残します。Task SwitchのLoggerは実験のPause中も採取しますが、通常モードの`TobiiGazeCsvLogger`はPause中の採取を停止します。今回の診断ログ修正はSDK接続の修復ではありません。実機で原因の切り分けが必要です。
+
+Tobii Gamingの画面ベースの視線は、トラッカーを取り付けて設定した1画面が対象です。複数の実験用モニター全体が同時に取得できるとは扱わないでください。
+
+参照: [Unity Application.isFocused](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Application-isFocused.html)、[Tobiiの複数画面対応](https://help.tobii.com/hc/en-us/articles/209529429-Can-I-use-multiple-screens)。
 
 AOIはInspectorのGaze Areasにラベル・RectTransform・Canvas Cameraを設定します。上から優先し、非表示の領域は判定しません。Overlay CanvasのCameraは空欄で構いません。未設定・領域外・視線無効は `Unknown` です。既存シーンにはAOIを自動割当していません。複数画面ではTobiiのViewportと対象Canvasが同じ画面座標系になることを実機で確認してください。`aoi_layout_json` は各採取時の領域形状を保存します。
 

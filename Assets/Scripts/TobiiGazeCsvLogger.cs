@@ -8,7 +8,7 @@ using Tobii.Gaming;
 public class TobiiGazeCsvLogger : MonoBehaviour
 {
     [Header("保存先フォルダ")]
-    public string saveFolderPath = @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
+    public string saveFolderPath = @"C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData";
 
     [Header("記録間隔")]
     public float logInterval = 0.02f; // 50Hz相当

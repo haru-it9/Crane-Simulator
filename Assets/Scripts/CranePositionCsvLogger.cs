@@ -9,7 +9,7 @@ public class CranePositionCsvLogger : MonoBehaviour
 {
     [Header("保存先フォルダ")]
     [SerializeField] private string saveFolderPath =
-        @"C:\Users\harui\Git\Crane-Simulator\Assets\ExperimentData";
+        @"C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData";
 
     [Header("記録対象クレーン")]
     [SerializeField] private Transform craneTransform;
