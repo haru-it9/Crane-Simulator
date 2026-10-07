@@ -77,6 +77,13 @@ public class LifMagSystem : MonoBehaviour
     public event System.Action<LifMagSystem, float>
         TaskSwitchSafeCurrentHoldReleased;
 
+    public event System.Action<LifMagSystem, float> ElectricCurrentInputAccepted;
+    public event System.Action<LifMagSystem, string, string> BoardAttachmentChanged;
+    public string CurrentSliderAxis => joyStick2Slider;
+    public float MaximumCurrentAmpere => maximumCurrentAmpere;
+    public float SafeHoldReleaseCurrentAmpere => interventionReleaseCurrentAmpere;
+    public float ReadRawSliderInput() { return Input.GetAxis(joyStick2Slider); }
+    public float ReadSliderCurrentAmpere() { return GetCurrentSliderInput01() * maximumCurrentAmpere; }
     public float CurrentSliderInput01 { get; private set; }
     public float CurrentElectricCurrentA { get; private set; }
     public float CurrentLiftCapacityKg { get; private set; }
@@ -550,6 +557,7 @@ public class LifMagSystem : MonoBehaviour
 
         CurrentAttachedWeightKg = attachedWeightKg;
         CurrentLiftCapacityKg = liftCapacityKg;
+        float previousCurrentA = CurrentElectricCurrentA;
         CurrentElectricCurrentA = sliderCurrentA;
         CurrentSliderInput01 = currentInput01;
         CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(attachedWeightKg);
@@ -561,6 +569,9 @@ public class LifMagSystem : MonoBehaviour
                 sliderCurrentA
             );
         }
+
+        if (taskSwitchSafeHoldReleased || Mathf.Abs(previousCurrentA - sliderCurrentA) >= 0.01f)
+            ElectricCurrentInputAccepted?.Invoke(this, sliderCurrentA);
 
         // ================================
         // 表示電流値による強制吸着板の解除判定
@@ -785,6 +796,7 @@ public class LifMagSystem : MonoBehaviour
         }
 
         interventionForcedAttachedBoards.Remove(board);
+        BoardAttachmentChanged?.Invoke(this, "BoardDetachedInsufficientCurrent", board.name);
 
         Debug.Log(
             $"下層板を1枚解除: {board.name}, " +
@@ -1300,6 +1312,7 @@ public class LifMagSystem : MonoBehaviour
             }
         }
 
+        string releasedNames = string.Join(";", attachedBoards.ConvertAll(b => b != null ? b.name : "MissingBoard"));
         attachedBoards.Clear();
         attachedRigidbodies.Clear();
         attachedHoldSensors.Clear();
@@ -1315,6 +1328,7 @@ public class LifMagSystem : MonoBehaviour
         CurrentAttachedWeightKg = 0f;
         CurrentRequiredCurrentA = 0f;
 
+        BoardAttachmentChanged?.Invoke(this, "BoardsDetached", releasedNames);
         Debug.Log("全板を解除しました");
     }
 
@@ -1480,6 +1494,7 @@ public class LifMagSystem : MonoBehaviour
             Debug.LogWarning($"板 {board.name} に HoldBoardSensor が付いていません");
         }
 
+        BoardAttachmentChanged?.Invoke(this, "BoardAttached", board.name);
         Debug.Log($"吸着成功: {board.name}, 保持枚数={attachedBoards.Count}");
     }
 

@@ -171,6 +171,21 @@ public class CraneOperationManager : MonoBehaviour
         }
     }
 
+    // Raised only where movement commands are actually dispatched, after all input gates.
+    public event System.Action<CraneOperationManager, Vector3, float> MovementInputAccepted;
+    public Vector3 LastAcceptedMovement { get; private set; }
+    public float LastAcceptedSpread { get; private set; }
+    public int LastAcceptedInputFrame { get; private set; } = -1;
+    public Vector3 ReadMovementCommand()
+    {
+        return new Vector3(GetMainLifMagXInput(), GetMainLifMagYInput(), GetMainCraneZInput());
+    }
+    public float ReadSpreadCommand() { return Input.GetAxis(joyStick3MiniVertical); }
+    public string MovementInputMode => inputMode.ToString();
+    public float MovementDeadZone => deadZone;
+    public CraneInformationDisplay CurrentInformationDisplay => taskSwitchExperimentMode && taskSwitchDisplayUiSet != null
+        ? taskSwitchDisplayUiSet.craneInformationDisplay
+        : GetActiveStatusUiSet()?.craneInformationDisplay;
     public int CurrentCraneIndex => currentCraneIndex;
     public int ActiveCraneCount => GetActiveCraneCount();
     public bool IsOperationInputLocked => externalOperationInputLocked;
@@ -1512,6 +1527,11 @@ public class CraneOperationManager : MonoBehaviour
         CurrentCrane.MoveMainCraneZ(mainZInput);
 
         float spreadInput = Input.GetAxis(joyStick3MiniVertical); // ジョイスティック入力
+
+        LastAcceptedMovement = new Vector3(mainXInput, mainYInput, mainZInput);
+        LastAcceptedSpread = spreadInput;
+        LastAcceptedInputFrame = Time.frameCount;
+        MovementInputAccepted?.Invoke(this, LastAcceptedMovement, spreadInput);
 
         // 中央は動かさない
         CurrentCrane.MoveLifMagX(2, 0f);

@@ -10,12 +10,14 @@ using UnityEngine;
 /// 1つのイベントCSVへ時系列で記録します。
 /// </summary>
 [DisallowMultipleComponent]
-public class TaskSwitchExperimentCsvLogger : MonoBehaviour
+[DefaultExecutionOrder(1000)]
+public partial class TaskSwitchExperimentCsvLogger : MonoBehaviour
 {
     private struct CraneSnapshot
     {
         public bool hasCrane;
         public bool hasPosition;
+        public float currentY;
         public float currentX;
         public float currentZ;
         public bool hasTarget;
@@ -60,13 +62,12 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
     private bool isLogging;
     private int eventIndex;
     private int linesSinceFlush;
-    private float realStartTime;
-    private float simulationStartTime;
+    private double lastWrittenEventRealSeconds;
 
-    private float switchRequestedRealTime = float.NaN;
-    private float targetOperationStartedRealTime = float.NaN;
-    private float targetPhaseCompletedRealTime = float.NaN;
-    private float sourceOperationResumedRealTime = float.NaN;
+    private double switchRequestedRealTime = double.NaN;
+    private double targetOperationStartedRealTime = double.NaN;
+    private double targetPhaseCompletedRealTime = double.NaN;
+    private double sourceOperationResumedRealTime = double.NaN;
 
     public bool IsLogging => isLogging;
 
@@ -84,18 +85,13 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
 
         FindReferences();
 
-        if (taskSwitchExperimentManager == null)
+        if (taskSwitchExperimentManager == null || craneRegistry == null || craneOperationManager == null)
         {
             Debug.LogError(
                 "TaskSwitchExperimentCsvLogger: " +
-                "TaskSwitchExperimentManagerが見つかりません。"
+                "TaskSwitchExperimentManager、CraneRegistry、CraneOperationManagerの参照が必要です。"
             );
             return;
-        }
-
-        if (!Directory.Exists(saveFolderPath))
-        {
-            Directory.CreateDirectory(saveFolderPath);
         }
 
         string safeName = SanitizeFileName(inputFileName);
@@ -104,27 +100,28 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             safeName = "Experiment";
         }
 
-        string path = Path.Combine(
-            saveFolderPath,
-            safeName + "_TaskSwitchEvents.csv"
-        );
-
-        writer = new StreamWriter(
-            path,
-            false,
-            new UTF8Encoding(true)
-        );
-
-        WriteHeader();
+        string path;
+        try
+        {
+            path = StartSession(safeName, inputFileName);
+            writer = new StreamWriter(path, false, new UTF8Encoding(true));
+            WriteHeader();
+        }
+        catch (Exception exception)
+        {
+            if (writer != null) { writer.Dispose(); writer = null; }
+            DisposeSessionFiles();
+            Debug.LogError("Task Switch CSV記録を開始できません: " + exception.Message);
+            return;
+        }
 
         eventIndex = 0;
         linesSinceFlush = 0;
-        realStartTime = Time.realtimeSinceStartup;
-        simulationStartTime = Time.time;
         ResetIntervalMarkers();
         isLogging = true;
 
         SubscribeToEvents();
+        SubscribeSessionEvents();
 
         WriteEvent(
             "Logger",
@@ -148,26 +145,23 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             return;
         }
 
-        if (isLogging)
+        try
         {
-            WriteEvent(
-                "Logger",
-                "LoggingStopped",
-                GetSelectedCraneIndex(),
-                null,
-                "",
-                "Task Switch event logging stopped"
-            );
+            if (isLogging)
+                WriteEvent("Logger", "LoggingStopped", GetSelectedCraneIndex(), null, "", "Task Switch event logging stopped");
+            StopSession();
         }
-
-        isLogging = false;
-        UnsubscribeFromEvents();
-
-        if (writer != null)
+        catch (Exception exception)
         {
-            writer.Flush();
-            writer.Close();
-            writer = null;
+            Debug.LogError("Task Switch CSVの終了時に書き込みが失敗しました: " + exception.Message);
+        }
+        finally
+        {
+            isLogging = false;
+            UnsubscribeSessionEvents();
+            UnsubscribeFromEvents();
+            DisposeSessionFiles();
+            if (writer != null) { writer.Dispose(); writer = null; }
         }
 
         Debug.Log("Task Switch CSV記録を終了しました。");
@@ -259,7 +253,7 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             return;
         }
 
-        float now = Time.realtimeSinceStartup;
+        double now = RealSeconds;
 
         switch (eventData.eventName)
         {
@@ -269,17 +263,20 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
 
             case "SwitchRequested":
                 switchRequestedRealTime = now;
-                targetOperationStartedRealTime = float.NaN;
-                targetPhaseCompletedRealTime = float.NaN;
-                sourceOperationResumedRealTime = float.NaN;
+                targetOperationStartedRealTime = double.NaN;
+                targetPhaseCompletedRealTime = double.NaN;
+                sourceOperationResumedRealTime = double.NaN;
                 break;
 
             case "TargetOperationStarted":
                 targetOperationStartedRealTime = now;
                 break;
 
+            case "TargetWorkCycleCompletedByPhase":
+            case "TargetWorkCycleCompleted":
+            case "TargetWorkCycleCompletionFallback":
             case "TargetMajorPhaseCompleted":
-                targetPhaseCompletedRealTime = now;
+                if (double.IsNaN(targetPhaseCompletedRealTime)) targetPhaseCompletedRealTime = now;
                 break;
 
             case "SourceOperationResumed":
@@ -436,6 +433,9 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             return;
         }
 
+        double eventRealSeconds = RealSeconds;
+        double eventSimulationSeconds = SimulationSeconds;
+        ObserveEvent(eventType, eventCraneIndex, eventRealSeconds);
         TaskSwitchMethod method = taskEventData.HasValue
             ? taskEventData.Value.switchMethod
             : taskSwitchExperimentManager.SwitchMethod;
@@ -487,8 +487,8 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
         {
             eventIndex.ToString(CultureInfo.InvariantCulture),
             DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-            F(GetRealElapsedTime(), "F4"),
-            F(GetSimulationElapsedTime(), "F4"),
+            F(eventRealSeconds, "F6"),
+            F(eventSimulationSeconds, "F6"),
             taskExperimentElapsed.HasValue
                 ? F(taskExperimentElapsed.Value, "F4")
                 : "",
@@ -509,10 +509,10 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             GetCraneRole(eventCraneIndex, sourceCraneIndex, targetCraneIndex),
             eventPhase.HasValue ? eventPhase.Value.ToString() : "",
             Csv(eventStep),
-            snapshot.hasPosition ? F(snapshot.currentX, "F4") : "",
-            snapshot.hasPosition ? F(snapshot.currentZ, "F4") : "",
-            snapshot.hasTarget ? F(snapshot.targetX, "F4") : "",
-            snapshot.hasTarget ? F(snapshot.targetZ, "F4") : "",
+            snapshot.hasPosition ? F(snapshot.currentX, "F6") : "",
+            snapshot.hasPosition ? F(snapshot.currentZ, "F6") : "",
+            snapshot.hasTarget ? F(snapshot.targetX, "F6") : "",
+            snapshot.hasTarget ? F(snapshot.targetZ, "F6") : "",
             snapshot.hasLifMag ? B(snapshot.hasAttachedBoard) : "",
             snapshot.hasLifMag ? F(snapshot.attachedWeightKg, "F3") : "",
             snapshot.hasLifMag ? F(snapshot.electricCurrentA, "F3") : "",
@@ -527,7 +527,30 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             Csv(detail)
         };
 
-        writer.WriteLine(string.Join(",", columns));
+        CraneWorkPhaseTracker eventTracker = GetWorkPhaseTracker(eventCraneIndex);
+        CraneWorkCycleController eventCycle = GetCycleController(eventCraneIndex);
+        CycleRecord cycleRecord = null;
+        if (eventCycle != null) cycles.TryGetValue(eventCycle, out cycleRecord);
+        CraneInstance eventCrane = craneRegistry != null && eventCraneIndex >= 0 ? craneRegistry.GetCraneByRuntimeIndex(eventCraneIndex) : null;
+        object[] prefix = Join(Identity(), taskSwitchExperimentManager.CurrentSwitchIndex,
+            cycleRecord != null ? (object)cycleRecord.instance : null,
+            eventCycle != null ? (object)CycleNumber(eventCraneIndex) : null,
+            CycleNumber(sourceCraneIndex), CycleNumber(targetCraneIndex),
+            eventTracker != null ? (object)eventTracker.StepElapsedSeconds : null,
+            eventTracker != null ? (object)eventTracker.ConditionStableSeconds : null,
+            eventTracker != null && eventTracker.PositionConditionLatched,
+            eventCrane != null && eventCrane.LifMagSystem != null ? (object)eventCrane.LifMagSystem.AttachedBoards.Count : null,
+            InputLocked, ExperimentPauseManager.IsPaused, DisplayMode, IsInputHeldAtUnlock(),
+            snapshot.hasPosition ? (object)snapshot.currentY : null,
+            snapshot.hasPosition && snapshot.hasTarget ? (object)(snapshot.currentX - snapshot.targetX) : null,
+            snapshot.hasPosition && snapshot.hasTarget ? (object)(snapshot.currentZ - snapshot.targetZ) : null,
+            eventType == "PickupWeightInvalidated" && eventTracker != null ? (object)eventTracker.LastInvalidationWeightKg : null,
+            eventType == "PickupWeightInvalidated" && eventTracker != null ? (object)eventTracker.LastInvalidationWeightErrorKg : null,
+            eventType == "PickupWeightInvalidated" && eventTracker != null ? (object)eventTracker.LastInvalidationStepElapsedSeconds : null,
+            eventType == "PickupWeightInvalidated" && eventTracker != null ? (object)eventTracker.LastInvalidationRemovedBoardCount : null);
+        string[] encodedPrefix = Array.ConvertAll(prefix, ExperimentCsvFile.Encode);
+        writer.WriteLine(string.Join(",", encodedPrefix) + "," + string.Join(",", columns));
+        lastWrittenEventRealSeconds = eventRealSeconds;
         eventIndex++;
         linesSinceFlush++;
 
@@ -561,6 +584,7 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
         {
             Vector3 position = crane.InformationTarget.position;
             snapshot.hasPosition = true;
+            snapshot.currentY = position.y;
             snapshot.currentX = position.x;
             snapshot.currentZ = position.z;
         }
@@ -574,11 +598,12 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
                 crane.GetComponentInChildren<CraneWorkTargetManager>(true);
         }
 
-        if (targetManager != null &&
-            targetManager.TryGetTarget(
-                out float targetX,
-                out float targetZ
-            ))
+        float targetX = 0f, targetZ = 0f;
+        CraneWorkPhaseTracker targetTracker = GetWorkPhaseTracker(craneIndex);
+        bool hasTarget = targetTracker != null
+            ? targetTracker.TryGetTargetPosition(out targetX, out targetZ)
+            : targetManager != null && targetManager.TryGetTarget(out targetX, out targetZ);
+        if (hasTarget)
         {
             snapshot.hasTarget = true;
             snapshot.targetX = targetX;
@@ -709,32 +734,19 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
 
     private void ResetIntervalMarkers()
     {
-        switchRequestedRealTime = float.NaN;
-        targetOperationStartedRealTime = float.NaN;
-        targetPhaseCompletedRealTime = float.NaN;
-        sourceOperationResumedRealTime = float.NaN;
+        switchRequestedRealTime = double.NaN;
+        targetOperationStartedRealTime = double.NaN;
+        targetPhaseCompletedRealTime = double.NaN;
+        sourceOperationResumedRealTime = double.NaN;
     }
 
-    private float GetRealElapsedTime()
+    private string ElapsedFrom(double startTime)
     {
-        return Mathf.Max(
-            0f,
-            Time.realtimeSinceStartup - realStartTime
-        );
-    }
-
-    private float GetSimulationElapsedTime()
-    {
-        return Mathf.Max(0f, Time.time - simulationStartTime);
-    }
-
-    private string ElapsedFrom(float startTime)
-    {
-        return float.IsNaN(startTime)
+        return double.IsNaN(startTime)
             ? ""
             : F(
-                Mathf.Max(0f, Time.realtimeSinceStartup - startTime),
-                "F4"
+                Math.Max(0d, RealSeconds - startTime),
+                "F6"
             );
     }
 
@@ -745,9 +757,9 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
             : "";
     }
 
-    private string F(float value, string format)
+    private string F(double value, string format)
     {
-        if (float.IsNaN(value) || float.IsInfinity(value))
+        if (double.IsNaN(value) || double.IsInfinity(value))
         {
             return "";
         }
@@ -792,6 +804,7 @@ public class TaskSwitchExperimentCsvLogger : MonoBehaviour
     private void WriteHeader()
     {
         writer.WriteLine(
+            IdentityHeader + ",switch_index,cycle_instance_id,event_cycle_number,source_cycle_number,target_cycle_number,step_elapsed_s,condition_stable_s,position_condition_latched,attached_board_count,input_locked,global_paused,display_mode,operation_input_held,current_y,signed_error_x,signed_error_z,invalidation_weight_kg,invalidation_weight_error_kg,invalidation_step_elapsed_s,invalidation_removed_board_count," +
             "event_index,utc_timestamp,real_elapsed_s," +
             "simulation_elapsed_s,task_experiment_elapsed_s," +
             "event_source,event_type,switch_method,state," +

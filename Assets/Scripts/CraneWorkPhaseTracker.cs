@@ -207,6 +207,15 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         (CurrentMajorPhase == CraneStatusManager.WorkPhase.Place ||
          CurrentMajorPhase ==
              CraneStatusManager.WorkPhase.PlaceToTrack);
+    public float LastInvalidationWeightKg { get; private set; }
+    public float LastInvalidationWeightErrorKg { get; private set; }
+    public float LastInvalidationStepElapsedSeconds { get; private set; }
+    public int LastInvalidationRemovedBoardCount { get; private set; }
+    public float StepElapsedSeconds => stepElapsedSeconds;
+    public float ConditionStableSeconds => conditionStableSeconds;
+    public bool PositionConditionLatched => positionConditionLatched;
+    public float PositionExitHysteresis => positionExitHysteresis;
+    public string CurrentStepConfigurationJson => CurrentStep != null ? JsonUtility.ToJson(CurrentStep) : "";
     public float CurrentTargetErrorX { get; private set; }
     public float CurrentTargetErrorZ { get; private set; }
     public bool IsHoldingBoard { get; private set; }
@@ -808,8 +817,11 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             CurrentMajorPhase;
         string invalidatedStepId = CurrentStepId;
 
-        int removedBoardCount =
-            RemoveDroppedBoardsFromGuardSnapshot();
+        LastInvalidationWeightKg = CurrentAttachedWeightKg;
+        LastInvalidationWeightErrorKg = CurrentWeightErrorKg;
+        LastInvalidationStepElapsedSeconds = stepElapsedSeconds;
+        int removedBoardCount = RemoveDroppedBoardsFromGuardSnapshot();
+        LastInvalidationRemovedBoardCount = removedBoardCount;
 
         pickupWeightGuardArmed = false;
         pickupWeightInvalidationElapsedSeconds = 0f;

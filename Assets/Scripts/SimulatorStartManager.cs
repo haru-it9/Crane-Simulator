@@ -106,6 +106,21 @@ public class SimulatorStartManager : MonoBehaviour
 
         ApplySelectedSimulatorMode();
 
+        // Task Switch owns a single session bundle and clock; automatic mode keeps its existing logs.
+        if (simulatorMode == SimulatorMode.TaskSwitchExperiment)
+        {
+            StopAllLogging();
+            if (taskSwitchExperimentCsvLogger == null)
+            {
+                Debug.LogError("TaskSwitchExperimentCsvLoggerが設定されていないため、実験CSVを記録できません。");
+                return;
+            }
+            taskSwitchExperimentCsvLogger.StartLogging(inputFileName);
+            if (taskSwitchExperimentCsvLogger.IsLogging)
+                Debug.Log("Start：操作開始＋Task SwitchセッションCSV記録開始");
+            return;
+        }
+
         if (inputLogger != null)
         {
             inputLogger.StartLogging(inputFileName);
@@ -134,12 +149,6 @@ public class SimulatorStartManager : MonoBehaviour
         if (extendedExperimentCsvLogger != null)
         {
             extendedExperimentCsvLogger.StartLogging(inputFileName);
-        }
-
-        if (simulatorMode == SimulatorMode.TaskSwitchExperiment &&
-            taskSwitchExperimentCsvLogger != null)
-        {
-            taskSwitchExperimentCsvLogger.StartLogging(inputFileName);
         }
 
         Debug.Log("Start：操作開始＋CSV記録開始");

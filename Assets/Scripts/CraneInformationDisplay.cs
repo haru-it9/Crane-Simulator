@@ -90,6 +90,11 @@ public class CraneInformationDisplay : MonoBehaviour
     private bool retainedZHighlight;
     private bool verticalPhaseHighlightReleased;
 
+    public float FineAlignTolerance => fineAlignTolerance;
+    public bool CurrentXHighlighted { get; private set; }
+    public bool CurrentZHighlighted { get; private set; }
+    public bool CurrentWeightHighlighted { get; private set; }
+    public int AchievementFrame { get; private set; } = -1;
     public float CurrentX { get; private set; }
     public float CurrentZ { get; private set; }
     public float CurrentDisplayWeightTon { get; private set; }
@@ -326,6 +331,10 @@ public class CraneInformationDisplay : MonoBehaviour
                 Mathf.Max(0f, weightToleranceKg);
         }
 
+        CurrentXHighlighted = xWithinTarget;
+        CurrentZHighlighted = zWithinTarget;
+        CurrentWeightHighlighted = weightWithinTarget;
+        AchievementFrame = Time.frameCount;
         foreach (InformationTextSet textSet in GetTextSets())
         {
             if (textSet == null)

@@ -225,6 +225,9 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     [Min(0)]
     private int completedSwitchCount;
 
+    public string SwitchScheduleCsvText => switchScheduleCsv != null ? switchScheduleCsv.text : "";
+    public int SourceTotalCycleCount => sourceTotalCycleCount;
+    public float CountdownSeconds => countdownSeconds;
     public TaskSwitchMethod SwitchMethod => switchMethod;
     public TaskSwitchExperimentState CurrentState => currentState;
     public float CountdownRemaining => countdownRemaining;
@@ -402,6 +405,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        EmitEvent("ExperimentPreparing");
         experimentStartRealtime = Time.realtimeSinceStartup;
         LoadSwitchSchedule();
         sourceMajorPhaseCompleted = false;
@@ -1409,10 +1413,12 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 sourceCycleController.PauseCycle();
             }
 
+            EmitEvent("SourceWorkSuspended");
             return;
         }
 
         StopSourceWorkPhaseMonitoring();
+        EmitEvent("SourceWorkSuspended");
     }
 
     private void StopSourceWorkPhaseMonitoring()
@@ -2218,6 +2224,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 craneOperationManager.SetTaskSwitchOperationInputLocked(
                     false
                 );
+                EmitEvent(craneOperationManager.CurrentCraneIndex == sourceCondition.craneIndex
+                    ? "SourceInputUnlocked" : "TargetInputUnlocked");
             }
         }
     }

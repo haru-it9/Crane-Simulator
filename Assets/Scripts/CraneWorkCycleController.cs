@@ -174,6 +174,7 @@ public class CraneWorkCycleController : MonoBehaviour
         int
     > PhaseCompleted;
 
+    public event Action<CraneWorkCycleController, string> PickupWeightRollback;
     public event Action<CraneWorkCycleController, int> CycleCompleted;
 
     public event Action<CraneWorkCycleController, int>
@@ -590,6 +591,7 @@ public class CraneWorkCycleController : MonoBehaviour
             $"Cycle={CurrentCycleNumber}/{totalCycleCount}"
         );
 
+        PickupWeightRollback?.Invoke(this, $"From={invalidatedPhase}/{invalidatedStepId};To={restartPhase}/{LoadAcquisitionStepId}");
         PhaseStarted?.Invoke(
             this,
             restartPhase,
