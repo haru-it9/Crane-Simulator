@@ -241,21 +241,20 @@ public class CraneInformationDisplay : MonoBehaviour
             workPhaseTracker != null &&
             workPhaseTracker.IsMonitoring;
 
-        string stepId = isMonitoring
-            ? workPhaseTracker.CurrentStepId
-            : string.Empty;
-
-        bool isFineAlign =
-            stepId == "Move1.PickupFineAlign" ||
-            stepId == "Move2.DestinationFineAlign";
+        bool isMovePhase =
+            isMonitoring &&
+            (workPhaseTracker.CurrentMajorPhase ==
+                 CraneStatusManager.WorkPhase.Move1 ||
+             workPhaseTracker.CurrentMajorPhase ==
+                 CraneStatusManager.WorkPhase.Move2);
 
         bool xWithinTarget =
-            isFineAlign &&
+            isMovePhase &&
             workPhaseTracker.CurrentTargetErrorX <=
             Mathf.Max(0f, fineAlignTolerance);
 
         bool zWithinTarget =
-            isFineAlign &&
+            isMovePhase &&
             workPhaseTracker.CurrentTargetErrorZ <=
             Mathf.Max(0f, fineAlignTolerance);
 
