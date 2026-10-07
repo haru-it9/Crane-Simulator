@@ -29922,9 +29922,8 @@ MonoBehaviour:
     invertPedalAxis: 0
     pressThreshold: 0.5
     releaseThreshold: 0.2
-    minimumIntervalSeconds: 3
+    minimumIntervalSeconds: 2
     maximumIntervalSeconds: 5
-    responseTimeoutSeconds: 2
     minimumValidReactionSeconds: 0.1
     randomSeed: 0
   auditorySubtask:

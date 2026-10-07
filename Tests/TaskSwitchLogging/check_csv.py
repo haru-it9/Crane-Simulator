@@ -26,7 +26,7 @@ for folder in folders:
 d = next(data for data in all_data if data['crane_state'])
 assert not d['auditory_subtask'] and not d['auditory_trials'], 'disabled subtask must produce no trials'
 assert not d['visual_subtask'] and not d['visual_trials']
-assert all(r['schema_version'] == '5' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
+assert all(r['schema_version'] == '6' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
 assert len(d['switch_summary']) == 3
 complete, incomplete, no_input = d['switch_summary']
 assert complete['outcome'] == 'Completed'
@@ -172,12 +172,12 @@ for path in visual_folder.glob('*.csv'):
     assert all(r['participant_id'] == 'P04' and r['block_id'] == 'visual' for r in visual_data[path.stem])
 assert len({r['session_id'] for data in visual_data.values() for r in data}) == 1
 assert not visual_data['auditory_subtask'] and not visual_data['auditory_trials'], 'visual mode emitted auditory events'
-assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '5' for r in visual_data['session'])
+assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '6' for r in visual_data['session'])
 trials = visual_data['visual_trials']
 history = visual_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
-assert [r['trial_index'] for r in trials] == list(map(str, range(1, 9)))
-assert [r['outcome'] for r in trials] == ['Correct', 'Correct', 'Miss', 'Incorrect', 'TooEarly', 'Correct', 'Correct', 'CancelledBeforeOnset']
+assert [r['trial_index'] for r in trials] == list(map(str, range(1, 10)))
+assert [r['outcome'] for r in trials] == ['Correct', 'Correct', 'Correct', 'Correct', 'TooEarly', 'Correct', 'Correct', 'Interrupted', 'CancelledBeforeOnset']
 assert all(r['random_seed'] == '12' and r['secondary_task_mode'] == 'Visual' for r in trials)
 correct = trials[0]
 assert correct['reaction_time_s'] == correct['wall_reaction_time_s'] == '0.240000'
@@ -189,11 +189,21 @@ assert correct['onset_switch_index'] == '0' and correct['switch_index'] == '1'
 resumed = trials[1]
 assert resumed['reaction_time_s'] == '0.500000' and resumed['wall_reaction_time_s'] == '10.500000'
 assert resumed['pause_count'] == '1' and resumed['paused_duration_s'] == '10.000000'
-assert trials[2]['reaction_time_s'] == trials[2]['correct'] == trials[2]['response_observed_real_s'] == ''
-assert trials[3]['correct'] == '0' and trials[4]['correct'] == '' and trials[4]['reaction_time_s'] == '0.050000'
+assert resumed['first_response_correct'] == '0' and resumed['response_count'] == '2'
+assert resumed['first_reaction_time_s'] == resumed['first_wall_reaction_time_s'] == '0.150000'
+assert trials[2]['reaction_time_s'] == '12.200000' and trials[2]['correct'] == '1'
+assert all(r['outcome'] != 'Miss' and r['response_timeout_s'] == '' and r['completion_policy'] == 'CorrectSidePress' for r in trials)
+assert trials[3]['correct'] == '1' and trials[3]['first_response_correct'] == '0'
+assert trials[3]['reaction_time_s'] == '0.700000' and trials[3]['first_reaction_time_s'] == '0.300000'
+assert trials[3]['response_count'] == '3' and trials[3]['incorrect_response_count'] == '2'
+assert trials[4]['correct'] == '' and trials[4]['reaction_time_s'] == '0.070000'
+assert trials[4]['too_early_response_count'] == '2' and trials[4]['incorrect_response_count'] == '1'
 assert trials[5]['held_at_onset'] == '1'
 assert trials[6]['pause_count'] == '1' and trials[6]['paused_duration_s'] == '7.000000'
 assert trials[6]['reaction_time_s'] == trials[6]['wall_reaction_time_s'] == '0.300000'
+assert trials[7]['reaction_time_s'] == '' and trials[7]['first_response_correct'] == '0' and trials[7]['response_count'] == '1'
+assert trials[7]['first_reaction_time_s'] == '0.300000' and trials[7]['detail'] == 'TestInterruption'
+assert trials[-1]['first_reaction_time_s'] == trials[-1]['first_response_correct'] == '' and trials[-1]['response_count'] == '0'
 assert trials[-1]['presented'] == '0' and trials[-1]['onset_observed_real_s'] == '' and trials[-1]['detail'] == 'LoggingStopped'
 for event in (r for r in history if r['event_type'] == 'StimulusOnsetObserved'):
     assert int(event['left_red']) + int(event['right_red']) == 1
@@ -201,6 +211,11 @@ for event in (r for r in history if r['event_type'] == 'StimulusOnsetObserved'):
         ('Left', '-1', '1', '0'), ('Right', '1', '0', '1')}
 for event in (r for r in history if r['event_type'] == 'PedalPressed'):
     assert event['real_elapsed_s'] == event['response_observed_real_s']
+    if event['outcome'] in {'Incorrect', 'TooEarly'} and event['response_sign'] != event['expected_sign']:
+        assert int(event['left_red']) + int(event['right_red']) == 1, 'incorrect press cleared red'
+for event in (r for r in history if r['event_type'] == 'StimulusScheduled'):
+    assert event['left_red'] == event['right_red'] == '0'
+    assert abs(float(event['scheduled_onset_estimated_real_s']) - float(event['real_elapsed_s']) - 3) < .00001
 false_alarm, = [r for r in history if r['outcome'] == 'FalseAlarm']
 assert false_alarm['trial_index'] == false_alarm['stimulus_side'] == false_alarm['expected_sign'] == ''
 assert all(r['left_red'] == r['right_red'] == '0' for r in trials), 'result row did not reflect return to blue'
@@ -209,7 +224,7 @@ assert all(r['secondary_task_mode'] == 'Visual' and r['auditory_subtask_enabled'
 assert any(r['global_paused'] == '1' and int(r['visual_left_red']) + int(r['visual_right_red']) == 1 for r in inputs)
 assert all(r['raw_pedal'] == '' for r in inputs if r['global_paused'] == '1')
 assert {r['outcome'] for r in visual_data['pause_intervals']} == {'Resumed'}
-print('PASS: visual CSV widths/IDs, side mapping and color events, actual-frame RT and delay, onset/response context, pause durations, input state, held/early/miss/incorrect, blank cancellation and no auditory events')
+print('PASS: visual CSV widths/IDs, side mapping and color events, actual-frame RT and delay, onset/response context, pause durations, input state, held/early/repeated errors and first responses, blank cancellation and no auditory events')
 
 # Validate concrete scene wiring and symmetric, noninteractive marker placement without loading Unity.
 import re
@@ -218,6 +233,8 @@ documents = list(re.finditer(r'--- !u!\d+ &(\d+)\n(.*?)(?=--- !u!|\Z)', scene, r
 blocks = {m[1]: m[2] for m in documents}
 assert len(documents) == len(blocks), 'duplicate Unity file IDs'
 manager = blocks['333508956']
+assert 'minimumIntervalSeconds: 2' in manager[manager.index('  visualSubtask:'):manager.index('  auditorySubtask:')]
+assert 'responseTimeoutSeconds:' not in manager[manager.index('  visualSubtask:'):manager.index('  auditorySubtask:')]
 assert 'secondaryTaskMode: 1' in manager and 'secondaryTaskSelectionMigrated: 1' in manager, 'current auditory selection was lost'
 for image_id, rect_id, go_id, side, x in [('9000001004', '9000001002', '9000001001', 'Left', -1050),
                                         ('9000001008', '9000001006', '9000001005', 'Right', 1050)]:

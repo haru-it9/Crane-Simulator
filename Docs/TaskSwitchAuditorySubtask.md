@@ -40,7 +40,7 @@
 - 起動直後/一時停止解除直後は中立を一度観測するまで押下を受理しません。押しっぱなし、＋から中立を経ずに−へ変えた入力は新しい押下にしません。
 - 提示後の最初の有効な押下で判定を確定します。間違えてから正しい側を踏んでも正解に書き換えません。100 ms未満の反応も最初の反応として確定し、TooEarlyとして分けます。
 
-## CSV（schema_version = 5）
+## CSV（schema_version = 6）
 
 聴覚サブタスク用に以下の2ファイルを出力します（Pause区間を含めてセッションは計12ファイル）。サブタスクOFFでもヘッダーを作成し、提示/応答の行は書きません。
 
@@ -82,6 +82,6 @@
 
 `Tests/TaskSwitchLogging/run.sh` は実際の判定・音生成/予約コード・CSV実装を代替Unity APIで実行します。正誤、早過ぎる入力、無反応、遅延入力、入力保持、中立復帰、軸反転、設定検証、音のフェード/長さ、早い反応で音が切れないこと、クレーン入力ロック中の応答、一時停止・再開、CSV停止、OFFを検証します。CSVの列数、結果行と元イベントの一致、欠測空欄、共通時計、提示時と応答時の切替状態もPythonで確認します。Unity Editor・実際のスピーカー・足ペダルでの実行は別途確認が必要です。
 
-## Pauseをまたぐ提示（schema 5）
+## Pauseをまたぐ提示（schema 6）
 
 PauseでTrialFinishedを発生させず、TrialPaused/TrialResumedを履歴に残します。結果行のpause_countはその提示がまたいだPauseの回数、paused_duration_sはその継続時間です。reaction_time_sはPauseを除いたDSP反応時間、wall_reaction_time_sは予定開始から応答フレームまでの壁時計の時間です。音開始前にPauseした場合はonset_estimated_real_sをそのPause分だけ先へ移し、反応時間に開始前のPauseを含めません。記録停止などによる最終打切りは従来通りInterrupted/CancelledBeforeOnsetで記録します。Pauseが介在した試行を分析で区別できるよう、pause_countを併用してください。Pause/Startの詳細は [TaskSwitchPause.md](TaskSwitchPause.md) を参照してください。

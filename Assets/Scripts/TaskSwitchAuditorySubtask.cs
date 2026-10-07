@@ -29,12 +29,14 @@ public class TaskSwitchAuditorySettings
         if (!(toneDurationSeconds >= 0.02 && toneDurationSeconds <= responseTimeoutSeconds && volume > 0 && volume <= 1)) return "Invalid tone duration or volume";
         return null;
     }
-    public string ValidatePedalAndTiming()
+    public string ValidatePedalAndTiming(bool hasResponseDeadline = true)
     {
         if (string.IsNullOrWhiteSpace(pedalAxisName)) return "Pedal Axis Name is empty";
         if (!(releaseThreshold >= 0 && releaseThreshold < pressThreshold && pressThreshold <= 1)) return "Require 0 <= release < press <= 1";
-        if (!(minimumValidReactionSeconds >= 0 && minimumValidReactionSeconds < responseTimeoutSeconds)) return "Invalid reaction time limits";
-        if (!(minimumIntervalSeconds > responseTimeoutSeconds + 0.1 && maximumIntervalSeconds >= minimumIntervalSeconds)) return "Intervals must exceed response timeout + 0.1 s";
+        if (!(minimumValidReactionSeconds >= 0 && !float.IsInfinity(minimumValidReactionSeconds))) return "Invalid minimum reaction time";
+        if (hasResponseDeadline && !(minimumValidReactionSeconds < responseTimeoutSeconds)) return "Invalid reaction time limits";
+        if (!(minimumIntervalSeconds > 0 && maximumIntervalSeconds >= minimumIntervalSeconds && !float.IsInfinity(maximumIntervalSeconds))) return "Invalid stimulus intervals";
+        if (hasResponseDeadline && !(minimumIntervalSeconds > responseTimeoutSeconds + 0.1)) return "Intervals must exceed response timeout + 0.1 s";
         return null;
     }
 }
@@ -53,12 +55,17 @@ public class TaskSwitchAuditoryEvent
     public bool? Correct;
     public double PlannedOnsetClock = double.NaN, PlannedOnsetReal = double.NaN;
     public bool VisualLeftRed, VisualRightRed;
+    public int ResponseCount, IncorrectResponseCount, TooEarlyResponseCount, FirstResponseSign;
+    public string FirstResponseOutcome = "";
+    public bool? FirstResponseCorrect;
+    public double FirstReactionSeconds = double.NaN, FirstResponseReal = double.NaN, FirstWallReactionSeconds = double.NaN;
 }
 
 // Pure state machine: a pedal must return to neutral before another press is accepted.
 public sealed class TaskSwitchAuditoryTrial
 {
     private readonly TaskSwitchAuditorySettings settings;
+    private readonly bool finishOnCorrectSideOnly;
     private int sequence, trialIndex, expected;
     private string tone;
     private double onsetDsp, onsetReal, observedReal = double.NaN;
@@ -67,15 +74,20 @@ public sealed class TaskSwitchAuditoryTrial
     private bool explicitPresentation;
     private double pauseStartedReal, pausedSeconds;
     private int pauseCount;
+    private int responseCount, incorrectResponseCount, tooEarlyResponseCount, firstResponseSign;
+    private string firstResponseOutcome = "";
+    private bool? firstResponseCorrect;
+    private double firstReactionSeconds = double.NaN, firstResponseReal = double.NaN, firstWallReactionSeconds = double.NaN;
     public bool HasPendingTrial => pending;
     public bool PedalArmed => armed;
     public int LastTrialIndex => sequence;
     public event Action<TaskSwitchAuditoryEvent> EventOccurred;
 
-    public TaskSwitchAuditoryTrial(TaskSwitchAuditorySettings settings, int firstIndex = 0)
+    public TaskSwitchAuditoryTrial(TaskSwitchAuditorySettings settings, int firstIndex = 0, bool finishOnCorrectSideOnly = false)
     {
         this.settings = settings;
         sequence = firstIndex;
+        this.finishOnCorrectSideOnly = finishOnCorrectSideOnly;
     }
     public void Schedule(bool high, double scheduledDsp, double estimatedReal, double dsp, double real, float raw)
     {
@@ -93,6 +105,9 @@ public sealed class TaskSwitchAuditoryTrial
         explicitPresentation = requireExplicitPresentation;
         observedReal = double.NaN; held = presented = false; pending = true;
         pausedSeconds = 0; pauseCount = 0;
+        responseCount = incorrectResponseCount = tooEarlyResponseCount = firstResponseSign = 0;
+        firstResponseOutcome = ""; firstResponseCorrect = null;
+        firstReactionSeconds = firstResponseReal = firstWallReactionSeconds = double.NaN;
         Emit("StimulusScheduled", clock, real, raw);
     }
     // Visual response time starts on the frame that actually changes the UI, even if that frame is late.
@@ -111,7 +126,8 @@ public sealed class TaskSwitchAuditoryTrial
         ObserveOnset(dsp, real, raw, effective);
         if (Math.Abs(effective) <= settings.releaseThreshold) armed = true;
         else if (sign != 0) armed = false;
-        bool expired = pending && presented && dsp > onsetDsp + settings.responseTimeoutSeconds;
+        // Visual trials keep the same red marker until the correct side is pressed, without a deadline.
+        bool expired = !finishOnCorrectSideOnly && pending && presented && dsp > onsetDsp + settings.responseTimeoutSeconds;
         if (expired) Finish("Miss", dsp, real, raw);
         if (!edge) return;
         if (!pending || !presented)
@@ -124,8 +140,16 @@ public sealed class TaskSwitchAuditoryTrial
         double rt = Math.Max(0, dsp - onsetDsp);
         string outcome = rt < settings.minimumValidReactionSeconds ? "TooEarly" : sign == expected ? "Correct" : "Incorrect";
         bool? correct = outcome == "TooEarly" ? (bool?)null : sign == expected;
+        responseCount++;
+        if (sign != expected) incorrectResponseCount++;
+        if (outcome == "TooEarly") tooEarlyResponseCount++;
+        if (responseCount == 1)
+        {
+            firstResponseSign = sign; firstResponseOutcome = outcome; firstResponseCorrect = correct;
+            firstReactionSeconds = rt; firstResponseReal = real; firstWallReactionSeconds = real - onsetReal;
+        }
         Emit("PedalPressed", dsp, real, raw, sign, outcome, correct, rt);
-        Finish(outcome, dsp, real, raw, sign, correct, rt);
+        if (!finishOnCorrectSideOnly || sign == expected) Finish(outcome, dsp, real, raw, sign, correct, rt);
     }
     public void Cancel(string reason, double dsp, double real, float raw)
     {
@@ -178,7 +202,15 @@ public sealed class TaskSwitchAuditoryTrial
             Presented = associated && presented, HeldAtOnset = associated && held, Detail = detail,
             PauseCount = associated ? pauseCount : 0,
             PausedSeconds = associated ? pausedSeconds + (paused ? Math.Max(0, real - pauseStartedReal) : 0) : 0,
-            WallReactionSeconds = associated && sign != 0 && presented ? real - onsetReal : double.NaN
+            WallReactionSeconds = associated && sign != 0 && presented ? real - onsetReal : double.NaN,
+            ResponseCount = associated ? responseCount : 0,
+            IncorrectResponseCount = associated ? incorrectResponseCount : 0,
+            TooEarlyResponseCount = associated ? tooEarlyResponseCount : 0,
+            FirstResponseSign = associated ? firstResponseSign : 0, FirstResponseOutcome = associated ? firstResponseOutcome : "",
+            FirstResponseCorrect = associated ? firstResponseCorrect : null,
+            FirstReactionSeconds = associated ? firstReactionSeconds : double.NaN,
+            FirstResponseReal = associated ? firstResponseReal : double.NaN,
+            FirstWallReactionSeconds = associated ? firstWallReactionSeconds : double.NaN
         });
     }
 }

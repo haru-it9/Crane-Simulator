@@ -7,7 +7,7 @@ public partial class TaskSwitchExperimentCsvLogger
     private int visualOnsetTrial;
     private string visualOnsetState = "", visualOnsetPhase = "", visualOnsetStep = "";
     private int? visualOnsetCrane, visualOnsetSwitch;
-    private const string VisualHeader = IdentityHeader + ",activation_index,event_type,secondary_task_mode,utc_timestamp,real_elapsed_s,simulation_elapsed_s,frame,switch_index,active_crane_index,state,input_locked,global_paused,operation_enabled,trial_index,stimulus_side,expected_sign,response_sign,outcome,correct,reaction_time_s,presented,held_at_onset,raw_pedal,pedal_axis,invert_axis,press_threshold,release_threshold,response_timeout_s,minimum_valid_reaction_s,minimum_interval_s,maximum_interval_s,random_seed,active_clock_s,scheduled_onset_active_clock_s,actual_onset_active_clock_s,scheduled_onset_estimated_real_s,onset_observed_real_s,onset_frame_delay_s,response_observed_real_s,left_red,right_red,onset_switch_index,onset_crane_index,onset_state,onset_phase,onset_step,current_phase,current_step,app_focused,configuration_json,detail,pause_count,paused_duration_s,wall_reaction_time_s";
+    private const string VisualHeader = IdentityHeader + ",activation_index,event_type,secondary_task_mode,utc_timestamp,real_elapsed_s,simulation_elapsed_s,frame,switch_index,active_crane_index,state,input_locked,global_paused,operation_enabled,trial_index,stimulus_side,expected_sign,response_sign,outcome,correct,reaction_time_s,presented,held_at_onset,raw_pedal,pedal_axis,invert_axis,press_threshold,release_threshold,response_timeout_s,minimum_valid_reaction_s,minimum_interval_s,maximum_interval_s,random_seed,active_clock_s,scheduled_onset_active_clock_s,actual_onset_active_clock_s,scheduled_onset_estimated_real_s,onset_observed_real_s,onset_frame_delay_s,response_observed_real_s,left_red,right_red,onset_switch_index,onset_crane_index,onset_state,onset_phase,onset_step,current_phase,current_step,app_focused,configuration_json,detail,pause_count,paused_duration_s,wall_reaction_time_s,completion_policy,response_count,incorrect_response_count,too_early_response_count,first_response_sign,first_response_outcome,first_response_correct,first_reaction_time_s,first_response_observed_real_s,first_wall_reaction_time_s";
 
     private void OpenVisualFiles()
     {
@@ -48,7 +48,7 @@ public partial class TaskSwitchExperimentCsvLogger
             e.ExpectedSign == 0 ? null : (object)e.ExpectedSign, e.ResponseSign == 0 ? null : (object)e.ResponseSign,
             e.Outcome, e.Correct.HasValue ? (object)e.Correct.Value : null, e.ReactionSeconds, e.Presented, e.HeldAtOnset,
             e.RawPedal, settings.pedalAxisName, settings.invertPedalAxis, settings.pressThreshold, settings.releaseThreshold,
-            settings.responseTimeoutSeconds, settings.minimumValidReactionSeconds,
+            null, settings.minimumValidReactionSeconds, // Visual has no response timeout; preserve the column as blank.
             settings.minimumIntervalSeconds, settings.maximumIntervalSeconds, settings.randomSeed,
             e.DspTime, associated ? (object)e.PlannedOnsetClock : null,
             associated && e.Presented ? (object)e.ScheduledDsp : null,
@@ -59,7 +59,12 @@ public partial class TaskSwitchExperimentCsvLogger
             onsetKnown ? visualOnsetState : "", onsetKnown ? visualOnsetPhase : "", onsetKnown ? visualOnsetStep : "",
             tracker != null ? tracker.CurrentMajorPhase.ToString() : "", tracker != null ? tracker.CurrentStepId : "",
             Application.isFocused, taskSwitchExperimentManager.VisualRunConfigurationJson, e.Detail,
-            e.PauseCount, e.PausedSeconds, e.WallReactionSeconds);
+            e.PauseCount, e.PausedSeconds, e.WallReactionSeconds, "CorrectSidePress",
+            associated ? (object)e.ResponseCount : null, associated ? (object)e.IncorrectResponseCount : null,
+            associated ? (object)e.TooEarlyResponseCount : null,
+            e.FirstResponseSign == 0 ? null : (object)e.FirstResponseSign, e.FirstResponseOutcome,
+            e.FirstResponseCorrect.HasValue ? (object)e.FirstResponseCorrect.Value : null, e.FirstReactionSeconds,
+            e.FirstResponseReal - sessionRealOrigin, e.FirstWallReactionSeconds);
         visualEventFile.Write(row);
         if (e.EventType == "TrialFinished") { visualTrialFile.Write(row); visualTrialFile.Flush(); }
         visualEventFile.Flush();

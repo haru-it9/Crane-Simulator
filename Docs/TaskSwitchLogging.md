@@ -1,4 +1,4 @@
-# TaskSwitchExperiment CSV（schema_version = 5）
+# TaskSwitchExperiment CSV（schema_version = 6）
 
 Task SwitchモードでStartを押すと、保存先の中に `<入力ファイル名>_<UTC時刻>_<UUID>/` を作成します。同じ名前で開始しても以前の実験を上書きしません。1セッションの標準出力は次の12ファイルです。通常の自動管理モードは既存のLoggerを使用します。Debug開始はCSVを出力しません。
 
@@ -15,7 +15,7 @@ Task SwitchモードでStartを押すと、保存先の中に `<入力ファイ�
 | `auditory_subtask.csv` | 高音/低音サブタスクの提示予約・提示時刻のフレーム観測・ペダル入力・終了・一時停止。共通時計で切替ログに結合 |
 | `auditory_trials.csv` | 音提示1回につき1行。正誤・反応時間・無反応・中断・提示前取消、提示時/応答時の切替状態。無効時はヘッダーのみ |
 | `visual_subtask.csv` | 左右の青→赤提示予約・実際の色変更フレーム・ペダル入力・Pause/再開・終了。音用ファイルと分けて記録 |
-| `visual_trials.csv` | 色提示予約1回につき1行。左右、正誤、反応時間、Miss、中断/取消、提示時/回答時の作業状態。無効時はヘッダーのみ |
+| `visual_trials.csv` | 色提示予約1回につき1行。左右、初回回答、青復帰までの反応時間、回答回数、中断/取消、提示時/回答時の作業状態。無効時はヘッダーのみ |
 | `pause_intervals.csv` | Pause区間ごとに1行。共通時計の開始/終了・継続時間、境界観測の有無、開始/終了時の選択クレーン・状態・フェーズ・ステップ |
 | `cycle_summary.csv` | クレーン・サイクル実行ごとに1行。開始/終了、経過時間、監視・操作可能・全体一時停止の時間、完了ステップ数、重量逸脱・電流不足解除・巻き戻しの回数、完了/未完了 |
 
@@ -144,7 +144,7 @@ Mono（mcs/mono）とPython 3が必要です。Unity代替APIを使用して実�
 
 ## サブタスク
 
-ManagerのSecondary Task ModeでNone/Auditory/Visualを選択します。音は [TaskSwitchAuditorySubtask.md](TaskSwitchAuditorySubtask.md)、色は [TaskSwitchVisualSubtask.md](TaskSwitchVisualSubtask.md) を参照してください。schema 5では視覚用2ファイルと、session/inputのモード・視覚設定/色状態を追加します。音用の2ファイルおよび列は維持します。inputのpedal_axis/raw_pedal/pedal_armedは現在動作しているサブタスクに共通です。サブタスクの開始/停止/エラー時にもsessionの設定行を追加します。使わない種類のファイルはヘッダーのみです。既存の切替・サイクル再集計ツールはそのまま使用できます。
+ManagerのSecondary Task ModeでNone/Auditory/Visualを選択します。音は [TaskSwitchAuditorySubtask.md](TaskSwitchAuditorySubtask.md)、色は [TaskSwitchVisualSubtask.md](TaskSwitchVisualSubtask.md) を参照してください。schema 5で追加した視覚用2ファイル、session/inputのモード・視覚設定/色状態に加え、schema 6では視覚の初回回答・回答回数・完了方式を記録します。視覚は正しい側の押下まで赤を保持し、青に戻ってから2～5秒待ちます。視覚のresponse_timeout_sは空欄、時間切れのMissは生成しません。訂正後の最終結果と初回回答は分けて分析できます。音用の2ファイルおよび列は維持します。inputのpedal_axis/raw_pedal/pedal_armedは現在動作しているサブタスクに共通です。サブタスクの開始/停止/エラー時にもsessionの設定行を追加します。使わない種類のファイルはヘッダーのみです。既存の切替・サイクル再集計ツールはそのまま使用できます。
 
 ## Pause / Start
 

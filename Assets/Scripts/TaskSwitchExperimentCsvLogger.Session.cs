@@ -121,7 +121,7 @@ public partial class TaskSwitchExperimentCsvLogger
     {
         if (sessionFile == null) return;
         sessionFile.Write(Join(Identity(), type, DateTime.UtcNow.ToString("O"), RealSeconds, operatorFileLabel,
-            5, Application.unityVersion, Application.version, BuildRevision,
+            6, Application.unityVersion, Application.version, BuildRevision,
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
             taskSwitchExperimentManager.SwitchMethod, taskSwitchExperimentManager.SourceCondition.craneIndex,
             taskSwitchExperimentManager.TargetCondition.craneIndex, taskSwitchExperimentManager.TargetRunsFullCycle,

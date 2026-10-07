@@ -23,7 +23,6 @@ public partial class TaskSwitchExperimentManager
     private bool visualLeftRed, visualRightRed;
     private int visualLastTrialIndex, visualActivationIndex;
     private double visualScheduledClock = double.NaN, visualScheduledReal = double.NaN, visualPauseStartedReal;
-    private double visualLastPresentedClock = double.NaN;
     private float visualRawPedal;
 
     public TaskSwitchSecondaryTaskMode SecondaryTaskMode => !secondaryTaskSelectionMigrated &&
@@ -120,18 +119,17 @@ public partial class TaskSwitchExperimentManager
             if (visualLeftIndicator == null || visualRightIndicator == null || visualLeftIndicator == visualRightIndicator)
                 throw new InvalidOperationException("Assign separate left and right UI Images");
             visualRunSettings = JsonUtility.FromJson<TaskSwitchVisualSettings>(JsonUtility.ToJson(visualSubtask));
-            string error = visualRunSettings.PedalSettings().ValidatePedalAndTiming();
+            string error = visualRunSettings.Validate();
             if (error != null) throw new InvalidOperationException(error);
             if (visualRunSettings.randomSeed == 0) visualRunSettings.randomSeed = Guid.NewGuid().GetHashCode();
             visualRandom = new System.Random(visualRunSettings.randomSeed);
             visualRawPedal = Input.GetAxisRaw(visualRunSettings.pedalAxisName);
-            visualTrial = new TaskSwitchAuditoryTrial(visualRunSettings.PedalSettings(), visualLastTrialIndex);
+            visualTrial = new TaskSwitchAuditoryTrial(visualRunSettings.PedalSettings(), visualLastTrialIndex, true);
             visualTrial.EventOccurred += HandleVisualTrialEvent;
             SetVisualColors(false, false);
             SetVisualVisibility(true);
             ValidateVisualVisibility();
             visualScheduledClock = visualScheduledReal = double.NaN;
-            visualLastPresentedClock = double.NaN;
             visualRunning = true;
             visualPaused = ExperimentPauseManager.IsPaused;
             visualWaitingForOnset = false;
@@ -146,7 +144,8 @@ public partial class TaskSwitchExperimentManager
         double clock = ExperimentPauseManager.ActiveRealtime, real = Time.realtimeSinceStartupAsDouble;
         double interval = visualRunSettings.minimumIntervalSeconds + visualRandom.NextDouble() *
             (visualRunSettings.maximumIntervalSeconds - visualRunSettings.minimumIntervalSeconds);
-        visualScheduledClock = double.IsNaN(visualLastPresentedClock) ? clock + interval : Math.Max(clock + 0.1, visualLastPresentedClock + interval);
+        // Called on activation or the frame that a correct response returns the marker to blue.
+        visualScheduledClock = clock + interval;
         visualScheduledReal = real + visualScheduledClock - clock;
         visualScheduledRight = visualRandom.Next(2) == 1;
         visualWaitingForOnset = true;
@@ -172,7 +171,6 @@ public partial class TaskSwitchExperimentManager
             if (visualWaitingForOnset && clock >= visualScheduledClock)
             {
                 visualWaitingForOnset = false;
-                visualLastPresentedClock = clock;
                 SetVisualColors(!visualScheduledRight, visualScheduledRight);
                 visualTrial.Present(clock, real, visualRawPedal);
             }
