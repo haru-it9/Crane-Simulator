@@ -343,10 +343,9 @@ public class CraneWorkCycleController : MonoBehaviour
             return false;
         }
 
-        isPaused = false;
-
         if (waitingAtBoundary || hasPendingNextPhase)
         {
+            isPaused = false;
             return ContinueAfterBoundary();
         }
 
@@ -355,6 +354,23 @@ public class CraneWorkCycleController : MonoBehaviour
             return false;
         }
 
+        // Task Switch中に別クレーンの目標が更新されても、
+        // Source復帰時は中断していたフェーズの目標を再適用します。
+        if (!ApplyTargetForPhase(currentPhase) && requireValidTarget)
+        {
+            isPaused = true;
+
+            Debug.LogError(
+                $"CraneWorkCycle: {GetCraneLabel()}の復帰時に" +
+                $"{currentPhase}目標を再設定できないため、" +
+                "作業再開を中止します。",
+                this
+            );
+
+            return false;
+        }
+
+        isPaused = false;
         bool resumed = phaseTracker.ResumeMonitoring();
 
         if (resumed)
