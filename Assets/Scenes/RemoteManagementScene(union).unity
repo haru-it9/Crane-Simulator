@@ -26144,6 +26144,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -28830,6 +28832,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -29908,6 +29912,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d28f9c1437ffa9046870e3e55af397d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  enableAuditorySubtask: 1
+  auditorySubtask:
+    pedalAxisName: TaskSwitchPedal
+    invertPedalAxis: 0
+    highToneUsesPositivePedal: 1
+    pressThreshold: 0.5
+    releaseThreshold: 0.2
+    lowToneHz: 500
+    highToneHz: 1000
+    toneDurationSeconds: 0.2
+    volume: 0.2
+    minimumIntervalSeconds: 3
+    maximumIntervalSeconds: 5
+    responseTimeoutSeconds: 2
+    minimumValidReactionSeconds: 0.1
+    randomSeed: 0
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
@@ -29944,9 +29964,20 @@ MonoBehaviour:
   useRealWorkPhaseBoundary: 1
   allowLegacyPhaseBoundaryFallback: 0
   confirmationPanel: {fileID: 104696218}
+  confirmationButton: {fileID: 0}
+  confirmationButtonText: {fileID: 0}
   countdownPanel: {fileID: 429858653}
   countdownText: {fileID: 376037744}
   experimentStateText: {fileID: 0}
+  confirmationInputButton: JoyStick2RedButton
+  targetConfirmationReadyText: "\u8D64\u30DC\u30BF\u30F3\u3067\u4F5C\u696D\u958B\u59CB"
+  sourceConfirmationReadyText: "\u8D64\u30DC\u30BF\u30F3\u3067\u4F5C\u696D\u518D\u958B"
+  confirmationStandbyText: "\u78BA\u8A8D\u5F85\u6A5F\u4E2D"
+  confirmationAcceptedText: "\u78BA\u8A8D\u5165\u529B\u3092\u53D7\u3051\u4ED8\u3051\u307E\u3057\u305F"
+  confirmationReadyColor: {r: 0.65, g: 1, b: 0.1, a: 1}
+  confirmationStandbyColor: {r: 0.35, g: 0.35, b: 0.35, a: 1}
+  confirmationAcceptedColor: {r: 0.2, g: 0.85, b: 1, a: 1}
+  confirmationAcceptedDisplaySeconds: 0.5
   objectsHiddenDuringExperiment:
   - {fileID: 1237738884}
   - {fileID: 1564791259}
@@ -53178,6 +53209,12 @@ MonoBehaviour:
     xText: {fileID: 361705450}
     zText: {fileID: 2054059692}
     weightText: {fileID: 1744466298}
+  workPhaseTracker: {fileID: 0}
+  loadPlanManager: {fileID: 0}
+  achievedValueColor: {r: 0.65, g: 1, b: 0.1, a: 1}
+  fineAlignTolerance: 0.05
+  weightToleranceKg: 100
+  coordinateHighlightReleaseLocalY: -1.66
   boardDensity: 7850
   weightDisplayHeight: 0.2
   zeroWeightText: 0.00 t
@@ -55103,6 +55140,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4532e9216f72bed4ba6e619b8843015a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  simulatorStartManager: {fileID: 0}
+  taskSwitchExperimentManager: {fileID: 0}
   pauseOnSimulatorStart: 1
   waitForSimulatorStart: 1
   pauseResumeButton: {fileID: 1513821451}
@@ -88570,6 +88609,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -91677,6 +91718,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -95182,6 +95225,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -112453,6 +112498,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -112544,6 +112591,9 @@ MonoBehaviour:
   currentPhase: 0
   pendingNextPhase: 0
   hasPendingNextPhase: 0
+  activePickupPointIndex: 0
+  activeDestinationPointIndex: 0
+  activeTrailerPointIndex: 0
   activePickupXSelection: 1
   activeDestinationXSelection: 1
   activeTrailerXSelection: 1
@@ -121422,6 +121472,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -122487,6 +122539,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -125072,6 +125126,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -125163,6 +125219,9 @@ MonoBehaviour:
   currentPhase: 0
   pendingNextPhase: 0
   hasPendingNextPhase: 0
+  activePickupPointIndex: 0
+  activeDestinationPointIndex: 0
+  activeTrailerPointIndex: 0
   activePickupXSelection: 1
   activeDestinationXSelection: 1
   activeTrailerXSelection: 1
@@ -138194,6 +138253,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -143819,6 +143880,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -159612,6 +159675,8 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  requireLiftUpPositionInterlock: 1
+  liftUpPositionTolerance: 0.05
   pickupWeightGuardToleranceKg: 100
   pickupWeightInvalidationStableSeconds: 0.2
   destroyDroppedBoardsOnWeightInvalidation: 1
@@ -183175,6 +183240,11 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   flushEveryLines: 1
+  participantId: 
+  blockId: 
+  sampleIntervalSeconds: 0.05
+  gazeAreas: []
+  sourceRevision: 
 --- !u!1 &2081010235
 GameObject:
   m_ObjectHideFlags: 0
