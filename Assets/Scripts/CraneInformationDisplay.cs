@@ -30,6 +30,23 @@ public class CraneInformationDisplay : MonoBehaviour
     [SerializeField] private InformationTextSet taskSwitchDisplayTexts =
         new InformationTextSet();
 
+    [Header("作業判定連携")]
+    [SerializeField] private CraneWorkPhaseTracker workPhaseTracker;
+    [SerializeField] private CraneWorkLoadPlanManager loadPlanManager;
+
+    [Header("目標範囲内の表示色")]
+    [SerializeField]
+    private Color achievedValueColor =
+        new Color(0.65f, 1f, 0.10f, 1f);
+
+    [SerializeField]
+    [Min(0f)]
+    private float fineAlignTolerance = 0.05f;
+
+    [SerializeField]
+    [Min(0f)]
+    private float weightToleranceKg = 100f;
+
     [Header("板密度 [kg/m^3]")]
     [SerializeField] private float boardDensity = 7850f;
 
@@ -44,14 +61,29 @@ public class CraneInformationDisplay : MonoBehaviour
     private bool hasReachedMaxWeight;
     private bool shouldResetWeight;
 
+    private readonly Dictionary<Text, Color> defaultValueColors =
+        new Dictionary<Text, Color>();
+
     public float CurrentX { get; private set; }
     public float CurrentZ { get; private set; }
     public float CurrentDisplayWeightTon { get; private set; }
+
+    private void Awake()
+    {
+        ResolveWorkReferences(lifMagSystem);
+        CacheDefaultValueColors();
+    }
 
     private void Update()
     {
         UpdatePositionText();
         UpdateWeightText();
+        UpdateAchievementColors();
+    }
+
+    private void OnDisable()
+    {
+        RestoreDefaultValueColors();
     }
 
     public void SetTarget(
@@ -59,8 +91,11 @@ public class CraneInformationDisplay : MonoBehaviour
         LifMagSystem newLifMagSystem
     )
     {
+        RestoreDefaultValueColors();
+
         targetTransform = newTargetTransform;
         lifMagSystem = newLifMagSystem;
+        ResolveWorkReferences(newLifMagSystem);
 
         wasHoldingLastFrame = false;
         hasReachedMaxWeight = false;
@@ -200,6 +235,180 @@ public class CraneInformationDisplay : MonoBehaviour
         }
     }
 
+    private void UpdateAchievementColors()
+    {
+        bool isMonitoring =
+            workPhaseTracker != null &&
+            workPhaseTracker.IsMonitoring;
+
+        string stepId = isMonitoring
+            ? workPhaseTracker.CurrentStepId
+            : string.Empty;
+
+        bool isFineAlign =
+            stepId == "Move1.PickupFineAlign" ||
+            stepId == "Move2.DestinationFineAlign";
+
+        bool xWithinTarget =
+            isFineAlign &&
+            workPhaseTracker.CurrentTargetErrorX <=
+            Mathf.Max(0f, fineAlignTolerance);
+
+        bool zWithinTarget =
+            isFineAlign &&
+            workPhaseTracker.CurrentTargetErrorZ <=
+            Mathf.Max(0f, fineAlignTolerance);
+
+        bool weightWithinTarget = false;
+
+        if (isMonitoring &&
+            TryGetCurrentWeightTargetKg(out float targetWeightKg))
+        {
+            float displayedWeightKg =
+                CurrentDisplayWeightTon * 1000f;
+
+            weightWithinTarget =
+                Mathf.Abs(displayedWeightKg - targetWeightKg) <=
+                Mathf.Max(0f, weightToleranceKg);
+        }
+
+        foreach (InformationTextSet textSet in GetTextSets())
+        {
+            if (textSet == null)
+            {
+                continue;
+            }
+
+            SetAchievementColor(textSet.xText, xWithinTarget);
+            SetAchievementColor(textSet.zText, zWithinTarget);
+            SetAchievementColor(
+                textSet.weightText,
+                weightWithinTarget
+            );
+        }
+    }
+
+    private bool TryGetCurrentWeightTargetKg(
+        out float targetWeightKg
+    )
+    {
+        targetWeightKg = 0f;
+
+        if (workPhaseTracker == null || loadPlanManager == null)
+        {
+            return false;
+        }
+
+        switch (workPhaseTracker.CurrentMajorPhase)
+        {
+            case CraneStatusManager.WorkPhase.LiftUp:
+                return loadPlanManager.TryGetPickupTargetWeightKg(
+                    out targetWeightKg
+                );
+
+            case CraneStatusManager.WorkPhase.Place:
+            case CraneStatusManager.WorkPhase.PlaceToTrack:
+                return loadPlanManager.TryGetTargetRemainingWeightKg(
+                    out targetWeightKg
+                );
+
+            default:
+                return false;
+        }
+    }
+
+    private void SetAchievementColor(Text text, bool achieved)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        if (!defaultValueColors.ContainsKey(text))
+        {
+            defaultValueColors.Add(text, text.color);
+        }
+
+        text.color = achieved
+            ? achievedValueColor
+            : defaultValueColors[text];
+    }
+
+    private void CacheDefaultValueColors()
+    {
+        foreach (InformationTextSet textSet in GetTextSets())
+        {
+            if (textSet == null)
+            {
+                continue;
+            }
+
+            CacheDefaultValueColor(textSet.xText);
+            CacheDefaultValueColor(textSet.zText);
+            CacheDefaultValueColor(textSet.weightText);
+        }
+    }
+
+    private void CacheDefaultValueColor(Text text)
+    {
+        if (text != null && !defaultValueColors.ContainsKey(text))
+        {
+            defaultValueColors.Add(text, text.color);
+        }
+    }
+
+    private void RestoreDefaultValueColors()
+    {
+        foreach (KeyValuePair<Text, Color> entry in defaultValueColors)
+        {
+            if (entry.Key != null)
+            {
+                entry.Key.color = entry.Value;
+            }
+        }
+    }
+
+    private void ResolveWorkReferences(LifMagSystem sourceLifMag)
+    {
+        workPhaseTracker = null;
+        loadPlanManager = null;
+
+        if (sourceLifMag == null)
+        {
+            return;
+        }
+
+        CraneInstance craneInstance =
+            sourceLifMag.GetComponentInParent<CraneInstance>();
+
+        if (craneInstance == null)
+        {
+            return;
+        }
+
+        workPhaseTracker =
+            craneInstance.GetComponent<CraneWorkPhaseTracker>();
+
+        if (workPhaseTracker == null)
+        {
+            workPhaseTracker =
+                craneInstance.GetComponentInChildren<
+                    CraneWorkPhaseTracker
+                >(true);
+        }
+
+        loadPlanManager =
+            craneInstance.GetComponent<CraneWorkLoadPlanManager>();
+
+        if (loadPlanManager == null)
+        {
+            loadPlanManager =
+                craneInstance.GetComponentInChildren<
+                    CraneWorkLoadPlanManager
+                >(true);
+        }
+    }
+
     private IEnumerable<InformationTextSet> GetTextSets()
     {
         if (multiDisplayTexts != null)
@@ -235,6 +444,12 @@ public class CraneInformationDisplay : MonoBehaviour
         }
 
         hasReachedMaxWeight = false;
+    }
+
+    private void OnValidate()
+    {
+        fineAlignTolerance = Mathf.Max(0f, fineAlignTolerance);
+        weightToleranceKg = Mathf.Max(0f, weightToleranceKg);
     }
 
     private float CalculateBoardWeight(GameObject board)
