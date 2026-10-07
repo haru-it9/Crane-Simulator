@@ -508,7 +508,7 @@ public partial class TaskSwitchExperimentCsvLogger
     }
     private void WriteGaze(object[] context)
     {
-        GazePoint g = TobiiAPI.GetGazePoint();
+        GazePoint g = TobiiTrackedGameView.GetGazePoint();
         Vector2 v = g.IsValid ? g.Viewport : Vector2.zero;
         Vector2 raw = g.IsValid ? g.Screen : Vector2.zero;
         Vector2 screen = new Vector2(v.x * Screen.width, v.y * Screen.height);

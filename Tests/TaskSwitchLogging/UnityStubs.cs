@@ -9,6 +9,7 @@ namespace UnityEngine
         public static T FindObjectOfType<T>(bool inactive = false) where T : class { return Scene.Find(x => x is T) as T; }
         public static T[] FindObjectsOfType<T>(bool inactive = false) where T : class { return Scene.FindAll(x => x is T).ConvertAll(x => x as T).ToArray(); }
         public static void Destroy(Object o) { }
+        public static void DontDestroyOnLoad(Object o) { }
     }
     public class MonoBehaviour : Object
     {
@@ -18,7 +19,7 @@ namespace UnityEngine
         public T GetComponent<T>() where T : class { object o; return components.TryGetValue(typeof(T), out o) ? o as T : null; }
         public T GetComponentInChildren<T>(bool inactive = false) where T : class { return GetComponent<T>(); }
     }
-    public class GameObject { public string name; public bool activeInHierarchy = true; public void SetActive(bool value) { activeInHierarchy=value; } public T AddComponent<T>() where T:new() { return new T(); } }
+    public class GameObject : Object { public GameObject() {} public GameObject(string n) { name=n; } public string name; public bool activeInHierarchy = true; public void SetActive(bool value) { activeInHierarchy=value; } public T AddComponent<T>() where T:new() { return new T(); } }
     public class AudioClip : Object
     {
         public float[] Samples; public int SampleRate;
@@ -42,7 +43,7 @@ namespace UnityEngine
         public float sqrMagnitude => x*x+y*y+z*z; public static Vector3 zero => new Vector3();
         public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x-b.x,a.y-b.y,a.z-b.z); }
     }
-    public static class Time { public static double realtimeSinceStartupAsDouble, timeAsDouble; public static float timeScale=1,deltaTime,unscaledDeltaTime; public static float realtimeSinceStartup => (float)realtimeSinceStartupAsDouble; public static float time => (float)timeAsDouble; public static int frameCount; }
+    public static class Time { public static double realtimeSinceStartupAsDouble, timeAsDouble; public static float timeScale=1,deltaTime,unscaledDeltaTime; public static float realtimeSinceStartup => (float)realtimeSinceStartupAsDouble; public static float unscaledTime => realtimeSinceStartup; public static float time => (float)timeAsDouble; public static int frameCount; }
     public static class Mathf { public static float Max(float a,float b) => Math.Max(a,b); public static int Max(int a,int b) => Math.Max(a,b); public static float Abs(float v) => Math.Abs(v); public static float Clamp(float v,float a,float b) => Math.Min(b,Math.Max(a,v)); }
     public static class Input
     {
@@ -68,6 +69,8 @@ namespace UnityEngine
     public static class RectTransformUtility { public static Vector2 WorldToScreenPoint(Camera c, Vector3 p) { return new Vector2(p.x,p.y); } public static bool RectangleContainsScreenPoint(RectTransform r, Vector2 p, Camera c) { return true; } }
     public class DisallowMultipleComponent : Attribute {}
     public class DefaultExecutionOrder : Attribute { public DefaultExecutionOrder(int n) {} }
+    public enum RuntimeInitializeLoadType { AfterSceneLoad }
+    public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType t) {} }
     public class SerializeField : Attribute {}
     public class Header : Attribute { public Header(string s) {} }
     public class Tooltip : Attribute { public Tooltip(string s) {} }
@@ -75,6 +78,7 @@ namespace UnityEngine
     public class Range : Attribute { public Range(float a,float b) {} }
 }
 namespace UnityEngine.Events { public enum UnityEventCallState { Off,EditorAndRuntime,RuntimeOnly } }
+namespace AOT { public class MonoPInvokeCallbackAttribute : Attribute { public MonoPInvokeCallbackAttribute(Type t) {} } }
 namespace UnityEngine.UI
 {
     public class Text : UnityEngine.MonoBehaviour { public string text; }
@@ -102,7 +106,7 @@ namespace UnityEngine.SceneManagement
 }
 namespace Tobii.Gaming
 {
-    public class GazePoint { public bool IsValid; public UnityEngine.Vector2 Viewport,Screen; }
+    public class GazePoint { public bool IsValid; public UnityEngine.Vector2 Viewport,Screen; public float Timestamp; public static GazePoint Invalid => new GazePoint { Viewport=new UnityEngine.Vector2(float.NaN,float.NaN),Screen=new UnityEngine.Vector2(float.NaN,float.NaN) }; }
     public static class TobiiAPI { public static bool IsConnected; public static GazePoint gaze = new GazePoint(); public static GazePoint GetGazePoint() { return gaze; } }
 }
 public enum CraneWorkTargetXSelection { Random }

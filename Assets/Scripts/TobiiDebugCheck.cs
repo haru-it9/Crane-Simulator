@@ -29,7 +29,7 @@ public class TobiiDebugCheck : MonoBehaviour
         try
         {
             // Let the SDK tick before reading native connection/initialization status.
-            GazePoint gazePoint = TobiiAPI.GetGazePoint();
+            GazePoint gazePoint = TobiiTrackedGameView.GetGazePoint();
             Debug.Log(
                 "Tobii IsConnected = " + TobiiAPI.IsConnected +
                 ", Gaze IsValid = " + gazePoint.IsValid +
@@ -38,6 +38,7 @@ public class TobiiDebugCheck : MonoBehaviour
                 ", AppFocused = " + Application.isFocused +
                 ", ExperimentPaused = " + ExperimentPauseManager.IsPaused +
                 ", GameScreen = " + Screen.width + "x" + Screen.height +
+                ", GameViewSelection = " + TobiiTrackedGameView.SelectionStatus +
                 ", " + ReadHostDiagnostics() + ReadNativeDiagnostics()
             );
         }

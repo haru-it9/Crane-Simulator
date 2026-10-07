@@ -11,6 +11,8 @@ class LoggingTests
     public static int Main(string[] args)
     {
         string output=args[0];Directory.CreateDirectory(output);
+        GazeSelectionTests.Run(output);
+        TobiiTrackedGameView.TestRead = () => Tobii.Gaming.TobiiAPI.GetGazePoint();
         CultureInfo.CurrentCulture=new CultureInfo("fr-FR");
         foreach(string completion in new[]{"TargetMajorPhaseCompleted","TargetWorkCycleCompleted","TargetWorkCycleCompletedByPhase","TargetWorkCycleCompletionFallback"})
         {

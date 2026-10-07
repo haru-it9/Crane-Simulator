@@ -130,7 +130,7 @@ public class TobiiGazeCsvLogger : MonoBehaviour
         bool isConnected = TobiiAPI.IsConnected;
         bool appFocused = Application.isFocused;
 
-        GazePoint gazePoint = TobiiAPI.GetGazePoint();
+        GazePoint gazePoint = TobiiTrackedGameView.GetGazePoint();
 
         int screenWidth = Screen.width;
         int screenHeight = Screen.height;

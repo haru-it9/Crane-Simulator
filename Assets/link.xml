@@ -1,0 +1,10 @@
+<linker>
+  <assembly fullname="TobiiSDK">
+    <type fullname="Tobii.Gaming.TobiiAPI" preserve="all" />
+    <type fullname="Tobii.Gaming.Internal.TobiiHost" preserve="all" />
+    <type fullname="Tobii.Gaming.Internal.GameViewBoundsProvider" preserve="all" />
+    <type fullname="Tobii.Gaming.Internal.UnityPlayerGameViewBoundsProvider" preserve="all" />
+    <type fullname="Tobii.Gaming.Internal.GazePointDataProvider" preserve="all" />
+    <type fullname="Tobii.Gaming.Internal.DataProviderBase`1" preserve="all" />
+  </assembly>
+</linker>
