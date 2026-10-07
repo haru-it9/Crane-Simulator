@@ -29963,7 +29963,8 @@ MonoBehaviour:
   targetWorkPhaseTracker: {fileID: 1229067185}
   sourceCycleController: {fileID: 1378636672}
   targetCycleController: {fileID: 1229067188}
-  targetRunsFullCycle: 1
+  workConditionsCsv: {fileID: 4900000, guid: 70256d08a71148448c60d00f157166bc, type: 3}
+  targetTaskPattern: 0
   useRealWorkPhaseBoundary: 1
   allowLegacyPhaseBoundaryFallback: 0
   confirmationPanel: {fileID: 104696218}

@@ -146,6 +146,7 @@ public partial class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
     public TaskSwitchCraneCondition SourceCondition = new TaskSwitchCraneCondition { craneIndex=0 };
     public TaskSwitchCraneCondition TargetCondition = new TaskSwitchCraneCondition { craneIndex=1 };
     public int CurrentSwitchIndex; public bool TargetRunsFullCycle;
+    public string WorkConditionsCsvText = ""; public TaskSwitchTargetTaskPattern ActiveTargetTaskPattern = TaskSwitchTargetTaskPattern.Move1ToLiftUp; public string ActiveTargetWorkConditionJson = "";
     public int SourceTotalCycleCount => 3; public float CountdownSeconds => 5; public string SwitchScheduleCsvText => "";
     public event Action<TaskSwitchEventData> ExperimentEventOccurred;
     public int Starts;

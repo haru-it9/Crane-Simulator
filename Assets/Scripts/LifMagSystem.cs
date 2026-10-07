@@ -1541,11 +1541,11 @@ public class LifMagSystem : MonoBehaviour
     // 介入開始状態の再現用
     // ================================
 
-    public void ForceAttachBoardForIntervention(GameObject board)
+    public void ForceAttachBoardForIntervention(GameObject board, bool append = false)
     {
         if (board == null) return;
 
-        ForceDetachAllForIntervention();
+        if (!append) ForceDetachAllForIntervention();
 
         Rigidbody rb = board.GetComponent<Rigidbody>();
         HoldBoardSensor sensor = board.GetComponent<HoldBoardSensor>();

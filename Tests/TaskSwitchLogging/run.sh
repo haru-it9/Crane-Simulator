@@ -4,7 +4,7 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 output="$(mktemp -d)"
 trap 'rm -rf "$output"' EXIT
 "${MCS:-mcs}" -define:CRANE_GAZE_TESTS -out:"$output/test.exe" "$root/Assets/Scripts/ExperimentCsvFile.cs" \
-    "$root/Assets/Scripts/TaskSwitchExperimentTypes.cs" "$root/Assets/Scripts/TaskSwitchExperimentCsvLogger.cs" \
+    "$root/Assets/Scripts/TaskSwitchWorkConditions.cs" "$root/Assets/Scripts/TaskSwitchExperimentTypes.cs" "$root/Assets/Scripts/TaskSwitchExperimentCsvLogger.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentCsvLogger.Session.cs" \
     "$root/Assets/Scripts/TaskSwitchAuditorySubtask.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentManager.AuditorySubtask.cs" \

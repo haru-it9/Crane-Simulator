@@ -1,4 +1,5 @@
 import csv
+import json
 import sys
 from pathlib import Path
 
@@ -26,7 +27,7 @@ for folder in folders:
 d = next(data for data in all_data if data['crane_state'])
 assert not d['auditory_subtask'] and not d['auditory_trials'], 'disabled subtask must produce no trials'
 assert not d['visual_subtask'] and not d['visual_trials']
-assert all(r['schema_version'] == '7' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
+assert all(r['schema_version'] == '8' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
 assert len(d['switch_summary']) == 3
 complete, incomplete, no_input = d['switch_summary']
 assert complete['outcome'] == 'Completed'
@@ -172,7 +173,7 @@ for path in visual_folder.glob('*.csv'):
     assert all(r['participant_id'] == 'P04' and r['block_id'] == 'visual' for r in visual_data[path.stem])
 assert len({r['session_id'] for data in visual_data.values() for r in data}) == 1
 assert not visual_data['auditory_subtask'] and not visual_data['auditory_trials'], 'visual mode emitted auditory events'
-assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '7' for r in visual_data['session'])
+assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '8' for r in visual_data['session'])
 trials = visual_data['visual_trials']
 history = visual_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
@@ -233,16 +234,17 @@ documents = list(re.finditer(r'--- !u!\d+ &(\d+)\n(.*?)(?=--- !u!|\Z)', scene, r
 blocks = {m[1]: m[2] for m in documents}
 assert len(documents) == len(blocks), 'duplicate Unity file IDs'
 manager = blocks['333508956']
-assert 'minimumIntervalSeconds: 2' in manager[manager.index('  visualSubtask:'):manager.index('  auditorySubtask:')]
-assert 'responseTimeoutSeconds:' not in manager[manager.index('  visualSubtask:'):manager.index('  auditorySubtask:')]
-assert 'secondaryTaskMode: 1' in manager and 'secondaryTaskSelectionMigrated: 1' in manager, 'current auditory selection was lost'
-for image_id, rect_id, go_id, side, x in [('9000001004', '9000001002', '9000001001', 'Left', -1050),
-                                        ('9000001008', '9000001006', '9000001005', 'Right', 1050)]:
+visual_settings = re.search(r'  visualSubtask:\n((?:    .*\n)+)', manager).group(1)
+assert 'minimumIntervalSeconds: 2' in visual_settings
+assert 'responseTimeoutSeconds:' not in visual_settings
+assert 'secondaryTaskSelectionMigrated: 1' in manager
+for image_id, rect_id, go_id, side, x in [('9000001004', '9000001002', '9000001001', 'Left', -1900),
+                                        ('9000001008', '9000001006', '9000001005', 'Right', 1900)]:
     assert f'visual{side}Indicator: {{fileID: {image_id}}}' in manager
     assert f'm_Name: VisualSubtask{side}' in blocks[go_id] and 'm_IsActive: 0' in blocks[go_id]
     assert 'm_RaycastTarget: 0' in blocks[image_id] and 'm_Color: {r: 0, g: 0, b: 1, a: 1}' in blocks[image_id]
     assert 'm_Father: {fileID: 1796973733}' in blocks[rect_id]
-    assert f'm_AnchoredPosition: {{x: {x}, y: 140}}' in blocks[rect_id]
+    assert f'm_AnchoredPosition: {{x: {x}, y: 0}}' in blocks[rect_id]
     assert f'{{fileID: {rect_id}}}' in blocks['1796973733']
 print('PASS: Unity scene marker references, left/right placement, blue initial state, hidden auditory-mode UI and noninteractive Images')
 
@@ -256,7 +258,7 @@ for path in keyboard_folder.glob('*.csv'):
     assert len(set(rows[0])) == len(rows[0]) and all(len(r) == len(rows[0]) for r in rows[1:]), path
     keyboard_data[path.stem] = [dict(zip(rows[0], r)) for r in rows[1:]]
     assert all(r['participant_id'] == 'P05' and r['block_id'] == 'pedal_keys' for r in keyboard_data[path.stem])
-assert all(r['schema_version'] == '7' for r in keyboard_data['session'])
+assert all(r['schema_version'] == '8' for r in keyboard_data['session'])
 trials = keyboard_data['visual_trials']
 history = keyboard_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
@@ -276,3 +278,8 @@ assert any(r['pedal_input_source'] == 'PlusMinusKeys' and r['pedal_axis_raw'] ==
 assert all(r['pedal_axis_raw'] == r['pedal_positive_key'] == r['pedal_negative_key'] == r['raw_pedal'] == ''
            for r in inputs if r['global_paused'] == '1'), 'paused unpolled input was reported as live'
 print('PASS: keyboard pedal CSV zero-axis/nonzero-response provenance, wrong-then-correct trial, paused input blanks, simultaneous-key conflict and axis-only compatibility')
+
+# Schema 8 keeps work-condition CSV newlines/commas and the active per-request pattern.
+assert all(r["work_conditions_csv"].startswith("role,index,") and "Target,1,16,2,24,0,3,1\n" in r["work_conditions_csv"] and r["target_task_pattern"] == "Move2ToPlace" for r in d["session"])
+assert all(r["target_task_pattern"] == "Move2ToPlace" and json.loads(r["target_work_condition_json"])["placementCount"] == 1 for r in d["events"])
+print("PASS: schema 8 work-condition CSV escaping and per-event pattern/count configuration")

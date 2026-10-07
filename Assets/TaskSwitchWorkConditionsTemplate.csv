@@ -1,0 +1,14 @@
+role,index,pickupX,pickupZ,placementX,placementZ,pickupCount,placementCount
+Source,1,-4,2,4,0,1,1
+Source,2,-4,4,4,0,1,1
+Source,3,-4,6,4,0,1,1
+Source,4,-4,8,4,0,1,1
+Source,5,-4,10,4,0,1,1
+Target,1,16,2,24,0,1,1
+Target,2,16,2,24,0,1,1
+Target,3,16,2,24,0,1,1
+Target,4,16,2,24,0,1,1
+Target,5,16,2,24,0,1,1
+Target,6,16,2,24,0,1,1
+Target,7,16,2,24,0,1,1
+Target,8,16,2,24,0,1,1

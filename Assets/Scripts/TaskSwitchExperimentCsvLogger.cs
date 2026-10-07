@@ -526,7 +526,7 @@ public partial class TaskSwitchExperimentCsvLogger : MonoBehaviour
             ElapsedFrom(targetOperationStartedRealTime),
             ElapsedFrom(targetPhaseCompletedRealTime),
             ElapsedFrom(sourceOperationResumedRealTime),
-            Csv(detail)
+            Csv(detail), Csv(taskSwitchExperimentManager.ActiveTargetTaskPattern.ToString()), Csv(taskSwitchExperimentManager.ActiveTargetWorkConditionJson)
         };
 
         CraneWorkPhaseTracker eventTracker = GetWorkPhaseTracker(eventCraneIndex);
@@ -819,7 +819,7 @@ public partial class TaskSwitchExperimentCsvLogger : MonoBehaviour
             "safe_current_hold_active,since_switch_request_s," +
             "since_target_operation_start_s," +
             "since_target_phase_completed_s," +
-            "since_source_operation_resumed_s,detail"
+            "since_source_operation_resumed_s,detail,target_task_pattern,target_work_condition_json"
         );
     }
 

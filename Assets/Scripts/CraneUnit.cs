@@ -967,7 +967,8 @@ public class CraneUnit : MonoBehaviour
     public void SetInterventionBoardAttached(
         GameObject board,
         Vector3 attachedLocalPosition,
-        Vector3 attachedLocalEuler
+        Vector3 attachedLocalEuler,
+        bool append = false
     )
     {
         if (board == null || mainLifMag == null) return;
@@ -988,7 +989,7 @@ public class CraneUnit : MonoBehaviour
 
         if (lifMagSystem != null)
         {
-            lifMagSystem.ForceAttachBoardForIntervention(board);
+            lifMagSystem.ForceAttachBoardForIntervention(board, append);
         }
     }
 

@@ -30,7 +30,7 @@ class LoggingTests
         Require(ExperimentCsvFile.Encode(double.PositiveInfinity)=="","invalid numeric value");
         bool rejected=false;try { using(var f=new ExperimentCsvFile(Path.Combine(output,"bad.csv"),"a,b")) f.Write(1); }catch(ArgumentException){rejected=true;}
         Require(rejected,"invalid row width accepted");
-        var manager=new TaskSwitchExperimentManager();
+        var manager=new TaskSwitchExperimentManager { WorkConditionsCsvText="role,index,pickupX,pickupZ,placementX,placementZ,pickupCount,placementCount\nTarget,1,16,2,24,0,3,1\n", ActiveTargetTaskPattern=TaskSwitchTargetTaskPattern.Move2ToPlace, ActiveTargetWorkConditionJson="{\"role\":\"Target\",\"pickupCount\":3,\"placementCount\":1}" };
         var registry=new CraneRegistry { cranes=new CraneInstance[2] };
         var op=new CraneOperationManager();
         for(int i=0;i<2;i++)

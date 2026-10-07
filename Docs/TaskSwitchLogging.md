@@ -1,4 +1,4 @@
-# TaskSwitchExperiment CSV（schema_version = 7）
+# TaskSwitchExperiment CSV（schema_version = 8）
 
 Task SwitchモードでStartを押すと、保存先の中に `<入力ファイル名>_<UTC時刻>_<UUID>/` を作成します。同じ名前で開始しても以前の実験を上書きしません。1セッションの標準出力は次の12ファイルです。通常の自動管理モードは既存のLoggerを使用します。Debug開始はCSVを出力しません。
 
@@ -153,3 +153,7 @@ Pauseは主タスク・切替・監視・電流制御・音/色提示を保持�
 ## ペダル入力の取得元（schema 7）
 
 音・視覚イベント/試行CSVとinput.csvに `pedal_axis_raw, pedal_positive_key, pedal_negative_key, pedal_input_source, pedal_input_conflict, plus_minus_keys_enabled` を追加します。通常/テンキーの＋/−を直接取得でき、元の軸値が0でも回答できます。raw_pedalはキーまたは軸を統合した未反転値、pedal_axis_rawはInput Managerの元値です。pedal_input_sourceはAxis / PlusMinusKeys / ConflictingKeys。両キー同時押下は回答として受理せずraw_pedalを空欄にし、中立復帰を要求します。Pause中・サブタスク停止中のinputの実入力列は空欄、plus_minus_keys_enabledは設定値を保存します。設定JSONにキー入力の有効フラグと正負のキーコードを記録します。既存の12ファイル構成と主作業の集計は維持します。
+
+## 作業条件と作業者主導切替（schema 8）
+
+切替先はMove1→LiftUp / Move2→PlaceをスケジュールCSVで選択します。切替元は5サイクルです。session.csvにwork_conditions_csv / target_task_pattern、events.csvにtarget_task_pattern / target_work_condition_jsonを追加し、座標・枚数・各要請の作業を記録します。設定と新イベントの説明は [TaskSwitchWorkConditions.md](TaskSwitchWorkConditions.md) を参照してください。cycle_summaryの切替先行は2フェーズの部分作業を表し、切替元の完全サイクルと分けて集計してください。既存の12ファイル構成を維持します。

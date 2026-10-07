@@ -140,6 +140,18 @@ public class CraneWorkCycleController : MonoBehaviour
     private CraneWorkTargetXSelection activeTrailerXSelection =
         CraneWorkTargetXSelection.First;
 
+    private TaskSwitchWorkCondition[] experimentConditions;
+    private bool taskSegment;
+    private CraneStatusManager.WorkPhase segmentEndPhase;
+
+    public void SetExperimentConditions(TaskSwitchWorkCondition[] conditions) { experimentConditions = conditions; if (conditions == null) taskSegment = false; }
+    public bool StartTaskSegment(CraneStatusManager.WorkPhase start, CraneStatusManager.WorkPhase end)
+    {
+        taskSegment = true; segmentEndPhase = end;
+        totalCycleCount = 1; initialPhase = start;
+        return StartCycle();
+    }
+
     private bool trackerSubscribed;
     private bool autoAdoptConsumed;
     private Coroutine advanceRoutine;
@@ -233,6 +245,7 @@ public class CraneWorkCycleController : MonoBehaviour
         CraneStatusManager.WorkPhase requestedInitialPhase
     )
     {
+        taskSegment = false;
         totalCycleCount = Mathf.Max(1, requestedTotalCycleCount);
         initialPhase = requestedInitialPhase;
         return StartCycle();
@@ -298,6 +311,7 @@ public class CraneWorkCycleController : MonoBehaviour
         StopAdvanceRoutine();
         ResetRuntimeState();
 
+        taskSegment = false;
         currentPhase = phaseTracker.CurrentMajorPhase;
         isRunning = true;
         autoAdoptConsumed = true;
@@ -502,7 +516,9 @@ public class CraneWorkCycleController : MonoBehaviour
             CurrentCycleNumber
         );
 
-        if (IsCycleEndingPhase(completedPhase))
+        if (!isRunning) return; // A completion subscriber may stop the task.
+
+        if (taskSegment ? completedPhase == segmentEndPhase : IsCycleEndingPhase(completedPhase))
         {
             completedCycleCount++;
             CycleCompleted?.Invoke(this, completedCycleCount);
@@ -714,6 +730,19 @@ public class CraneWorkCycleController : MonoBehaviour
         if (targetManager == null)
         {
             return false;
+        }
+
+        TaskSwitchWorkCondition condition = experimentConditions != null && experimentConditions.Length >= CurrentCycleNumber
+            ? experimentConditions[CurrentCycleNumber-1] : null;
+        if (condition != null)
+        {
+            bool pickup = phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.LiftUp;
+            targetManager.SetFixedTarget(pickup ? condition.pickupX : condition.placementX, pickup ? condition.pickupZ : condition.placementZ,
+                -1, pickup ? CraneWorkTargetKind.Pickup : CraneWorkTargetKind.NormalPlacement, CraneWorkTargetSource.ExperimentCondition);
+            if (loadPlanManager == null) return false;
+            loadPlanManager.SetExperimentBoardCounts(condition.pickupCount, condition.placementCount);
+            if (pickup) return loadPlanManager.RefreshPickupTargetFromCurrentTarget();
+            return loadPlanManager.PreparePlacementPlan(craneInstance.LifMagSystem.GetAttachedTotalWeightKgForDisplay());
         }
 
         int pointIndex = GetTargetPointForPhase(phase);

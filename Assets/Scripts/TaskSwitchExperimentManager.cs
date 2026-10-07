@@ -19,6 +19,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         public float minimumDelaySeconds;
         public float maximumDelaySeconds;
         public bool triggered;
+        public TaskSwitchTargetTaskPattern targetTaskPattern;
     }
     [Header("既存Manager参照")]
     [SerializeField] private CraneOperationManager craneOperationManager;
@@ -63,7 +64,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     )]
     [SerializeField]
     [Min(1)]
-    private int sourceTotalCycleCount = 3;
+    private int sourceTotalCycleCount = 5;
 
     [Header("CSV切替スケジュール")]
     [SerializeField]
@@ -71,7 +72,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     [Tooltip(
         "列: switchIndex,sourceCycle,sourcePhase," +
-        "minimumDelaySeconds,maximumDelaySeconds"
+        "minimumDelaySeconds,maximumDelaySeconds,targetTaskPattern（Move1ToLiftUp / Move2ToPlace）"
     )]
     [SerializeField]
     private TextAsset switchScheduleCsv;
@@ -97,25 +98,18 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     [Header("作業サイクル連携")]
     [Tooltip(
-        "Sourceの3サイクル進行を管理するControllerです。" +
+        "Sourceのサイクル進行を管理するControllerです。" +
         "未設定時はSource Crane Indexから自動取得します。"
     )]
     [SerializeField]
     private CraneWorkCycleController sourceCycleController;
 
     [Tooltip(
-        "Targetの1サイクル進行を管理するControllerです。" +
+        "TargetのMove1→LiftUp / Move2→Placeの進行を管理するControllerです。" +
         "未設定時はTarget Crane Indexから自動取得します。"
     )]
     [SerializeField]
     private CraneWorkCycleController targetCycleController;
-
-    [Tooltip(
-        "ONの場合、TargetではMove1からPlaceまでの1サイクルを実行し、" +
-        "サイクル完了後にSourceへ戻ります。"
-    )]
-    [SerializeField]
-    private bool targetRunsFullCycle = true;
 
     [Tooltip(
         "ONの場合、Task Switch開始時にSourceの実作業監視を自動開始し、" +
@@ -235,7 +229,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public TaskSwitchCraneCondition TargetCondition => targetCondition;
     public int CurrentSwitchIndex => currentSwitchIndex;
     public int CompletedSwitchCount => completedSwitchCount;
-    public bool TargetRunsFullCycle => targetRunsFullCycle;
+    public bool TargetRunsFullCycle => false;
     public bool CanRequestSwitch =>
         !ExperimentPauseManager.IsPaused &&
         (currentState == TaskSwitchExperimentState.OperatingSource ||
@@ -351,22 +345,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        if (currentState ==
-                TaskSwitchExperimentState.OperatingTarget &&
-            targetRunsFullCycle &&
-            targetCycleController != null &&
-            !targetCycleController.IsRunning &&
-            targetCycleController.CompletedCycleCount >=
-                targetCycleController.TotalCycleCount)
+        if (currentState == TaskSwitchExperimentState.OperatingTarget && targetCycleController != null &&
+            !targetCycleController.IsRunning && targetCycleController.CompletedCycleCount >= targetCycleController.TotalCycleCount)
         {
-            EmitEvent(
-                "TargetWorkCycleCompletionFallback",
-                $"CompletedCycles=" +
-                $"{targetCycleController.CompletedCycleCount}"
-            );
-            ReturnControlToSource(
-                targetCycleController.CurrentPhase
-            );
+            EmitEvent("TargetWorkCycleCompletionFallback", $"Pattern={ActiveTargetTaskPattern};CompletedSegments={targetCycleController.CompletedCycleCount}");
+            ReturnControlToSource(targetCycleController.CurrentPhase);
             return;
         }
 
@@ -400,6 +383,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         SubscribeToWorkPhaseEvents();
         SubscribeToCycleEvents();
 
+        if (!LoadExperimentConditions()) return;
         ApplyTargetCycleStartCondition();
 
         if (sourceCycleController != null)
@@ -414,11 +398,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        if (sourceCycleController != null && sourceCycleController.IsRunning) sourceCycleController.StopCycleAndTracker();
+        StopTargetWorkPhaseMonitoring();
         StopSecondarySubtask("ExperimentRestarted");
         ResetSecondaryExperiment();
         EmitEvent("ExperimentPreparing");
         experimentStartRealtime = Time.realtimeSinceStartup;
-        LoadSwitchSchedule();
+
         sourceMajorPhaseCompleted = false;
         pendingScheduledSwitch = false;
         pendingScheduledSwitchDetail = string.Empty;
@@ -428,6 +414,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         scheduledSwitchDelaySeconds = 0f;
         currentSwitchIndex = 0;
         completedSwitchCount = 0;
+        EmitEvent("SwitchScheduleLoaded", $"Count={scheduledSwitches.Count};File={(switchScheduleCsv!=null?switchScheduleCsv.name:"")}");
+        EmitEvent("WorkConditionsLoaded", $"Count={experimentWorkConditions.Count};SourceCycles={sourceTotalCycleCount}");
         pendingOperationInputUnlock = false;
         confirmationAcceptedUntilRealtime = 0f;
         HideAutomaticOperationObjects();
@@ -503,13 +491,16 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         scheduledSwitchCountdownActive = false;
         scheduledSwitchAwaitingCarryoverPhase = false;
 
+        SelectTargetCondition(nextSwitchIndex);
+        if (workConditionsCsv != null && activeTargetWorkCondition == null)
+        {
+            EmitEvent("NextTargetPreparationFailed", $"Missing Target CSV row: {nextSwitchIndex}");
+            return;
+        }
         ApplyTargetCycleStartCondition();
 
-        // 1回目のTargetはStartExperiment()で準備済みです。
-        // 2回目以降は、前回のTarget作業で変更された板・位置・目標を
-        // 次の切替要求を受け付ける直前に同じ条件から再生成します。
-        if (nextSwitchIndex > 1 &&
-            initializeScenariosOnStartExperiment &&
+        // Each request prepares its own pattern/condition before changing source control.
+        if (initializeScenariosOnStartExperiment &&
             !PrepareCondition(targetCondition, targetPhaseTracker))
         {
             EmitEvent(
@@ -546,6 +537,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             case TaskSwitchMethod.PhaseBoundary:
                 StartPhaseBoundarySwitch();
                 break;
+            case TaskSwitchMethod.OperatorInitiated:
+                SetState(TaskSwitchExperimentState.WaitingForOperatorSwitch);
+                SetPanelActive(confirmationPanel, true);
+                EmitEvent("OperatorSwitchAvailable");
+                break;
         }
     }
 
@@ -554,6 +550,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         // 既存のUI ButtonとJoyStick2RedButtonの両方から呼び出します。
         if (!CanAcceptConfirmationInput())
         {
+            return;
+        }
+
+        if (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch)
+        {
+            AcceptOperatorSwitch();
             return;
         }
 
@@ -617,6 +619,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         StopSecondarySubtask("ExperimentCompleted");
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         StopSourceWorkPhaseMonitoring();
+        if (sourceCycleController != null && sourceCycleController.IsRunning) sourceCycleController.StopCycleAndTracker();
         StopTargetWorkPhaseMonitoring();
         EmitEvent(
             "ExperimentCompleted",
@@ -633,6 +636,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         HideTransitionPanels();
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();
+        if (sourceCycleController != null && sourceCycleController.IsRunning) sourceCycleController.StopCycleAndTracker();
+        ClearExperimentWorkConditions();
 
         if (craneOperationManager != null &&
             craneOperationManager.IsTaskSwitchExperimentMode)
@@ -845,6 +850,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             interventionStartLocalZ
         );
 
+        if (!PrepareCsvWorkCondition(condition, craneInstance)) return false;
+
         if (phaseTracker != null)
         {
             phaseTracker.Configure(
@@ -890,6 +897,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         int pointIndex = ResolveTargetPointIndex(condition);
         CraneWorkTargetKind targetKind =
             GetTargetKind(pointIndex);
+
+        TaskSwitchWorkCondition csvCondition = condition == sourceCondition ? SourceWorkCondition(1) : activeTargetWorkCondition;
+        if (csvCondition != null)
+        {
+            ApplyCsvTarget(targetManager, condition.workPhase, csvCondition);
+            return true;
+        }
 
         return targetManager.SetFixedTargetFromPoint(
             pointIndex,
@@ -1131,6 +1145,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        if (!CanRequestSwitch) return;
+
         foreach (ScheduledSwitchEntry entry in scheduledSwitches)
         {
             if (entry.triggered ||
@@ -1275,42 +1291,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        // Targetの1サイクル方式では、配置後の上昇まで完了した時点で
-        // Place / PlaceToTrackのMajorPhaseCompletedが発行されます。
-        // CycleControllerのAllCyclesCompletedを主経路として残しつつ、
-        // この実作業フェーズ完了も独立した復帰経路にします。
-        // これによりController側のイベント購読やカウント更新が
-        // 外れた場合でも、実際の1サイクル完了後にSourceへ戻れます。
-        if (targetRunsFullCycle)
-        {
-            bool cycleEndingPhase =
-                completedPhase == CraneStatusManager.WorkPhase.Place ||
-                completedPhase == CraneStatusManager.WorkPhase.PlaceToTrack;
-
-            if (!cycleEndingPhase)
-            {
-                return;
-            }
-
-            EmitEvent(
-                "TargetWorkCycleCompletedByPhase",
-                completedPhase.ToString()
-            );
-            ReturnControlToSource(completedPhase);
-            return;
-        }
-
-        if (completedPhase != targetCondition.workPhase)
-        {
-            return;
-        }
-
-        EmitEvent(
-            "TargetMajorPhaseCompleted",
-            completedPhase.ToString()
-        );
-
-        ReturnControlToSource(completedPhase);
+        if (completedPhase != TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)) return;
+        EmitEvent("TargetMajorPhaseCompleted", $"Pattern={ActiveTargetTaskPattern};EndPhase={completedPhase}");
+        // The cycle controller closes its segment and emits completion before we stop it.
+        // Avoid stopping it from the tracker callback before its cycle counters/CSV are updated.
     }
 
     private void HandleSourceAllCyclesCompleted(
@@ -1338,8 +1322,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         int completedCycles
     )
     {
-        if (!targetRunsFullCycle ||
-            controller != targetCycleController ||
+        if (controller != targetCycleController ||
             currentState != TaskSwitchExperimentState.OperatingTarget)
         {
             return;
@@ -1347,7 +1330,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
         EmitEvent(
             "TargetWorkCycleCompleted",
-            $"CompletedCycles={completedCycles}"
+            $"CompletedSegments={completedCycles};Pattern={ActiveTargetTaskPattern};EndPhase={controller.CurrentPhase}"
         );
 
         ReturnControlToSource(controller.CurrentPhase);
@@ -1476,59 +1459,25 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool StartTargetOperation()
     {
-        if (!targetRunsFullCycle)
-        {
-            StartTargetWorkPhaseMonitoring();
-            return targetWorkPhaseTracker != null &&
-                   targetWorkPhaseTracker.IsMonitoring;
-        }
-
-        if (targetCycleController == null)
-        {
-            Debug.LogError(
-                "TargetのCraneWorkCycleControllerがないため、" +
-                "1サイクル作業を開始できません。",
-                this
-            );
-            return false;
-        }
-
-        if (targetCycleController.IsRunning)
-        {
-            targetCycleController.StopCycleAndTracker();
-        }
-
+        if (targetCycleController == null) return false;
+        if (targetCycleController.IsRunning) targetCycleController.StopCycleAndTracker();
         ApplyTargetCycleStartCondition();
-
-        // StartSingleCycle() applies the actual pickup point first.
-        // The CSV load plan must be resolved after that target change;
-        // before this call, the temporary TaskSwitch target can still be point 0,
-        // which is a standby position without boards.
-        bool started = targetCycleController.StartSingleCycle();
-
-        if (!started)
-        {
-            return false;
-        }
-
-        if (!PrepareTargetFullCycleLoadPlan())
+        targetCycleController.SetExperimentConditions(activeTargetWorkCondition == null ? null : new [] { activeTargetWorkCondition });
+        bool started = targetCycleController.StartTaskSegment(
+            TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern), TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern));
+        if (!started) return false;
+        if (activeTargetWorkCondition == null && ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move1ToLiftUp && !PrepareTargetFullCycleLoadPlan())
         {
             targetCycleController.StopCycleAndTracker();
             return false;
         }
-
-        EmitEvent(
-            "TargetWorkCycleStarted",
-            "Cycle=1/1;InitialPhase=Move1"
-        );
-
+        EmitEvent("TargetTaskSegmentStarted", $"Pattern={ActiveTargetTaskPattern};StartPhase={targetCondition.workPhase};EndPhase={TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)}");
         return true;
     }
 
     private void StopTargetWorkPhaseMonitoring()
     {
-        if (targetRunsFullCycle &&
-            targetCycleController != null &&
+        if (targetCycleController != null &&
             targetCycleController.IsRunning)
         {
             targetCycleController.StopCycleAndTracker();
@@ -1765,131 +1714,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
     }
 
-    private void LoadSwitchSchedule()
-    {
-        scheduledSwitches.Clear();
-        scheduledSwitchCountdownActive = false;
-        scheduledSwitchAwaitingCarryoverPhase = false;
-        pendingScheduledSwitch = false;
-
-        if (!useSwitchScheduleCsv ||
-            switchScheduleCsv == null)
-        {
-            return;
-        }
-
-        string[] lines = switchScheduleCsv.text.Split('\n');
-
-        for (int lineIndex = 0;
-             lineIndex < lines.Length;
-             lineIndex++)
-        {
-            string line = lines[lineIndex].Trim();
-
-            if (string.IsNullOrEmpty(line) ||
-                line.StartsWith("#"))
-            {
-                continue;
-            }
-
-            string[] columns = line.Split(',');
-
-            if (columns.Length < 5 ||
-                !int.TryParse(
-                    columns[0].Trim(),
-                    out int switchIndex
-                ))
-            {
-                // ヘッダ行は読み飛ばします。
-                continue;
-            }
-
-            if (!int.TryParse(
-                    columns[1].Trim(),
-                    out int sourceCycle
-                ) ||
-                !Enum.TryParse(
-                    columns[2].Trim(),
-                    true,
-                    out CraneStatusManager.WorkPhase sourcePhase
-                ) ||
-                !float.TryParse(
-                    columns[3].Trim(),
-                    out float minimumDelaySeconds
-                ) ||
-                !float.TryParse(
-                    columns[4].Trim(),
-                    out float maximumDelaySeconds
-                ))
-            {
-                Debug.LogWarning(
-                    $"切替CSV {lineIndex + 1}行目を解析できません: " +
-                    line,
-                    this
-                );
-                continue;
-            }
-
-            if (switchIndex <= 0 ||
-                sourceCycle <= 0 ||
-                minimumDelaySeconds < 0f ||
-                maximumDelaySeconds < minimumDelaySeconds)
-            {
-                Debug.LogWarning(
-                    $"切替CSV {lineIndex + 1}行目の値が不正です: " +
-                    line,
-                    this
-                );
-                continue;
-            }
-
-            scheduledSwitches.Add(
-                new ScheduledSwitchEntry
-                {
-                    switchIndex = switchIndex,
-                    sourceCycle = sourceCycle,
-                    sourcePhase = sourcePhase,
-                    minimumDelaySeconds = minimumDelaySeconds,
-                    maximumDelaySeconds = maximumDelaySeconds,
-                    triggered = false
-                }
-            );
-        }
-
-        scheduledSwitches.Sort(
-            (left, right) =>
-                left.switchIndex.CompareTo(right.switchIndex)
-        );
-
-        EmitEvent(
-            "SwitchScheduleLoaded",
-            $"Count={scheduledSwitches.Count};" +
-            $"File={switchScheduleCsv.name}"
-        );
-    }
-
     private void ApplyTargetCycleStartCondition()
     {
-        if (targetRunsFullCycle && targetCondition != null)
-        {
-            // Targetの1サイクル作業は、板を保持していないMove1から
-            // 開始します。ErrorCを残すと介入初期化側が厚板を
-            // 強制吸着するため、PickupCoarseMoveの
-            // BoardNotAttached条件を満たせなくなります。
-            targetCondition.workPhase =
-                CraneStatusManager.WorkPhase.Move1;
-            targetCondition.errorType =
-                CraneStatusManager.ErrorType.None;
-        }
+        targetCondition.workPhase = TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern);
+        // CSV conditions preload actual generated boards for Move2; no synthetic ErrorC board.
+        targetCondition.errorType = CraneStatusManager.ErrorType.None;
     }
 
     private bool PrepareTargetFullCycleLoadPlan()
     {
-        if (!targetRunsFullCycle)
-        {
-            return true;
-        }
-
         CraneInstance targetCrane =
             craneRegistry.GetCraneByRuntimeIndex(
                 targetCondition.craneIndex
@@ -1930,7 +1763,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             Debug.LogError(
                 "Targetの選択座標にある板のCSV重量を" +
-                "取得できないため、1サイクル作業を開始できません。" +
+                "取得できないため、吊り上げ作業を開始できません。" +
                 "BoardGeneratorのCSV、Spawn Positions、" +
                 "Default Pickup Countを確認してください。",
                 targetCrane
@@ -2207,7 +2040,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private bool CanAcceptConfirmationInput()
     {
         return !ExperimentPauseManager.IsPaused &&
-            (currentState == TaskSwitchExperimentState.WaitingForConfirmation ||
+            (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch ||
+             currentState == TaskSwitchExperimentState.WaitingForConfirmation ||
              currentState == TaskSwitchExperimentState.WaitingForSourceConfirmation);
     }
 
@@ -2302,6 +2136,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             displayColor = confirmationAcceptedColor;
             interactable = false;
         }
+        else if (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch)
+        {
+            displayText = "赤ボタンで作業切替";
+            displayColor = confirmationReadyColor;
+            interactable = confirmationAvailable;
+        }
         else if (currentState ==
                  TaskSwitchExperimentState.WaitingForConfirmation)
         {
@@ -2340,7 +2180,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         colors.pressedColor = confirmationAcceptedColor;
         colors.disabledColor = displayColor;
         confirmationButton.colors = colors;
-        confirmationButton.interactable = interactable;
+        confirmationButton.interactable = interactable && confirmationAvailable;
 
         if (confirmationButton.targetGraphic != null)
         {
@@ -2362,7 +2202,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             $"Source: {sourceCondition.workPhase}, " +
             $"{sourceCondition.errorType}  ->  " +
             $"Target: " +
-            $"{(targetRunsFullCycle ? "FullCycle" : targetCondition.workPhase.ToString())}, " +
+            $"{ActiveTargetTaskPattern}, " +
             $"{targetCondition.errorType}";
     }
 
@@ -2429,10 +2269,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return false;
         }
 
-        if (targetRunsFullCycle && targetCycleController == null)
+        if (targetCycleController == null)
         {
             Debug.LogError(
-                "Target Runs Full CycleがONですが、Targetクレーンに" +
+                "Targetの部分作業に必要な" +
                 "CraneWorkCycleControllerがありません。",
                 this
             );
@@ -2441,11 +2281,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
         if (sourceCycleController == null)
         {
-            Debug.LogWarning(
-                "SourceのCraneWorkCycleControllerが見つかりません。" +
-                "復帰時は旧CraneWorkPhaseTracker経路を使用します。",
-                this
-            );
+            Debug.LogError("Sourceの5サイクル進行にCraneWorkCycleControllerが必要です。", this);
+            return false;
         }
 
         return true;

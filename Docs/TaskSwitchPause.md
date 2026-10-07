@@ -23,7 +23,7 @@ Pauseで進行と入力を止め、Startで止めた状態の続きから再開�
 
 予定時刻を持つ切替タイマーと表示用フィードバックは `ExperimentPauseManager.ActiveRealtime` を使います。この時計は全体Pause中だけ止まり、Startで同じ値から進みます。CSVのreal_elapsed_sとイベントの実時間は引き続き壁時計です。Pause前にTime.timeScaleが1以外だった場合も元の値へ戻します。AudioListener.pauseの以前の値も保持します。ExperimentStatus(Text)の表示内容は追加・変更しません。
 
-## CSV（schema_version = 7）
+## CSV（schema_version = 8）
 
 Task SwitchセッションはPause中もcrane_state/input/gazeを壁時計で採取します。`global_paused=1` が停止中、`pause_interval_index` は停止区間番号で、稼働中は空欄です。events.csvにはGlobalPauseStarted/GlobalPauseEndedを即時記録し、共通時計で停止境界を照合できます。
 

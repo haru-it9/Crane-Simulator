@@ -4,7 +4,8 @@ public enum TaskSwitchMethod
 {
     ConfirmAfterDisplaySwitch,
     Countdown,
-    PhaseBoundary
+    PhaseBoundary,
+    OperatorInitiated
 }
 
 public enum TaskSwitchExperimentState
@@ -18,13 +19,14 @@ public enum TaskSwitchExperimentState
     ReturningToSource,
     WaitingForSourceConfirmation,
     OperatingReturnedSource,
-    Completed
+    Completed,
+    WaitingForOperatorSwitch
 }
 
 /// <summary>
 /// 作業切替実験で使用する1基分の条件です。
-/// 座標・板・人・トレーラの生成条件は重複して保持せず、
-/// CraneInterventionScenarioManagerの既存設定を使用します。
+/// CSVの座標・枚数がない場合の既定条件です。
+/// 人・トレーラ・開始姿勢はCraneInterventionScenarioManagerを使用します。
 /// </summary>
 [Serializable]
 public class TaskSwitchCraneCondition

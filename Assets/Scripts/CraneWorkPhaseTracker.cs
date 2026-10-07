@@ -1205,6 +1205,9 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             return false;
         }
 
+        LifMagSystem lifMagSystem = GetLifMagSystem();
+        if (lifMagSystem != null && !loadPlanManager.IsPickupBoardCountSatisfied(lifMagSystem.AttachedBoards.Count)) return false;
+
         CurrentWeightErrorKg =
             CurrentAttachedWeightKg - targetWeightKg;
 
@@ -1240,6 +1243,9 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
             return false;
         }
+
+        LifMagSystem lifMagSystem = GetLifMagSystem();
+        if (lifMagSystem != null && !loadPlanManager.IsPlacementBoardCountSatisfied(lifMagSystem.AttachedBoards.Count)) return false;
 
         CurrentWeightErrorKg =
             CurrentAttachedWeightKg - targetRemainingWeightKg;

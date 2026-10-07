@@ -63,6 +63,16 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
 
     [SerializeField]
     private bool placementPlanPrepared;
+    private int? experimentPickupCount, experimentPlacementCount;
+    private int experimentRemainingBoardCount;
+    public bool IsPickupBoardCountSatisfied(int attachedCount) => !experimentPickupCount.HasValue || attachedCount == experimentPickupCount.Value;
+    public bool IsPlacementBoardCountSatisfied(int attachedCount) => !experimentPlacementCount.HasValue || (placementPlanPrepared && attachedCount == experimentRemainingBoardCount);
+
+    public void SetExperimentBoardCounts(int pickupCount, int placementCount)
+    {
+        experimentPickupCount=pickupCount; experimentPlacementCount=placementCount;
+    }
+    public void ClearExperimentBoardCounts() { experimentPickupCount=experimentPlacementCount=null; }
 
     public float PickupTargetWeightKg => pickupTargetWeightKg;
     public float PlannedReleaseWeightKg => plannedReleaseWeightKg;
@@ -125,16 +135,11 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
             return false;
         }
 
-        if (!boardGenerator.TryGetPickupTargetWeightKg(
-                target.targetX,
-                target.targetZ,
-                out float csvTargetWeightKg,
-                out int pickupCount,
-                out int spawnIndex
-            ))
-        {
-            return false;
-        }
+        float csvTargetWeightKg;int pickupCount,spawnIndex;
+        bool found = experimentPickupCount.HasValue
+            ? boardGenerator.TryGetPickupTargetWeightKg(target.targetX,target.targetZ,experimentPickupCount.Value,out csvTargetWeightKg,out pickupCount,out spawnIndex)
+            : boardGenerator.TryGetPickupTargetWeightKg(target.targetX,target.targetZ,out csvTargetWeightKg,out pickupCount,out spawnIndex);
+        if (!found) return false;
 
         pickupTargetWeightKg =
             Mathf.Max(0f, csvTargetWeightKg);
@@ -242,6 +247,24 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     {
         placementStartWeightKg = Mathf.Max(0f, currentAttachedWeightKg);
 
+        if (experimentPlacementCount.HasValue)
+        {
+            ResolveReferences();
+            LifMagSystem magnet=craneInstance!=null ? craneInstance.LifMagSystem : null;
+            if(magnet==null || magnet.AttachedBoards.Count<experimentPlacementCount.Value) { placementPlanPrepared=false;return false; }
+            float release=0;
+            // Current control releases LastAttachedBoard first, so sum that same order.
+            for(int i=0;i<experimentPlacementCount.Value;i++)
+            {
+                var info=magnet.AttachedBoards[magnet.AttachedBoards.Count-1-i].GetComponent<BoardInfo>();
+                if(info==null || info.Weight<=0) { placementPlanPrepared=false;return false; }
+                release+=info.Weight;
+            }
+            experimentRemainingBoardCount=magnet.AttachedBoards.Count-experimentPlacementCount.Value;
+            plannedReleaseWeightKg=release;
+            targetRemainingWeightKg=Mathf.Max(0,placementStartWeightKg-release);
+            placementPlanPrepared=true;NotifyPlanChanged();return true;
+        }
         if (forceZeroRemainingWeightOnPlacement)
         {
             targetRemainingWeightKg = 0f;
@@ -355,6 +378,11 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     {
         displayTargetWeightKg = 0f;
 
+        if (experimentPlacementCount.HasValue && placementPlanPrepared)
+        {
+            displayTargetWeightKg=plannedReleaseWeightKg;
+            return true;
+        }
         if (forceZeroRemainingWeightOnPlacement)
         {
             // 配置時のUIも、配置後にリフマグへ残す目標重量を表示します。

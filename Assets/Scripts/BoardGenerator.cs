@@ -404,82 +404,40 @@ public class BoardGenerator : MonoBehaviour
         out int matchedSpawnIndex
     )
     {
-        targetWeightKg = 0f;
-        pickupCount = 0;
-        matchedSpawnIndex = -1;
+        return TryGetPickupTargetWeightKg(targetX,targetZ,Mathf.Max(1,defaultPickupCount),out targetWeightKg,out pickupCount,out matchedSpawnIndex);
+    }
 
-        float bestDistance = float.PositiveInfinity;
+    public bool TryGetPickupTargetWeightKg(float targetX,float targetZ,int requestedCount,out float targetWeightKg,out int pickupCount,out int matchedSpawnIndex)
+    {
+        List<GameObject> boards;
+        bool success=TryGetPickupBoards(targetX,targetZ,requestedCount,out boards,out targetWeightKg,out matchedSpawnIndex);
+        pickupCount=success ? boards.Count : 0;
+        return success;
+    }
 
-        for (int i = 0; i < spawnPositions.Count; i++)
+    public bool TryGetPickupBoards(float targetX,float targetZ,int requestedCount,out List<GameObject> boards,out float targetWeightKg,out int matchedSpawnIndex)
+    {
+        boards=new List<GameObject>();targetWeightKg=0;matchedSpawnIndex=-1;
+        if(requestedCount<1) return false;
+        float bestDistance=float.PositiveInfinity;
+        for(int i=0;i<spawnPositions.Count;i++)
         {
-            Vector3 spawn = spawnPositions[i];
-            float distance = Vector2.Distance(
-                new Vector2(targetX, targetZ),
-                new Vector2(spawn.x, spawn.z)
-            );
-
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                matchedSpawnIndex = i;
-            }
+            float distance=Vector2.Distance(new Vector2(targetX,targetZ),new Vector2(spawnPositions[i].x,spawnPositions[i].z));
+            if(distance<bestDistance) { bestDistance=distance;matchedSpawnIndex=i; }
         }
-
-        if (matchedSpawnIndex < 0 ||
-            bestDistance > Mathf.Max(0f, targetMatchTolerance) ||
-            !generatedBoardsBySpawnIndex.TryGetValue(
-                matchedSpawnIndex,
-                out List<GameObject> generatedBoards
-            ))
+        List<GameObject> generatedBoards;
+        if(matchedSpawnIndex<0 || bestDistance>Mathf.Max(0,targetMatchTolerance) || !generatedBoardsBySpawnIndex.TryGetValue(matchedSpawnIndex,out generatedBoards)) return false;
+        var available=generatedBoards.Where(board=>board!=null && Vector2.Distance(new Vector2(board.transform.position.x,board.transform.position.z),
+            new Vector2(targetX,targetZ))<=Mathf.Max(0,targetMatchTolerance)).OrderByDescending(board=>board.transform.position.y).ToList();
+        if(available.Count<requestedCount) return false;
+        boards=available.Take(requestedCount).ToList();
+        foreach(var board in boards)
         {
-            matchedSpawnIndex = -1;
-            return false;
+            var info=board.GetComponent<BoardInfo>();
+            if(info==null || info.Weight<=0) { boards.Clear();targetWeightKg=0;return false; }
+            targetWeightKg+=info.Weight;
         }
-
-        int requestedCount = Mathf.Max(1, defaultPickupCount);
-
-        List<GameObject> availableBoards =
-            generatedBoards
-                .Where(board =>
-                    board != null &&
-                    Vector2.Distance(
-                        new Vector2(
-                            board.transform.position.x,
-                            board.transform.position.z
-                        ),
-                        new Vector2(targetX, targetZ)
-                    ) <= Mathf.Max(0f, targetMatchTolerance)
-                )
-                .OrderByDescending(
-                    board => board.transform.position.y
-                )
-                .ToList();
-
-        if (availableBoards.Count < requestedCount)
-        {
-            Debug.LogWarning(
-                $"目標座標({targetX:F2}, {targetZ:F2})の板枚数が不足しています。" +
-                $" Requested={requestedCount}, Available={availableBoards.Count}",
-                this
-            );
-            matchedSpawnIndex = -1;
-            return false;
-        }
-
-        pickupCount = requestedCount;
-
-        for (int i = 0; i < pickupCount; i++)
-        {
-            BoardInfo boardInfo =
-                availableBoards[i].GetComponent<BoardInfo>();
-
-            if (boardInfo != null)
-            {
-                targetWeightKg += boardInfo.Weight;
-            }
-        }
-
-        return pickupCount > 0 && targetWeightKg > 0f;
+        return targetWeightKg>0;
     }
 
     private float GetEffectiveBoardGapY()

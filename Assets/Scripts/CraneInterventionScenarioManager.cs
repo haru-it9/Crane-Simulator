@@ -389,6 +389,8 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         Debug.Log($"介入状態を削除し、板配置をリセット: CraneIndex={craneIndex}");
     }
 
+    public BoardGenerator GetBoardGeneratorForCrane(int craneIndex) => GetBoardGeneratorByCraneIndex(craneIndex);
+
     private void SetupPlate(
         CraneUnit craneUnit,
         CraneStatusManager.WorkPhase phase,
