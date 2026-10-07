@@ -29934,7 +29934,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 2
+  switchMethod: 1
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29963,8 +29963,6 @@ MonoBehaviour:
   targetWorkPhaseTracker: {fileID: 1229067185}
   sourceCycleController: {fileID: 1378636672}
   targetCycleController: {fileID: 1229067188}
-  workConditionsCsv: {fileID: 4900000, guid: 70256d08a71148448c60d00f157166bc, type: 3}
-  targetTaskPattern: 0
   useRealWorkPhaseBoundary: 1
   allowLegacyPhaseBoundaryFallback: 0
   confirmationPanel: {fileID: 104696218}
@@ -30009,6 +30007,8 @@ MonoBehaviour:
   visualLeftIndicator: {fileID: 9000001004}
   visualRightIndicator: {fileID: 9000001008}
   pedalInputDiagnostics: Enter Play Mode to check pedal input.
+  workConditionsCsv: {fileID: 4900000, guid: 70256d08a71148448c60d00f157166bc, type: 3}
+  targetTaskPattern: 0
 --- !u!4 &333508957
 Transform:
   m_ObjectHideFlags: 0
