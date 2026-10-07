@@ -133,9 +133,47 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     [Header("切替UI")]
     [SerializeField] private GameObject confirmationPanel;
+    [SerializeField] private Button confirmationButton;
+    [SerializeField] private Text confirmationButtonText;
     [SerializeField] private GameObject countdownPanel;
     [SerializeField] private Text countdownText;
     [SerializeField] private Text experimentStateText;
+
+    [Header("確認コントローラ入力")]
+    [SerializeField]
+    private string confirmationInputButton = "JoyStick2RedButton";
+
+    [SerializeField]
+    private string targetConfirmationReadyText =
+        "赤ボタンで作業開始";
+
+    [SerializeField]
+    private string sourceConfirmationReadyText =
+        "赤ボタンで作業再開";
+
+    [SerializeField]
+    private string confirmationStandbyText =
+        "確認待機中";
+
+    [SerializeField]
+    private string confirmationAcceptedText =
+        "確認入力を受け付けました";
+
+    [SerializeField]
+    private Color confirmationReadyColor =
+        new Color(0.65f, 1f, 0.10f, 1f);
+
+    [SerializeField]
+    private Color confirmationStandbyColor =
+        new Color(0.35f, 0.35f, 0.35f, 1f);
+
+    [SerializeField]
+    private Color confirmationAcceptedColor =
+        new Color(0.20f, 0.85f, 1f, 1f);
+
+    [SerializeField]
+    [Min(0f)]
+    private float confirmationAcceptedDisplaySeconds = 0.5f;
 
     [Header("このモード中に非表示にする自動操業UI")]
     [SerializeField]
@@ -175,6 +213,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private readonly List<ScheduledSwitchEntry> scheduledSwitches =
         new List<ScheduledSwitchEntry>();
     private int activeCraneCountBeforeExperiment = -1;
+    private bool pendingOperationInputUnlock;
+    private float confirmationAcceptedUntilRealtime;
 
     [Header("複数回切替（実行時確認用）")]
     [SerializeField]
@@ -202,8 +242,10 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void Awake()
     {
         FindReferences();
+        ResolveConfirmationButtonReferences();
         HideTransitionPanels();
         UpdateStateText();
+        UpdateConfirmationButtonVisual();
     }
 
     private void OnEnable()
@@ -239,6 +281,20 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Update()
     {
+        UpdatePendingOperationInputUnlock();
+        UpdateConfirmationButtonVisual();
+
+        if (CanAcceptConfirmationInput() &&
+            Input.GetButtonDown(confirmationInputButton))
+        {
+            EmitEvent(
+                "ConfirmationControllerButtonPressed",
+                confirmationInputButton
+            );
+            ConfirmTargetTask();
+            return;
+        }
+
         if (scheduledSwitchCountdownActive &&
             !scheduledSwitchAwaitingCarryoverPhase &&
             CanRequestSwitch &&
@@ -357,6 +413,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         scheduledSwitchDelaySeconds = 0f;
         currentSwitchIndex = 0;
         completedSwitchCount = 0;
+        pendingOperationInputUnlock = false;
+        confirmationAcceptedUntilRealtime = 0f;
         HideAutomaticOperationObjects();
         HideTransitionPanels();
 
@@ -477,19 +535,20 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     public void ConfirmTargetTask()
     {
-        // 既存の確認ボタンをTarget開始確認とSource復帰確認で共用します。
-        // InspectorのOnClick設定はConfirmTargetTask()のままで使用できます。
+        // 既存のUI ButtonとJoyStick2RedButtonの両方から呼び出します。
+        if (!CanAcceptConfirmationInput())
+        {
+            return;
+        }
+
+        ShowConfirmationAcceptedFeedback();
+        ScheduleOperationInputUnlockAfterButtonRelease();
+
         if (currentState ==
             TaskSwitchExperimentState.WaitingForSourceConfirmation)
         {
             EmitEvent("SourceReturnConfirmationPressed");
             CompleteSourceReturnAfterConfirmation();
-            return;
-        }
-
-        if (currentState !=
-            TaskSwitchExperimentState.WaitingForConfirmation)
-        {
             return;
         }
 
@@ -499,7 +558,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
                 : pendingTargetConfirmationDetail;
 
         EmitEvent("ConfirmationPressed", confirmationDetail);
-        craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         SetState(TaskSwitchExperimentState.OperatingTarget);
 
         if (!StartTargetOperation())
@@ -1518,7 +1576,6 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
         string resumeDetail = ResumeSourceWorkAfterReturn();
 
-        craneOperationManager.SetTaskSwitchOperationInputLocked(false);
         completedSwitchCount = Mathf.Max(
             completedSwitchCount,
             currentSwitchIndex
@@ -2116,7 +2173,158 @@ public class TaskSwitchExperimentManager : MonoBehaviour
     private void SetState(TaskSwitchExperimentState newState)
     {
         currentState = newState;
+
+        if (CanAcceptConfirmationInput())
+        {
+            confirmationAcceptedUntilRealtime = 0f;
+        }
+
         UpdateStateText();
+        UpdateConfirmationButtonVisual();
+    }
+
+    private bool CanAcceptConfirmationInput()
+    {
+        return
+            currentState ==
+                TaskSwitchExperimentState.WaitingForConfirmation ||
+            currentState ==
+                TaskSwitchExperimentState.WaitingForSourceConfirmation;
+    }
+
+    private void ScheduleOperationInputUnlockAfterButtonRelease()
+    {
+        pendingOperationInputUnlock = true;
+
+        if (craneOperationManager != null)
+        {
+            craneOperationManager.SetTaskSwitchOperationInputLocked(true);
+        }
+    }
+
+    private void UpdatePendingOperationInputUnlock()
+    {
+        if (!pendingOperationInputUnlock)
+        {
+            return;
+        }
+
+        if (!Input.GetButton(confirmationInputButton))
+        {
+            pendingOperationInputUnlock = false;
+
+            if (craneOperationManager != null)
+            {
+                craneOperationManager.SetTaskSwitchOperationInputLocked(
+                    false
+                );
+            }
+        }
+    }
+
+    private void ShowConfirmationAcceptedFeedback()
+    {
+        confirmationAcceptedUntilRealtime =
+            Time.realtimeSinceStartup +
+            Mathf.Max(0f, confirmationAcceptedDisplaySeconds);
+
+        UpdateConfirmationButtonVisual();
+    }
+
+    private void ResolveConfirmationButtonReferences()
+    {
+        if (confirmationPanel == null)
+        {
+            return;
+        }
+
+        if (confirmationButton == null)
+        {
+            confirmationButton =
+                confirmationPanel.GetComponent<Button>();
+
+            if (confirmationButton == null)
+            {
+                confirmationButton =
+                    confirmationPanel.GetComponentInChildren<Button>(
+                        true
+                    );
+            }
+        }
+
+        if (confirmationButtonText == null &&
+            confirmationButton != null)
+        {
+            confirmationButtonText =
+                confirmationButton.GetComponentInChildren<Text>(true);
+        }
+    }
+
+    private void UpdateConfirmationButtonVisual()
+    {
+        ResolveConfirmationButtonReferences();
+
+        bool acceptedFeedbackActive =
+            Time.realtimeSinceStartup <
+            confirmationAcceptedUntilRealtime;
+
+        bool confirmationAvailable =
+            CanAcceptConfirmationInput();
+
+        string displayText;
+        Color displayColor;
+        bool interactable;
+
+        if (acceptedFeedbackActive)
+        {
+            displayText = confirmationAcceptedText;
+            displayColor = confirmationAcceptedColor;
+            interactable = false;
+        }
+        else if (currentState ==
+                 TaskSwitchExperimentState.WaitingForConfirmation)
+        {
+            displayText = targetConfirmationReadyText;
+            displayColor = confirmationReadyColor;
+            interactable = true;
+        }
+        else if (currentState ==
+                 TaskSwitchExperimentState.WaitingForSourceConfirmation)
+        {
+            displayText = sourceConfirmationReadyText;
+            displayColor = confirmationReadyColor;
+            interactable = true;
+        }
+        else
+        {
+            displayText = confirmationStandbyText;
+            displayColor = confirmationStandbyColor;
+            interactable = false;
+        }
+
+        if (confirmationButtonText != null)
+        {
+            confirmationButtonText.text = displayText;
+        }
+
+        if (confirmationButton == null)
+        {
+            return;
+        }
+
+        ColorBlock colors = confirmationButton.colors;
+        colors.normalColor = displayColor;
+        colors.highlightedColor = displayColor;
+        colors.selectedColor = displayColor;
+        colors.pressedColor = confirmationAcceptedColor;
+        colors.disabledColor = displayColor;
+        confirmationButton.colors = colors;
+        confirmationButton.interactable = interactable;
+
+        if (confirmationButton.targetGraphic != null)
+        {
+            confirmationButton.targetGraphic.color = displayColor;
+        }
     }
 
     private void UpdateStateText()
