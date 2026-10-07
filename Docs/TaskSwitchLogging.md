@@ -71,7 +71,21 @@ Tobii Experienceでは取得できているのにUnityでは取得できない�
 1. Package Managerの`com.tobii.gaming.sdk`が正常に読み込まれているか確認します。本プロジェクトは `C:/Users/harui/Downloads/TobiiUnitySDK_5.0.0.3` のローカルSDKを参照します。Consoleの赤いエラー、Missing Script、Missing Prefab、DLL読み込みエラーを先に解消します。
 2. シーンの`Tobii`配下にある`Tobii Initializer`が有効で、Missing Prefab/Scriptになっていないか確認します。`TobiiGamingStarter.cs`は現在このシーンには配置されていません。診断目的で手動Startを追加する前に、SDKのInitializerの初期化結果を確認してください。
 3. Play後、Tobiiで設定したモニターにGameビューを置いてクリックし、フォーカスを与えます。Consoleを見るためにGameビューからフォーカスを外すと、`Application.isFocused`がfalseになるので、CSVの`app_focused`も併せて確認します。切り分けとして同じモニターでWindowsビルドも試します。
-4. 既存の`TobiiDebug`のConsole出力を確認します。1秒ごとに`IsConnected`、`IsValid`、Screen、Viewport、AppFocused、ExperimentPaused、GameScreenを表示します。実験のPause中も出力します。Unity Editor自体のPauseボタンで実行を停止した場合は出力しません。
+4. 既存の`TobiiDebug`のConsole出力を確認します。1秒ごとに`IsConnected`、`IsValid`、Screen、Viewport、AppFocused、ExperimentPaused、GameScreenに加え、Host、HostInitialized、HWND、ApiInitialized、TrackerEnabled、NativeDllを表示します。実験のPause中も出力します。Unity Editor自体のPauseボタンで実行を停止した場合は出力しません。
+
+SDK 5.0.0.3のソースでは`TobiiHost.Initialize()`は接続を検証せずtrueを返します。Startの結果trueを接続成功と判断しないでください。`IsConnected`はネイティブAPIの`IsTrackerConnected()`です。Hostの`Tick()`はフレーム番号で更新し、Editorのウィンドウハンドル再取得もunscaledDeltaTimeを使うため、実験のtimeScale=0によってこれらの更新が止まる構造ではありません。Settingsの2項目はG2OMのレイヤー・候補保持時間であり、視線装置の接続設定ではありません。
+
+Hostは非ゼロのHWNDに対して`TrackWindow()`を呼びますが、そのbool戻り値を確認せずHostInitializedをtrueにします。このためHostInitialized=trueだけでは登録成功を保証しません。診断はキャッシュされたHWNDと公開されたネイティブの状態を読み取り、SDKの再起動やウィンドウの再登録は行いません。
+
+| 追加診断 | 切り分け |
+| --- | --- |
+| HostがTobiiHostStub | Windowsビルド対象、SDKのEULA受諾状態、Host破棄後の状態を確認 |
+| 実HostでHWND=0x0 | SDKがGameビューのウィンドウを見つけられていない。Gameビューを単独ウィンドウにして再試行し、Windows x86_64ビルドでも比較 |
+| HWND非ゼロ、ApiInitialized=false | ネイティブAPI側の初期化を確認。HostInitialized=trueでも判断できない |
+| ApiInitialized=true、IsConnected=falseが継続 | ウィンドウとTobiiに設定したモニターの対応、SDKとTobii実行環境の連携を確認。ネイティブ初期化は装置接続の保証ではない |
+| 接続true、TrackerEnabled=false | Tobii Experience側のトラッカー有効状態を確認 |
+
+このSDKのEditor用ウィンドウ検索は、Win32のクラス名`UnityContainerWndClass`と子ウィンドウ名`UnityEditor.GameView`の一致に依存します。Editorだけで失敗しWindowsビルドで成功する場合はこの検索経路が候補です。実際のHWNDを確認するまでは原因として断定しません。`Unknown`はSDK内部フィールドが見つからない場合で、0と同じ意味ではありません。IL2CPPなどでは非公開メンバーが保持されない場合があるため、Hostの診断はまずEditorで確認してください。
 
 | 診断結果 | 次に確認する箇所 |
 | --- | --- |
