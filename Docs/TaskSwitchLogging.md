@@ -77,6 +77,12 @@ SDK 5.0.0.3のソースでは`TobiiHost.Initialize()`は接続を検証せずtru
 
 Hostは非ゼロのHWNDに対して`TrackWindow()`を呼びますが、そのbool戻り値を確認せずHostInitializedをtrueにします。このためHostInitialized=trueだけでは登録成功を保証しません。診断はキャッシュされたHWNDと公開されたネイティブの状態を読み取り、SDKの再起動やウィンドウの再登録は行いません。
 
+GameビューをTobiiのモニターへ移しても接続しない場合は、追加の`WindowMonitor`/`WindowMonitorRect`（SDKが保持するHWNDのモニター名・OS座標の矩形）、`SelectedTracker`（現在選択された機器）、`TrackerEnumeration`/`TrackerCount`/`TrackerList`（SDKから検出可能な機器）を確認します。機器情報にはModel、Type、Attached、Capabilities、Monitor、DisplayRectを出し、URLやシリアル番号は出しません。Monitor/DisplayRectとWindowMonitor/WindowMonitorRectを照合してください。名前や矩形が空・ゼロの場合は、設定画面との対応が確認できていません。
+
+列挙は非同期です。`Pending`は取得待ちで、機器0台とは異なります。`Complete`かつ`TrackerCount=0`は列挙完了時点でSDKが機器を検出できていない状態です。`SelectedTracker=None`だけでは機器0台とは判断しません。完了後5秒で再列挙し、取得待ち中は前回完了時の件数・一覧を保持します。最初の取得待ちは`TrackerCount=Unknown`です。Pendingの秒数が長く増え続ける場合もそのまま診断結果として残します。検出されてもAttached=trueだけで視線接続成功とは判断せず、IsConnected/IsValidも確認してください。この処理は接続先・追跡ウィンドウ・視線座標系を変更しません。
+
+Play開始後30秒程度のConsoleログを保存して比較します。同じモニターのWindows x86_64ビルド、SDK付属のGaze Point Dataサンプルでも比較すると、Editorのウィンドウ検出、プロジェクト固有の処理、SDKとTobii実行環境の連携を順に切り分けられます。
+
 | 追加診断 | 切り分け |
 | --- | --- |
 | HostがTobiiHostStub | Windowsビルド対象、SDKのEULA受諾状態、Host破棄後の状態を確認 |
