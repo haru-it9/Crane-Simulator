@@ -23,7 +23,7 @@ Pauseで進行と入力を止め、Startで止めた状態の続きから再開�
 
 予定時刻を持つ切替タイマーと表示用フィードバックは `ExperimentPauseManager.ActiveRealtime` を使います。この時計は全体Pause中だけ止まり、Startで同じ値から進みます。CSVのreal_elapsed_sとイベントの実時間は引き続き壁時計です。Pause前にTime.timeScaleが1以外だった場合も元の値へ戻します。AudioListener.pauseの以前の値も保持します。ExperimentStatus(Text)の表示内容は追加・変更しません。
 
-## CSV（schema_version = 4）
+## CSV（schema_version = 5）
 
 Task SwitchセッションはPause中もcrane_state/input/gazeを壁時計で採取します。`global_paused=1` が停止中、`pause_interval_index` は停止区間番号で、稼働中は空欄です。events.csvにはGlobalPauseStarted/GlobalPauseEndedを即時記録し、共通時計で停止境界を照合できます。
 
@@ -42,3 +42,5 @@ Task SwitchセッションはPause中もcrane_state/input/gazeを壁時計で採
 ## 検証
 
 `Tests/TaskSwitchLogging/run.sh` は実際のPauseManager・聴覚サブタスク・CSVを代替Unity APIで実行します。旧OnClickからの再初期化抑止、初回Startのみの初期化、切替元/切替先/確認待ち/カウントダウン状態の保持、Pause中の時計凍結、時間倍率と音の復元、同じ提示の再開、Pause区間の時刻・継続時間、途中記録開始・停止を検証します。Unityの物理と実デバイスの動作は代替APIでは検証できないため、Unity Editorでの実験シーン確認は別途必要です。
+
+視覚サブタスクも青/赤の状態、次回提示までの待ち、同じ提示への回答待ちを保持します。時計はActiveRealtimeを使い、Pause時間を反応時間から除外します。詳細は [TaskSwitchVisualSubtask.md](TaskSwitchVisualSubtask.md) を参照してください。

@@ -3,9 +3,9 @@ using UnityEngine;
 
 public partial class TaskSwitchExperimentManager
 {
-    [Header("Auditory Secondary Task / 聴覚サブタスク")]
-    [Tooltip("実験中に高音/低音へ足ペダルで応答。既定は無効。確認ボタン・クレーン操作ロックから独立。")]
-    [SerializeField] private bool enableAuditorySubtask = false;
+    // Retained only to migrate older scenes that used the auditory checkbox.
+    [SerializeField, HideInInspector] private bool enableAuditorySubtask = false;
+    [Header("Auditory Settings / 音サブタスク設定")]
     [SerializeField] private TaskSwitchAuditorySettings auditorySubtask = new TaskSwitchAuditorySettings();
 
     private TaskSwitchAuditorySettings auditoryRunSettings;
@@ -18,7 +18,7 @@ public partial class TaskSwitchExperimentManager
     private double auditoryLastScheduledDsp = double.NaN;
     private float auditoryRawPedal;
 
-    public bool AuditorySubtaskEnabled => enableAuditorySubtask;
+    public bool AuditorySubtaskEnabled => SecondaryTaskMode == TaskSwitchSecondaryTaskMode.Auditory;
     public bool AuditorySubtaskRunning => auditoryRunning;
     public bool AuditoryPedalArmed => auditoryTrial != null && auditoryTrial.PedalArmed;
     public float AuditoryRawPedal => auditoryRawPedal;
@@ -38,19 +38,11 @@ public partial class TaskSwitchExperimentManager
         auditorySuppressed = false;
     }
     // Logging can stop independently of the experiment; do not keep issuing unrecorded trials after Stop.
-    public void SuspendAuditoryForLoggingStop()
-    {
-        auditorySuppressed = true;
-        StopAuditorySubtask("LoggingStopped");
-    }
-    public void ResumeAuditoryForLoggingStart()
-    {
-        auditorySuppressed = false;
-        StartAuditorySubtask();
-    }
+    public void SuspendAuditoryForLoggingStop() { SuspendSecondaryForLoggingStop(); }
+    public void ResumeAuditoryForLoggingStart() { ResumeSecondaryForLoggingStart(); }
     private void StartAuditorySubtask()
     {
-        if (!enableAuditorySubtask || auditoryRunning || auditorySuppressed || !AuditoryExperimentActive || !SimulatorStartManager.IsOperationEnabled) return;
+        if (!AuditorySubtaskEnabled || auditoryRunning || auditorySuppressed || !AuditoryExperimentActive || !SimulatorStartManager.IsOperationEnabled) return;
         // Freeze this activation's settings; changing parameters requires OFF -> ON or another experiment.
         try
         {
@@ -108,9 +100,9 @@ public partial class TaskSwitchExperimentManager
     }
     private void UpdateAuditorySubtask()
     {
-        if (!enableAuditorySubtask || !AuditoryExperimentActive)
+        if (!AuditorySubtaskEnabled || !AuditoryExperimentActive)
         {
-            if (auditoryRunning) StopAuditorySubtask(enableAuditorySubtask ? "ExperimentInactive" : "InspectorDisabled");
+            if (auditoryRunning) StopAuditorySubtask(AuditorySubtaskEnabled ? "ExperimentInactive" : "InspectorDisabled");
             return;
         }
         if (!auditoryRunning) StartAuditorySubtask();

@@ -1,6 +1,6 @@
-# TaskSwitchExperiment CSV（schema_version = 4）
+# TaskSwitchExperiment CSV（schema_version = 5）
 
-Task SwitchモードでStartを押すと、保存先の中に `<入力ファイル名>_<UTC時刻>_<UUID>/` を作成します。同じ名前で開始しても以前の実験を上書きしません。1セッションの標準出力は次の10ファイルです。通常の自動管理モードは既存のLoggerを使用します。Debug開始はCSVを出力しません。
+Task SwitchモードでStartを押すと、保存先の中に `<入力ファイル名>_<UTC時刻>_<UUID>/` を作成します。同じ名前で開始しても以前の実験を上書きしません。1セッションの標準出力は次の12ファイルです。通常の自動管理モードは既存のLoggerを使用します。Debug開始はCSVを出力しません。
 
 既定の保存先は `C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData\` です。スクリプトの初期値とRemoteManagementScene(union)の7つのLogger設定を同じ保存先にしています。Task SwitchのCSVは、その下に作成するセッションフォルダ内に保存します。
 
@@ -14,6 +14,8 @@ Task SwitchモードでStartを押すと、保存先の中に `<入力ファイ�
 | `switch_summary.csv` | 切替1回につき1行。各境界時刻、待ち時間、再開時間、中断時のフェーズ/ステップ/サイクル/経過時間/位置ラッチ/保持枚数、解除時の入力保持、エラー数、完了/未完了 |
 | `auditory_subtask.csv` | 高音/低音サブタスクの提示予約・提示時刻のフレーム観測・ペダル入力・終了・一時停止。共通時計で切替ログに結合 |
 | `auditory_trials.csv` | 音提示1回につき1行。正誤・反応時間・無反応・中断・提示前取消、提示時/応答時の切替状態。無効時はヘッダーのみ |
+| `visual_subtask.csv` | 左右の青→赤提示予約・実際の色変更フレーム・ペダル入力・Pause/再開・終了。音用ファイルと分けて記録 |
+| `visual_trials.csv` | 色提示予約1回につき1行。左右、正誤、反応時間、Miss、中断/取消、提示時/回答時の作業状態。無効時はヘッダーのみ |
 | `pause_intervals.csv` | Pause区間ごとに1行。共通時計の開始/終了・継続時間、境界観測の有無、開始/終了時の選択クレーン・状態・フェーズ・ステップ |
 | `cycle_summary.csv` | クレーン・サイクル実行ごとに1行。開始/終了、経過時間、監視・操作可能・全体一時停止の時間、完了ステップ数、重量逸脱・電流不足解除・巻き戻しの回数、完了/未完了 |
 
@@ -89,7 +91,7 @@ SDK 5.0.0.3には検索条件を差し替える公開APIがないため、SDKの
 
 探索は実時間で0.5秒ごと、選択したウィンドウの可視性・所属プロセス・モニター対応は毎フレーム確認します。Pause中も動作します。対象モニターにGameビューがない、モニター設定が空・0、登録拒否などの場合はConsoleに状態の変化時だけ警告を出します。`GameViewSelection=Matched:...`で対象モニター・HWNDを確認できます。対象ビューの消失・別モニターへの移動時は選択を解除し、別画面へフォールバックしません。
 
-Task Switchの`gaze.csv`と通常の視線CSVはこの選択経路を共有します。対象なし・選択変更の当該フレーム・未接続・0.5秒以上前の視線は`is_valid=0`で座標を空欄にします。機器接続を表す`is_connected`は独立しているため、機器に接続していても対象ビューがなければ`is_connected=1,is_valid=0`です。選択変更時には前のビューの視線キューとSDKのLast/履歴を破棄し、再取得まで前の座標を記録しません。既存CSVの列・schema 4は維持します。画面外の有効な視線を画面内へ修正して有効化する処理はありません。
+Task Switchの`gaze.csv`と通常の視線CSVはこの選択経路を共有します。対象なし・選択変更の当該フレーム・未接続・0.5秒以上前の視線は`is_valid=0`で座標を空欄にします。機器接続を表す`is_connected`は独立しているため、機器に接続していても対象ビューがなければ`is_connected=1,is_valid=0`です。選択変更時には前のビューの視線キューとSDKのLast/履歴を破棄し、再取得まで前の座標を記録しません。`gaze.csv`の既存列は維持します。画面外の有効な視線を画面内へ修正して有効化する処理はありません。
 
 自動選択は1台のTobiiの計測対象を選ぶための処理です。複数の物理モニター全体の同時視線計測には拡張しません。WindowsのSDK API定義を使ったコンパイルと、選択・CSV空欄化の代替API検証は実施しますが、Win32ウィンドウ列挙・Unity Editor/Playerの描画位置・Tobii実機・IL2CPPでの動作は実機確認が必要です。
 
@@ -138,12 +140,12 @@ python3 Tools/rebuild_task_switch_summaries.py /path/to/session
 Tests/TaskSwitchLogging/run.sh
 ```
 
-Mono（mcs/mono）とPython 3が必要です。Unity代替APIを使用して実際のLogger・CSV書き込み・集計処理を実行し、10ファイルの列数、共通時計/ID、入力ゲート、重複完了、途中終了、再開始、視線の有効/無効、再集計との全列一致を検証します。代替APIはTests配下のみです。Unityシーン・実機ジョイスティック・Tobiiの動作確認は別途必要です。ExperimentStatusのTextや安全保持解除の70A設定はこのログ変更では変更しません。
+Mono（mcs/mono）とPython 3が必要です。Unity代替APIを使用して実際のLogger・CSV書き込み・集計処理を実行し、12ファイルの列数、共通時計/ID、入力ゲート、重複完了、途中終了、再開始、視線の有効/無効、再集計との全列一致を検証します。代替APIはTests配下のみです。Unityシーン・実機ジョイスティック・Tobiiの動作確認は別途必要です。ExperimentStatusのTextや安全保持解除の70A設定はこのログ変更では変更しません。
 
-## 聴覚サブタスク
+## サブタスク
 
-設定・ペダルの割当・CSV判定の詳細は [TaskSwitchAuditorySubtask.md](TaskSwitchAuditorySubtask.md) を参照してください。schema 4はサブタスク設定・状態に加え、Pause区間のCSV・サンプルのpause_interval_index・サブタスクのPause時間を追加します。既存の切替・サイクル再集計ツールはそのまま使用できます。
+ManagerのSecondary Task ModeでNone/Auditory/Visualを選択します。音は [TaskSwitchAuditorySubtask.md](TaskSwitchAuditorySubtask.md)、色は [TaskSwitchVisualSubtask.md](TaskSwitchVisualSubtask.md) を参照してください。schema 5では視覚用2ファイルと、session/inputのモード・視覚設定/色状態を追加します。音用の2ファイルおよび列は維持します。inputのpedal_axis/raw_pedal/pedal_armedは現在動作しているサブタスクに共通です。サブタスクの開始/停止/エラー時にもsessionの設定行を追加します。使わない種類のファイルはヘッダーのみです。既存の切替・サイクル再集計ツールはそのまま使用できます。
 
 ## Pause / Start
 
-Pauseは主タスク・切替・監視・電流制御・音提示を保持して止め、Startは同じ状態から再開します。停止中もTask Switchの時系列CSVは壁時計で記録し、global_paused=1とpause_interval_indexを付けます。events.csvにはGlobalPauseStarted/GlobalPauseEnded（停止中に記録開始した場合はGlobalPauseAtLoggingStart）、pause_intervals.csvには各区間の正確な開始/終了・継続時間を保存します。詳しくは [TaskSwitchPause.md](TaskSwitchPause.md) を参照してください。既存のswitch_summary/cycle_summaryの経過時間はPauseを含む壁時計のままです。Pauseを除いた作業時間が必要な場合はpause_intervalsとの重複時間を差し引いてください。
+Pauseは主タスク・切替・監視・電流制御・音/色提示を保持して止め、Startは同じ状態から再開します。停止中もTask Switchの時系列CSVは壁時計で記録し、global_paused=1とpause_interval_indexを付けます。events.csvにはGlobalPauseStarted/GlobalPauseEnded（停止中に記録開始した場合はGlobalPauseAtLoggingStart）、pause_intervals.csvには各区間の正確な開始/終了・継続時間を保存します。詳しくは [TaskSwitchPause.md](TaskSwitchPause.md) を参照してください。既存のswitch_summary/cycle_summaryの経過時間はPauseを含む壁時計のままです。Pauseを除いた作業時間が必要な場合はpause_intervalsとの重複時間を差し引いてください。

@@ -59,7 +59,7 @@ static class AuditorySubtaskTests
         var registry=new CraneRegistry { cranes=new[]{new CraneInstance(),new CraneInstance()} };
         for(int i=0;i<2;i++) registry.cranes[i].components[typeof(CraneWorkPhaseTracker)]=new CraneWorkPhaseTracker();
         op.CurrentCraneInstance=registry.cranes[0];
-        Set(manager,"enableAuditorySubtask",true);Set(manager,"auditorySubtask",new TaskSwitchAuditorySettings { randomSeed=17 });
+        Set(manager,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.Auditory);Set(manager,"auditorySubtask",new TaskSwitchAuditorySettings { randomSeed=17 });
         var logger=new TaskSwitchExperimentCsvLogger();Set(logger,"saveFolderPath",output);Set(logger,"taskSwitchExperimentManager",manager);
         Set(logger,"craneRegistry",registry);Set(logger,"craneOperationManager",op);Set(logger,"participantId","P02");Set(logger,"blockId","auditory");
         Time.realtimeSinceStartupAsDouble=200000;Time.timeAsDouble=20000;AudioSettings.dspTime=1000;PauseTestHarness.Set(false);
@@ -94,19 +94,19 @@ static class AuditorySubtaskTests
         // Recording stop finalizes the next scheduled trial before closing the file.
         logger.StopLogging();int afterStop=audio.Plays;Advance(manager,logger,thirdOnset+10,0);
         Require(!manager.AuditorySubtaskRunning && audio.Plays==afterStop,"logging stop restarted unrecorded subtask");
-        Set(manager,"enableAuditorySubtask",false);logger.StartLogging("auditory-disabled");Advance(manager,logger,thirdOnset+11,1);logger.StopLogging();
+        Set(manager,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.None);logger.StartLogging("auditory-disabled");Advance(manager,logger,thirdOnset+11,1);logger.StopLogging();
         Require(audio.Plays==afterStop,"disabled subtask played audio");Call(manager,"DisposeAuditorySubtask");
         // Runtime checkbox changes cancel old trials and preserve unique trial/activation IDs.
         var toggle=new TaskSwitchExperimentManager { CurrentState=TaskSwitchExperimentState.OperatingSource };
-        Set(toggle,"enableAuditorySubtask",true);var toggled=new List<TaskSwitchAuditoryEvent>();toggle.AuditorySubtaskEventOccurred+=toggled.Add;
-        Call(toggle,"UpdateAuditorySubtask");Set(toggle,"enableAuditorySubtask",false);Call(toggle,"UpdateAuditorySubtask");
+        Set(toggle,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.Auditory);var toggled=new List<TaskSwitchAuditoryEvent>();toggle.AuditorySubtaskEventOccurred+=toggled.Add;
+        Call(toggle,"UpdateAuditorySubtask");Set(toggle,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.None);Call(toggle,"UpdateAuditorySubtask");
         Require(!toggle.AuditorySubtaskRunning && toggled.Find(e=>e.EventType=="TrialFinished").Detail=="InspectorDisabled","Inspector OFF failed");
-        Set(toggle,"enableAuditorySubtask",true);Call(toggle,"UpdateAuditorySubtask");
+        Set(toggle,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.Auditory);Call(toggle,"UpdateAuditorySubtask");
         Require(toggle.AuditoryActivationIndex==2 && toggled.FindAll(e=>e.EventType=="StimulusScheduled")[1].TrialIndex==2,"toggle reused identifiers");
         Call(toggle,"DisposeAuditorySubtask");
         // Input/configuration failures suppress only the secondary task, without retrying every frame.
         var invalid=new TaskSwitchExperimentManager { CurrentState=TaskSwitchExperimentState.OperatingSource };
-        Set(invalid,"enableAuditorySubtask",true);Set(invalid,"auditorySubtask",new TaskSwitchAuditorySettings { pedalAxisName="UnknownPedal" });
+        Set(invalid,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.Auditory);Set(invalid,"auditorySubtask",new TaskSwitchAuditorySettings { pedalAxisName="UnknownPedal" });
         Input.ErrorAxis="UnknownPedal";int errorsBefore=Debug.Errors;
         Call(invalid,"UpdateAuditorySubtask");Call(invalid,"UpdateAuditorySubtask");
         Require(!invalid.AuditorySubtaskRunning && invalid.CurrentState==TaskSwitchExperimentState.OperatingSource && Debug.Errors==errorsBefore+1,"input failure changed main state or repeated errors");

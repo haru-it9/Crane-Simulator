@@ -23,17 +23,23 @@ public class TaskSwitchAuditorySettings
 
     public string Validate(int sampleRate)
     {
-        if (string.IsNullOrWhiteSpace(pedalAxisName)) return "Pedal Axis Name is empty";
-        if (!(releaseThreshold >= 0 && releaseThreshold < pressThreshold && pressThreshold <= 1)) return "Require 0 <= release < press <= 1";
+        string error = ValidatePedalAndTiming();
+        if (error != null) return error;
         if (!(lowToneHz >= 100 && highToneHz > lowToneHz && highToneHz < sampleRate / 2.0)) return "Require 100 <= low < high < sampleRate / 2";
         if (!(toneDurationSeconds >= 0.02 && toneDurationSeconds <= responseTimeoutSeconds && volume > 0 && volume <= 1)) return "Invalid tone duration or volume";
+        return null;
+    }
+    public string ValidatePedalAndTiming()
+    {
+        if (string.IsNullOrWhiteSpace(pedalAxisName)) return "Pedal Axis Name is empty";
+        if (!(releaseThreshold >= 0 && releaseThreshold < pressThreshold && pressThreshold <= 1)) return "Require 0 <= release < press <= 1";
         if (!(minimumValidReactionSeconds >= 0 && minimumValidReactionSeconds < responseTimeoutSeconds)) return "Invalid reaction time limits";
         if (!(minimumIntervalSeconds > responseTimeoutSeconds + 0.1 && maximumIntervalSeconds >= minimumIntervalSeconds)) return "Intervals must exceed response timeout + 0.1 s";
         return null;
     }
 }
 
-// Times are explicit: DSP is the audio clock, RealTime is the frame-observed common log clock.
+// The pedal engine also serves visual trials: DspTime/ScheduledDsp then use the pause-free active clock.
 public class TaskSwitchAuditoryEvent
 {
     public string EventType, Tone = "", Outcome = "", Detail = "";
@@ -45,6 +51,8 @@ public class TaskSwitchAuditoryEvent
     public float RawPedal;
     public bool Presented, HeldAtOnset;
     public bool? Correct;
+    public double PlannedOnsetClock = double.NaN, PlannedOnsetReal = double.NaN;
+    public bool VisualLeftRed, VisualRightRed;
 }
 
 // Pure state machine: a pedal must return to neutral before another press is accepted.
@@ -56,6 +64,7 @@ public sealed class TaskSwitchAuditoryTrial
     private double onsetDsp, onsetReal, observedReal = double.NaN;
     private bool pending, presented, held, armed;
     private bool paused;
+    private bool explicitPresentation;
     private double pauseStartedReal, pausedSeconds;
     private int pauseCount;
     public bool HasPendingTrial => pending;
@@ -70,14 +79,28 @@ public sealed class TaskSwitchAuditoryTrial
     }
     public void Schedule(bool high, double scheduledDsp, double estimatedReal, double dsp, double real, float raw)
     {
-        if (pending) throw new InvalidOperationException("An auditory trial is already pending");
+        ScheduleStimulus(high ? "High" : "Low", high == settings.highToneUsesPositivePedal ? 1 : -1,
+            scheduledDsp, estimatedReal, dsp, real, raw);
+    }
+    public void ScheduleStimulus(string stimulus, int expectedSign, double scheduledClock, double estimatedReal,
+        double clock, double real, float raw, bool requireExplicitPresentation = false)
+    {
+        if (pending) throw new InvalidOperationException("A secondary-task trial is already pending");
+        if (expectedSign != 1 && expectedSign != -1) throw new ArgumentOutOfRangeException(nameof(expectedSign));
         trialIndex = ++sequence;
-        tone = high ? "High" : "Low";
-        expected = (high == settings.highToneUsesPositivePedal) ? 1 : -1;
-        onsetDsp = scheduledDsp; onsetReal = estimatedReal;
+        tone = stimulus; expected = expectedSign;
+        onsetDsp = scheduledClock; onsetReal = estimatedReal;
+        explicitPresentation = requireExplicitPresentation;
         observedReal = double.NaN; held = presented = false; pending = true;
         pausedSeconds = 0; pauseCount = 0;
-        Emit("StimulusScheduled", dsp, real, raw);
+        Emit("StimulusScheduled", clock, real, raw);
+    }
+    // Visual response time starts on the frame that actually changes the UI, even if that frame is late.
+    public void Present(double clock, double real, float raw)
+    {
+        if (!pending || presented || paused || !explicitPresentation) return;
+        onsetDsp = clock; onsetReal = real; explicitPresentation = false;
+        ObserveOnset(clock, real, raw, settings.invertPedalAxis ? -raw : raw);
     }
     public void Tick(double dsp, double real, float raw)
     {
@@ -134,7 +157,7 @@ public sealed class TaskSwitchAuditoryTrial
     }
     private void ObserveOnset(double dsp, double real, float raw, float effective)
     {
-        if (!pending || presented || dsp < onsetDsp) return;
+        if (!pending || presented || explicitPresentation || dsp < onsetDsp) return;
         presented = true; observedReal = real;
         held = Math.Abs(effective) >= settings.pressThreshold && !armed;
         Emit("StimulusOnsetObserved", dsp, real, raw);

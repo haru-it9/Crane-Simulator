@@ -59,5 +59,7 @@ public partial class TaskSwitchExperimentCsvLogger
         auditoryEventFile.Write(row);
         if (e.EventType == "TrialFinished") { auditoryTrialFile.Write(row); auditoryTrialFile.Flush(); }
         auditoryEventFile.Flush();
+        if (e.EventType == "SubtaskStarted" || e.EventType == "SubtaskStopped" || e.EventType == "SubtaskError")
+            WriteSessionMetadata("Auditory" + e.EventType);
     }
 }

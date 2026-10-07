@@ -76,11 +76,20 @@ namespace UnityEngine
     public class Tooltip : Attribute { public Tooltip(string s) {} }
     public class Min : Attribute { public Min(float v) {} }
     public class Range : Attribute { public Range(float a,float b) {} }
+    public class HideInInspector : Attribute {}
+    public struct Color
+    {
+        public float r,g,b,a;
+        public Color(float r,float g,float b,float a=1) { this.r=r;this.g=g;this.b=b;this.a=a; }
+        public static Color red => new Color(1,0,0);
+        public static Color blue => new Color(0,0,1);
+    }
 }
 namespace UnityEngine.Events { public enum UnityEventCallState { Off,EditorAndRuntime,RuntimeOnly } }
 namespace AOT { public class MonoPInvokeCallbackAttribute : Attribute { public MonoPInvokeCallbackAttribute(Type t) {} } }
 namespace UnityEngine.UI
 {
+    public class Image : UnityEngine.MonoBehaviour { public UnityEngine.Color color; public bool raycastTarget=true; }
     public class Text : UnityEngine.MonoBehaviour { public string text; }
     public class Button : UnityEngine.MonoBehaviour
     {

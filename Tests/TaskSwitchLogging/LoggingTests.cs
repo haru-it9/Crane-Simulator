@@ -84,6 +84,7 @@ class LoggingTests
         Console.WriteLine("PASS: timing markers, missing intervals, culture/escaping, row widths, both-crane sampling, gating, drops, rollback, full-cycle completion, restart, incomplete rows, repeated labels");
         AuditorySubtaskTests.Run(output);
         PauseTests.Run(output);
+        VisualSubtaskTests.Run(output);
         Console.WriteLine(first);return 0;
     }
 }

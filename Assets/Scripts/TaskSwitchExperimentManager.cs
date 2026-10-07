@@ -245,6 +245,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Awake()
     {
+        InitializeSecondaryTaskUi();
         FindReferences();
         ResolveConfirmationButtonReferences();
         HideTransitionPanels();
@@ -254,7 +255,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void OnEnable()
     {
-        SubscribeAuditoryPauseEvents();
+        SubscribeSecondaryPauseEvents();
         ResolveWorkPhaseTrackers();
         ResolveCycleControllers();
         SubscribeToWorkPhaseEvents();
@@ -263,15 +264,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void OnDisable()
     {
-        StopAuditorySubtask("ManagerDisabled");
-        UnsubscribeAuditoryPauseEvents();
+        StopSecondarySubtask("ManagerDisabled");
+        UnsubscribeSecondaryPauseEvents();
         UnsubscribeFromWorkPhaseEvents();
         UnsubscribeFromCycleEvents();
     }
 
     private void OnDestroy()
     {
-        DisposeAuditorySubtask();
+        DisposeSecondarySubtask();
         UnsubscribeFromCycleEvents();
 
         if (craneOperationManager != null &&
@@ -289,7 +290,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Update()
     {
-        UpdateAuditorySubtask();
+        UpdateSecondarySubtask();
         if (ExperimentPauseManager.IsPaused) return;
         UpdatePendingOperationInputUnlock();
         UpdateConfirmationButtonVisual();
@@ -413,8 +414,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        StopAuditorySubtask("ExperimentRestarted");
-        ResetAuditoryExperiment();
+        StopSecondarySubtask("ExperimentRestarted");
+        ResetSecondaryExperiment();
         EmitEvent("ExperimentPreparing");
         experimentStartRealtime = Time.realtimeSinceStartup;
         LoadSwitchSchedule();
@@ -481,7 +482,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         StartSourceWorkPhaseMonitoring();
 
         EmitEvent("ExperimentStarted");
-        StartAuditorySubtask();
+        StartSecondarySubtask();
         EmitEvent("SourceOperationStarted");
     }
 
@@ -613,7 +614,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        StopAuditorySubtask("ExperimentCompleted");
+        StopSecondarySubtask("ExperimentCompleted");
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();
@@ -628,7 +629,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     public void ExitExperimentMode()
     {
-        StopAuditorySubtask("ExperimentExited");
+        StopSecondarySubtask("ExperimentExited");
         HideTransitionPanels();
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();
