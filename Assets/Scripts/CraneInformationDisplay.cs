@@ -47,6 +47,13 @@ public class CraneInformationDisplay : MonoBehaviour
     [Min(0f)]
     private float weightToleranceKg = 100f;
 
+    [Tooltip(
+        "Moveで成立した座標色を保持するMainLifMagのLocal Y境界です。" +
+        "この値以下まで下降すると通常色へ戻します。"
+    )]
+    [SerializeField]
+    private float coordinateHighlightReleaseLocalY = -1.66f;
+
     [Header("板密度 [kg/m^3]")]
     [SerializeField] private float boardDensity = 7850f;
 
@@ -63,6 +70,13 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private readonly Dictionary<Text, Color> defaultValueColors =
         new Dictionary<Text, Color>();
+
+    private CraneUnit craneUnit;
+    private bool hasObservedMajorPhase;
+    private CraneStatusManager.WorkPhase lastObservedMajorPhase;
+    private bool retainedXHighlight;
+    private bool retainedZHighlight;
+    private bool verticalPhaseHighlightReleased;
 
     public float CurrentX { get; private set; }
     public float CurrentZ { get; private set; }
@@ -96,6 +110,7 @@ public class CraneInformationDisplay : MonoBehaviour
         targetTransform = newTargetTransform;
         lifMagSystem = newLifMagSystem;
         ResolveWorkReferences(newLifMagSystem);
+        ResetCoordinateHighlightState();
 
         wasHoldingLastFrame = false;
         hasReachedMaxWeight = false;
@@ -241,22 +256,11 @@ public class CraneInformationDisplay : MonoBehaviour
             workPhaseTracker != null &&
             workPhaseTracker.IsMonitoring;
 
-        bool isMovePhase =
-            isMonitoring &&
-            (workPhaseTracker.CurrentMajorPhase ==
-                 CraneStatusManager.WorkPhase.Move1 ||
-             workPhaseTracker.CurrentMajorPhase ==
-                 CraneStatusManager.WorkPhase.Move2);
-
-        bool xWithinTarget =
-            isMovePhase &&
-            workPhaseTracker.CurrentTargetErrorX <=
-            Mathf.Max(0f, fineAlignTolerance);
-
-        bool zWithinTarget =
-            isMovePhase &&
-            workPhaseTracker.CurrentTargetErrorZ <=
-            Mathf.Max(0f, fineAlignTolerance);
+        UpdateCoordinateAchievementState(
+            isMonitoring,
+            out bool xWithinTarget,
+            out bool zWithinTarget
+        );
 
         bool weightWithinTarget = false;
 
@@ -285,6 +289,125 @@ public class CraneInformationDisplay : MonoBehaviour
                 weightWithinTarget
             );
         }
+    }
+
+    private void UpdateCoordinateAchievementState(
+        bool isMonitoring,
+        out bool xWithinTarget,
+        out bool zWithinTarget
+    )
+    {
+        xWithinTarget = false;
+        zWithinTarget = false;
+
+        if (!isMonitoring || workPhaseTracker == null)
+        {
+            ResetCoordinateHighlightState();
+            return;
+        }
+
+        CraneStatusManager.WorkPhase phase =
+            workPhaseTracker.CurrentMajorPhase;
+
+        bool phaseChanged =
+            !hasObservedMajorPhase ||
+            phase != lastObservedMajorPhase;
+
+        if (phaseChanged)
+        {
+            hasObservedMajorPhase = true;
+            lastObservedMajorPhase = phase;
+            verticalPhaseHighlightReleased = false;
+
+            if (IsVerticalWorkPhase(phase))
+            {
+                float tolerance = Mathf.Max(
+                    0f,
+                    fineAlignTolerance
+                );
+
+                retainedXHighlight =
+                    workPhaseTracker.CurrentTargetErrorX <= tolerance;
+                retainedZHighlight =
+                    workPhaseTracker.CurrentTargetErrorZ <= tolerance;
+
+                if (!TryGetMainLifMagLocalY(out float localY) ||
+                    localY <= coordinateHighlightReleaseLocalY)
+                {
+                    verticalPhaseHighlightReleased = true;
+                    retainedXHighlight = false;
+                    retainedZHighlight = false;
+                }
+            }
+            else
+            {
+                retainedXHighlight = false;
+                retainedZHighlight = false;
+            }
+        }
+
+        bool isMovePhase =
+            phase == CraneStatusManager.WorkPhase.Move1 ||
+            phase == CraneStatusManager.WorkPhase.Move2;
+
+        if (isMovePhase)
+        {
+            float tolerance = Mathf.Max(0f, fineAlignTolerance);
+
+            xWithinTarget =
+                workPhaseTracker.CurrentTargetErrorX <= tolerance;
+            zWithinTarget =
+                workPhaseTracker.CurrentTargetErrorZ <= tolerance;
+
+            retainedXHighlight = xWithinTarget;
+            retainedZHighlight = zWithinTarget;
+            verticalPhaseHighlightReleased = false;
+            return;
+        }
+
+        if (!IsVerticalWorkPhase(phase) ||
+            verticalPhaseHighlightReleased)
+        {
+            return;
+        }
+
+        if (!TryGetMainLifMagLocalY(out float currentLocalY) ||
+            currentLocalY <= coordinateHighlightReleaseLocalY)
+        {
+            verticalPhaseHighlightReleased = true;
+            retainedXHighlight = false;
+            retainedZHighlight = false;
+            return;
+        }
+
+        xWithinTarget = retainedXHighlight;
+        zWithinTarget = retainedZHighlight;
+    }
+
+    private static bool IsVerticalWorkPhase(
+        CraneStatusManager.WorkPhase phase
+    )
+    {
+        return
+            phase == CraneStatusManager.WorkPhase.LiftUp ||
+            phase == CraneStatusManager.WorkPhase.Place ||
+            phase == CraneStatusManager.WorkPhase.PlaceToTrack;
+    }
+
+    private bool TryGetMainLifMagLocalY(out float localY)
+    {
+        localY = 0f;
+
+        return craneUnit != null &&
+               craneUnit.TryGetMainLifMagLocalY(out localY);
+    }
+
+    private void ResetCoordinateHighlightState()
+    {
+        hasObservedMajorPhase = false;
+        retainedXHighlight = false;
+        retainedZHighlight = false;
+        verticalPhaseHighlightReleased = false;
     }
 
     private bool TryGetCurrentWeightTargetKg(
@@ -371,6 +494,7 @@ public class CraneInformationDisplay : MonoBehaviour
     {
         workPhaseTracker = null;
         loadPlanManager = null;
+        craneUnit = null;
 
         if (sourceLifMag == null)
         {
@@ -405,6 +529,15 @@ public class CraneInformationDisplay : MonoBehaviour
                 craneInstance.GetComponentInChildren<
                     CraneWorkLoadPlanManager
                 >(true);
+        }
+
+        craneUnit = craneInstance.CraneUnit;
+
+        if (craneUnit == null)
+        {
+            craneUnit = craneInstance.GetComponentInChildren<
+                CraneUnit
+            >(true);
         }
     }
 
