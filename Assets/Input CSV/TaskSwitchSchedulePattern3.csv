@@ -1,4 +1,9 @@
 switchIndex,sourceCycle,sourcePhase,minimumDelaySeconds,maximumDelaySeconds
-1,1,Move2,0,10
-2,2,Place,0,10
-3,3,LiftUp,0,10
+1,1,LiftUp,1,9
+2,2,Move1,1,9
+3,2,Move2,1,9
+4,3,Move1,1,9
+5,3,Place,1,9
+6,4,Place,1,9
+7,5,LiftUp,1,9
+8,5,Move2,1,9
