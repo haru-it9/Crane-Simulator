@@ -401,6 +401,9 @@ MonoBehaviour:
   - {fileID: 835703467}
   - {fileID: 1826229153}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -412,9 +415,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -2693,6 +2695,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -2700,6 +2704,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -14817,6 +14822,9 @@ MonoBehaviour:
   - {fileID: 1028579237}
   - {fileID: 194627684}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -14828,9 +14836,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -19667,6 +19674,9 @@ MonoBehaviour:
   - {fileID: 378258161}
   - {fileID: 109125945}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -19678,9 +19688,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -21630,6 +21639,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -21637,6 +21648,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -26132,6 +26144,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &293505553
@@ -28815,6 +28830,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &319117112
@@ -29893,7 +29911,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 0
+  switchMethod: 2
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29913,10 +29931,16 @@ MonoBehaviour:
     targetPointIndex: 6
     targetXSelection: 0
   countdownSeconds: 5
+  sourceTotalCycleCount: 3
+  useSwitchScheduleCsv: 1
+  switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
   sourcePhaseTracker: {fileID: 1378636668}
   targetPhaseTracker: {fileID: 1229067184}
   sourceWorkPhaseTracker: {fileID: 1378636669}
   targetWorkPhaseTracker: {fileID: 1229067185}
+  sourceCycleController: {fileID: 1378636672}
+  targetCycleController: {fileID: 1229067188}
+  targetRunsFullCycle: 1
   useRealWorkPhaseBoundary: 1
   allowLegacyPhaseBoundaryFallback: 0
   confirmationPanel: {fileID: 104696218}
@@ -29931,6 +29955,8 @@ MonoBehaviour:
   - {fileID: 266821441}
   initializeScenariosOnStartExperiment: 1
   clearScenariosOnExit: 1
+  currentSwitchIndex: 0
+  completedSwitchCount: 0
 --- !u!4 &333508957
 Transform:
   m_ObjectHideFlags: 0
@@ -31334,6 +31360,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -31341,6 +31369,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -46739,6 +46768,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -46746,6 +46777,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -51258,6 +51290,9 @@ MonoBehaviour:
   - {fileID: 1706653218}
   - {fileID: 567544573}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -51269,9 +51304,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -55462,6 +55496,9 @@ MonoBehaviour:
   - {fileID: 1375266806}
   - {fileID: 1493476431}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -55473,9 +55510,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 100
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -56612,6 +56648,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 2
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -56619,6 +56657,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -65519,6 +65558,9 @@ MonoBehaviour:
   - {fileID: 251630471}
   - {fileID: 2010467165}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -65530,9 +65572,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -66398,7 +66439,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &704675711
 RectTransform:
   m_ObjectHideFlags: 0
@@ -83091,6 +83132,9 @@ MonoBehaviour:
   - {fileID: 336775087}
   - {fileID: 522476438}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -83102,9 +83146,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -88527,6 +88570,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &968091388
@@ -91631,6 +91677,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &995693980
@@ -95133,6 +95182,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1033601258
@@ -97102,6 +97154,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -97109,6 +97163,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -98340,6 +98395,9 @@ MonoBehaviour:
   - {fileID: 695618369}
   - {fileID: 730464053}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -98351,9 +98409,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -110284,6 +110341,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -110291,6 +110350,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -112150,6 +112210,7 @@ GameObject:
   - component: {fileID: 1229067185}
   - component: {fileID: 1229067186}
   - component: {fileID: 1229067187}
+  - component: {fileID: 1229067188}
   m_Layer: 0
   m_Name: MainCrane2
   m_TagString: Untagged
@@ -112392,6 +112453,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1229067186
@@ -112429,13 +112493,60 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d6c5018bf60c504e83854f531b3e98d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  workTargetManager: {fileID: 0}
+  craneInstance: {fileID: 0}
+  boardGenerator: {fileID: 0}
   pickupTargetWeightKg: 0
+  forceZeroRemainingWeightOnPlacement: 1
   placementTargetMode: 0
   plannedReleaseWeightKg: 0
   explicitRemainingWeightKg: 0
   placementStartWeightKg: 0
   targetRemainingWeightKg: 0
   placementPlanPrepared: 0
+--- !u!114 &1229067188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1229067177}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb95758b2f04b30488a7e1af73de5846, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  phaseTracker: {fileID: 1229067185}
+  targetManager: {fileID: 1229067186}
+  loadPlanManager: {fileID: 1229067187}
+  craneInstance: {fileID: 1229067183}
+  totalCycleCount: 3
+  initialPhase: 0
+  useTrailerPlacement: 0
+  pickupPointIndex: 5
+  pickupXSelection: 0
+  destinationPointIndex: 6
+  destinationXSelection: 0
+  trailerPointIndex: 12
+  trailerXSelection: 1
+  targetSource: 2
+  autoAdoptRunningTracker: 0
+  automaticPhaseAdvance: 1
+  phaseAdvanceDelaySeconds: 0.05
+  useUnscaledAdvanceDelay: 1
+  requireValidTarget: 1
+  logCycleEvents: 1
+  isRunning: 0
+  isPaused: 0
+  waitingAtBoundary: 0
+  holdAfterCurrentPhase: 0
+  completedCycleCount: 0
+  currentPhase: 0
+  pendingNextPhase: 0
+  hasPendingNextPhase: 0
+  activePickupXSelection: 1
+  activeDestinationXSelection: 1
+  activeTrailerXSelection: 1
 --- !u!1 &1229118834
 GameObject:
   m_ObjectHideFlags: 0
@@ -121311,6 +121422,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1343052243
@@ -122373,6 +122487,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1351253251
@@ -123873,6 +123990,9 @@ MonoBehaviour:
   - {fileID: 291348915}
   - {fileID: 323044849}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -123884,9 +124004,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -124953,6 +125072,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1378636670
@@ -124990,7 +125112,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d6c5018bf60c504e83854f531b3e98d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  workTargetManager: {fileID: 0}
+  craneInstance: {fileID: 0}
+  boardGenerator: {fileID: 0}
   pickupTargetWeightKg: 1770
+  forceZeroRemainingWeightOnPlacement: 1
   placementTargetMode: 0
   plannedReleaseWeightKg: 1770
   explicitRemainingWeightKg: 0
@@ -125017,11 +125143,11 @@ MonoBehaviour:
   initialPhase: 0
   useTrailerPlacement: 0
   pickupPointIndex: 5
-  pickupXSelection: 1
+  pickupXSelection: 0
   destinationPointIndex: 6
-  destinationXSelection: 1
+  destinationXSelection: 0
   trailerPointIndex: 12
-  trailerXSelection: 1
+  trailerXSelection: 0
   targetSource: 2
   autoAdoptRunningTracker: 1
   automaticPhaseAdvance: 1
@@ -136874,6 +137000,9 @@ MonoBehaviour:
   - {fileID: 1874086611}
   - {fileID: 796789747}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 1378636669}
+  craneUnit: {fileID: 1378636666}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -136885,9 +137014,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -138066,6 +138194,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1531814524
@@ -141636,6 +141767,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -141643,6 +141776,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -143685,6 +143819,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1602054567
@@ -145855,6 +145992,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -145862,6 +146001,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -145928,6 +146068,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -145935,6 +146077,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -149982,6 +150125,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -149989,6 +150134,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -159466,6 +159612,9 @@ MonoBehaviour:
   useManualTargetWhenUnavailable: 0
   manualTargetXZ: {x: 0, y: 0}
   positionExitHysteresis: 0.05
+  pickupWeightGuardToleranceKg: 100
+  pickupWeightInvalidationStableSeconds: 0.2
+  destroyDroppedBoardsOnWeightInvalidation: 1
   useUnscaledTime: 0
   logPhaseEvents: 1
 --- !u!114 &1780959817
@@ -172200,6 +172349,8 @@ MonoBehaviour:
   boardRandomYRange: {x: 0.0225, y: 0.0675}
   boardRandomZRange: {x: 0.5, y: 1.65}
   boardDensity: 7850
+  defaultPickupCount: 1
+  targetMatchTolerance: 0.75
   roundRandomBoardSize: 1
   boardXDecimalDigits: 1
   boardYDecimalDigits: 4
@@ -172207,6 +172358,7 @@ MonoBehaviour:
   boardStageSizeX: 7.5
   boardStageRandomYRange: {x: 0.05, y: 1}
   boardStageSizeZ: 1.7
+  useBoardGapY: 0
   boardGapY: 0.05
   parentTransform: {fileID: 313627106}
   createContainerUnderThisObject: 1
@@ -182113,6 +182265,9 @@ MonoBehaviour:
   - {fileID: 1323412087}
   - {fileID: 1399563231}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -182124,9 +182279,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
@@ -187335,6 +187489,9 @@ MonoBehaviour:
   - {fileID: 1460852418}
   - {fileID: 963181654}
   craneOperationManager: {fileID: 1612894383}
+  workPhaseTracker: {fileID: 0}
+  craneUnit: {fileID: 0}
+  transportReleaseLockLocalY: -1.66
   attachKey: 101
   detachKey: 114
   joyStick2RedButton: JoyStick2RedButton
@@ -187346,9 +187503,8 @@ MonoBehaviour:
   sliderAttachThreshold: 10
   useAbsoluteSliderValue: 0
   boardDensity: 7850
-  minLiftCapacityKg: 0
-  maxLiftCapacityKg: 25000
-  maxCurrentAmpere: 50
+  currentAmperePerTon: 10
+  maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 40
   interventionReleaseCurrentAmpere: 40
   isInterventionCurrentHoldMode: 0
