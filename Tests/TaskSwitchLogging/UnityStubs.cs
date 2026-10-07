@@ -8,14 +8,28 @@ namespace UnityEngine
         public static List<object> Scene = new List<object>();
         public static T FindObjectOfType<T>(bool inactive = false) where T : class { return Scene.Find(x => x is T) as T; }
         public static T[] FindObjectsOfType<T>(bool inactive = false) where T : class { return Scene.FindAll(x => x is T).ConvertAll(x => x as T).ToArray(); }
+        public static void Destroy(Object o) { }
     }
     public class MonoBehaviour : Object
     {
+        public GameObject gameObject = new GameObject();
         public Dictionary<Type, object> components = new Dictionary<Type, object>();
         public T GetComponent<T>() where T : class { object o; return components.TryGetValue(typeof(T), out o) ? o as T : null; }
         public T GetComponentInChildren<T>(bool inactive = false) where T : class { return GetComponent<T>(); }
     }
-    public class GameObject { public string name; public bool activeInHierarchy = true; }
+    public class GameObject { public string name; public bool activeInHierarchy = true; public T AddComponent<T>() where T:new() { return new T(); } }
+    public class AudioClip : Object
+    {
+        public float[] Samples; public int SampleRate;
+        public static AudioClip Create(string n,int count,int channels,int rate,bool stream) { return new AudioClip { Samples=new float[count],SampleRate=rate }; }
+        public bool SetData(float[] samples,int offset) { Samples=samples;return true; }
+    }
+    public class AudioSource : Object
+    {
+        public bool playOnAwake,loop,ignoreListenerPause,Stopped; public float spatialBlend,volume,pitch; public AudioClip clip; public double Scheduled; public int Plays,priority;
+        public void Stop() { Stopped=true; } public void PlayScheduled(double t) { Scheduled=t;Stopped=false;Plays++; }
+    }
+    public static class AudioSettings { public static double dspTime; public static int outputSampleRate=48000; }
     public class Transform { public Vector3 position; }
     public class RectTransform : Transform { public GameObject gameObject = new GameObject(); public void GetWorldCorners(Vector3[] p) {} }
     public class Camera { }
@@ -32,13 +46,23 @@ namespace UnityEngine
     {
         public static Dictionary<string,float> axes = new Dictionary<string,float>();
         public static Dictionary<string,bool> buttons = new Dictionary<string,bool>();
+        public static string ErrorAxis;
         public static float GetAxis(string s) { float v; return axes.TryGetValue(s,out v) ? v : 0; }
+        public static float GetAxisRaw(string s) { if (s==ErrorAxis) throw new ArgumentException("Unknown axis: "+s);return GetAxis(s); }
         public static bool GetButton(string s) { bool v; return buttons.TryGetValue(s,out v) && v; }
     }
     public static class Application { public static string unityVersion = "test", version = "1"; public static bool isFocused = true; }
     public static class Screen { public static int width=1920,height=1080; }
     public static class Debug { public static void Log(object s) {} public static int Errors; public static void LogError(object s) { Errors++; } }
-    public static class JsonUtility { public static string ToJson(object v) { return "{\"test\":true}"; } }
+    public static class JsonUtility
+    {
+        static readonly Dictionary<string,object> values=new Dictionary<string,object>();
+        public static string ToJson(object v) { string json="{\"test\":true,\"id\":"+values.Count+"}";values[json]=v;return json; }
+        public static T FromJson<T>(string json) where T:new()
+        {
+            T copy=new T(); foreach(var f in typeof(T).GetFields()) f.SetValue(copy,f.GetValue(values[json]));return copy;
+        }
+    }
     public static class RectTransformUtility { public static Vector2 WorldToScreenPoint(Camera c, Vector3 p) { return new Vector2(p.x,p.y); } public static bool RectangleContainsScreenPoint(RectTransform r, Vector2 p, Camera c) { return true; } }
     public class DisallowMultipleComponent : Attribute {}
     public class DefaultExecutionOrder : Attribute { public DefaultExecutionOrder(int n) {} }
@@ -61,7 +85,11 @@ namespace Tobii.Gaming
 public enum CraneWorkTargetXSelection { Random }
 public class CraneStatusManager { public enum WorkPhase { Move1,LiftUp,Move2,Place,PlaceToTrack } public enum ErrorType { None } }
 public class SimulatorStartManager { public static bool IsOperationEnabled = true; }
-public class ExperimentPauseManager { public static bool IsPaused; }
+public class ExperimentPauseManager
+{
+    public static bool IsPaused; public static event Action<bool> PauseStateChanged;
+    public static void Set(bool value) { IsPaused=value;PauseStateChanged?.Invoke(value); }
+}
 public class DisplayLayoutManager : UnityEngine.MonoBehaviour { public enum DisplayLayoutMode { TaskSwitchDisplay } public DisplayLayoutMode CurrentMode; }
 public class CraneInstance : UnityEngine.MonoBehaviour { public UnityEngine.Transform InformationTarget = new UnityEngine.Transform(); public LifMagSystem LifMagSystem; }
 public class CraneRegistry : UnityEngine.MonoBehaviour
@@ -69,7 +97,7 @@ public class CraneRegistry : UnityEngine.MonoBehaviour
     public CraneInstance[] cranes; public int ActiveCraneCount => cranes.Length;
     public CraneInstance GetCraneByRuntimeIndex(int i) { return i >= 0 && i < cranes.Length ? cranes[i] : null; }
 }
-public class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
+public partial class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
 {
     public TaskSwitchMethod SwitchMethod; public TaskSwitchExperimentState CurrentState;
     public TaskSwitchCraneCondition SourceCondition = new TaskSwitchCraneCondition { craneIndex=0 };

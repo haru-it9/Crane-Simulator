@@ -8,7 +8,7 @@ using UnityEngine.UI;
 /// 作業開始状態は既存のCraneInterventionScenarioManagerへ委譲します。
 /// </summary>
 [DisallowMultipleComponent]
-public class TaskSwitchExperimentManager : MonoBehaviour
+public partial class TaskSwitchExperimentManager : MonoBehaviour
 {
     [Serializable]
     private class ScheduledSwitchEntry
@@ -253,6 +253,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void OnEnable()
     {
+        SubscribeAuditoryPauseEvents();
         ResolveWorkPhaseTrackers();
         ResolveCycleControllers();
         SubscribeToWorkPhaseEvents();
@@ -261,12 +262,15 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void OnDisable()
     {
+        StopAuditorySubtask("ManagerDisabled");
+        UnsubscribeAuditoryPauseEvents();
         UnsubscribeFromWorkPhaseEvents();
         UnsubscribeFromCycleEvents();
     }
 
     private void OnDestroy()
     {
+        DisposeAuditorySubtask();
         UnsubscribeFromCycleEvents();
 
         if (craneOperationManager != null &&
@@ -284,6 +288,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Update()
     {
+        UpdateAuditorySubtask();
         UpdatePendingOperationInputUnlock();
         UpdateConfirmationButtonVisual();
 
@@ -405,6 +410,8 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        StopAuditorySubtask("ExperimentRestarted");
+        ResetAuditoryExperiment();
         EmitEvent("ExperimentPreparing");
         experimentStartRealtime = Time.realtimeSinceStartup;
         LoadSwitchSchedule();
@@ -471,6 +478,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
         StartSourceWorkPhaseMonitoring();
 
         EmitEvent("ExperimentStarted");
+        StartAuditorySubtask();
         EmitEvent("SourceOperationStarted");
     }
 
@@ -601,6 +609,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        StopAuditorySubtask("ExperimentCompleted");
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();
@@ -615,6 +624,7 @@ public class TaskSwitchExperimentManager : MonoBehaviour
 
     public void ExitExperimentMode()
     {
+        StopAuditorySubtask("ExperimentExited");
         HideTransitionPanels();
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();

@@ -80,6 +80,7 @@ class LoggingTests
         Require(!logger.IsLogging && Debug.Errors==1,"failed startup must report failure and remain stopped");
         Set(logger,"saveFolderPath",output);Set(logger,"participantId","P01");
         Console.WriteLine("PASS: timing markers, missing intervals, culture/escaping, row widths, both-crane sampling, gating, drops, rollback, full-cycle completion, restart, incomplete rows, repeated labels");
+        AuditorySubtaskTests.Run(output);
         Console.WriteLine(first);return 0;
     }
 }

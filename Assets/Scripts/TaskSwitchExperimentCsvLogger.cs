@@ -100,6 +100,7 @@ public partial class TaskSwitchExperimentCsvLogger : MonoBehaviour
             safeName = "Experiment";
         }
 
+        taskSwitchExperimentManager.SuspendAuditoryForLoggingStop();
         string path;
         try
         {
@@ -122,6 +123,7 @@ public partial class TaskSwitchExperimentCsvLogger : MonoBehaviour
 
         SubscribeToEvents();
         SubscribeSessionEvents();
+        taskSwitchExperimentManager.ResumeAuditoryForLoggingStart();
 
         WriteEvent(
             "Logger",

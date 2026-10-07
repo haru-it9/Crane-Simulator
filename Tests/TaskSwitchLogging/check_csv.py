@@ -5,7 +5,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 folders = list(root.glob('試行,1_*'))
 assert len(folders) == 2, 'same label must create unique session directories'
-required = {'session.csv', 'events.csv', 'crane_state.csv', 'input.csv', 'gaze.csv', 'switch_summary.csv', 'cycle_summary.csv'}
+required = {'session.csv', 'events.csv', 'crane_state.csv', 'input.csv', 'gaze.csv', 'switch_summary.csv', 'cycle_summary.csv', 'auditory_subtask.csv', 'auditory_trials.csv'}
 all_data = []
 for folder in folders:
     assert {p.name for p in folder.iterdir()} == required
@@ -24,6 +24,8 @@ for folder in folders:
     assert len(ids) == 1
     all_data.append(data)
 d = next(data for data in all_data if data['crane_state'])
+assert not d['auditory_subtask'] and not d['auditory_trials'], 'disabled subtask must produce no trials'
+assert all(r['schema_version'] == '3' and r['auditory_subtask_enabled'] == '0' for r in d['session'])
 assert len(d['switch_summary']) == 3
 complete, incomplete, no_input = d['switch_summary']
 assert complete['outcome'] == 'Completed'
@@ -68,7 +70,7 @@ assert any(r['outcome'].startswith('Incomplete') for r in d['cycle_summary'])
 with (root / 'escaping.csv').open(encoding='utf-8-sig', newline='') as stream:
     row = list(csv.reader(stream))[1]
 assert row == ['参加者,"名前"\n改行', '1.250000', '', '1']
-print('PASS: parsed all seven CSV schemas, shared clocks/IDs, exact summary intervals, blank missing values, two cranes, pauses, valid/invalid gaze, unique folders')
+print('PASS: parsed all nine CSV schemas, disabled subtask, shared clocks/IDs, exact summary intervals, blank missing values, two cranes, pauses, valid/invalid gaze, unique folders')
 
 # Rebuild derived summaries from raw records and compare every typed field.
 import importlib.util
@@ -89,3 +91,40 @@ for expected_rows, rebuilt_rows in [(d['switch_summary'], rebuilt_switches), (d[
                 match = value == actual[key]
             assert match, (key, value, actual[key])
 print('PASS: switch and cycle summaries rebuilt from raw events/state match every exported field')
+
+# Real production auditory scheduler and logger are exercised by AuditorySubtaskTests.
+auditory_folder, = root.glob('auditory-test_*')
+auditory_data = {}
+for path in auditory_folder.glob('*.csv'):
+    with path.open(encoding='utf-8-sig', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert len(set(rows[0])) == len(rows[0]) and all(len(r) == len(rows[0]) for r in rows[1:]), path
+    auditory_data[path.stem] = [dict(zip(rows[0], r)) for r in rows[1:]]
+    assert all(r['participant_id'] == 'P02' and r['block_id'] == 'auditory' for r in auditory_data[path.stem])
+assert len({r['session_id'] for data in auditory_data.values() for r in data}) == 1
+trials = auditory_data['auditory_trials']
+history = auditory_data['auditory_subtask']
+assert [r['trial_index'] for r in trials] == ['1', '2', '3', '4']
+assert [r['outcome'] for r in trials] == ['Correct', 'Interrupted', 'Miss', 'CancelledBeforeOnset']
+assert all(r['event_type'] == 'TrialFinished' and r['random_seed'] == '17' for r in trials)
+assert trials == [r for r in history if r['event_type'] == 'TrialFinished'], 'summary differs from original event'
+correct = trials[0]
+assert correct['correct'] == '1' and correct['reaction_time_s'] == '0.150000' and correct['held_at_onset'] == '0'
+assert correct['input_locked'] == '1', 'main operation lock must not gate auditory pedal input'
+assert correct['onset_state'] == 'OperatingSource' and correct['state'] == 'OperatingTarget'
+assert correct['onset_crane_index'] == '0' and correct['active_crane_index'] == '1'
+assert correct['onset_switch_index'] == '0' and correct['switch_index'] == '1'
+assert abs(float(correct['onset_observed_real_s']) - float(correct['onset_estimated_real_s']) - .02) < .00001
+assert correct['onset_observation_lag_s'] == '0.020000'
+assert abs(float(correct['response_observed_real_s']) - float(correct['onset_estimated_real_s']) - .15) < .00001
+assert all(r['reaction_time_s'] == '' and r['correct'] == '' and r['response_observed_real_s'] == '' for r in trials[1:])
+assert trials[-1]['presented'] == '0' and trials[-1]['onset_observed_real_s'] == ''
+assert trials[1]['detail'] == 'GlobalPauseOrSimulatorStopped' and trials[-1]['detail'] == 'LoggingStopped'
+assert any(r['event_type'] == 'SubtaskPaused' for r in history) and any(r['event_type'] == 'SubtaskResumed' for r in history)
+for event in (r for r in history if r['event_type'] == 'PedalPressed'):
+    assert event['real_elapsed_s'] == event['response_observed_real_s'], 'pedal input has a different common clock'
+disabled_folder, = root.glob('auditory-disabled_*')
+for name in ['auditory_trials', 'auditory_subtask']:
+    with (disabled_folder / (name + '.csv')).open(encoding='utf-8-sig', newline='') as stream:
+        assert len(list(csv.reader(stream))) == 1, 'disabled feature recorded secondary-task events'
+print('PASS: auditory trial/event CSV widths, matching summaries, missing values, precise shared clock, onset/response switch context, pause and recording-stop outcomes')
