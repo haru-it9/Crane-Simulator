@@ -21,7 +21,7 @@ public partial class TaskSwitchExperimentCsvLogger
     [SerializeField] private GazeArea[] gazeAreas = new GazeArea[0];
 
     private const string IdentityHeader = "session_id,participant_id,block_id,experiment_run_index";
-    private const string SampleHeader = IdentityHeader + ",sample_index,utc_timestamp,real_elapsed_s,simulation_elapsed_s,frame,switch_index,active_crane_index,state,input_locked,global_paused,display_mode,operation_enabled";
+    private const string SampleHeader = IdentityHeader + ",sample_index,utc_timestamp,real_elapsed_s,simulation_elapsed_s,frame,switch_index,active_crane_index,state,input_locked,global_paused,display_mode,operation_enabled,pause_interval_index";
     private string sessionId;
     private string sessionDirectory;
     private string operatorFileLabel, sessionParticipantId, sessionBlockId;
@@ -85,6 +85,7 @@ public partial class TaskSwitchExperimentCsvLogger
         switchFile = Open("switch_summary", IdentityHeader + ",switch_index,switch_method,outcome,logical_completed,source_input_observed,source_phase_at_suspend,source_step_at_suspend,source_cycle_at_suspend,step_elapsed_at_suspend_s,position_latched_at_suspend,board_count_at_suspend,target_input_held_at_unlock,source_input_held_at_unlock,weight_invalidations,current_drop_events," + TaskSwitchTimingSummary.Header);
         cycleFile = Open("cycle_summary", IdentityHeader + ",cycle_instance_id,crane_index,cycle_number,switch_index_at_start,first_phase,outcome,start_s,end_s,elapsed_s,monitoring_s,control_available_s,global_pause_s,steps_completed,weight_invalidations,current_drop_events,rollbacks,duration_sampled_until_s");
         OpenAuditoryFiles();
+        OpenPauseFile();
         WriteSessionMetadata("LoggingStarted");
         return Path.Combine(sessionDirectory, "events.csv");
     }
@@ -113,13 +114,13 @@ public partial class TaskSwitchExperimentCsvLogger
         sampleSimulation = SimulationSeconds;
         return Join(Identity(), sampleIndex, sampleUtc, sampleReal, sampleSimulation,
             Time.frameCount, taskSwitchExperimentManager.CurrentSwitchIndex, GetSelectedCraneIndex(),
-            taskSwitchExperimentManager.CurrentState, InputLocked, ExperimentPauseManager.IsPaused, DisplayMode, SimulatorStartManager.IsOperationEnabled);
+            taskSwitchExperimentManager.CurrentState, InputLocked, ExperimentPauseManager.IsPaused, DisplayMode, SimulatorStartManager.IsOperationEnabled, ActivePauseInterval);
     }
     private void WriteSessionMetadata(string type)
     {
         if (sessionFile == null) return;
         sessionFile.Write(Join(Identity(), type, DateTime.UtcNow.ToString("O"), RealSeconds, operatorFileLabel,
-            3, Application.unityVersion, Application.version, BuildRevision,
+            4, Application.unityVersion, Application.version, BuildRevision,
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
             taskSwitchExperimentManager.SwitchMethod, taskSwitchExperimentManager.SourceCondition.craneIndex,
             taskSwitchExperimentManager.TargetCondition.craneIndex, taskSwitchExperimentManager.TargetRunsFullCycle,
@@ -157,6 +158,7 @@ public partial class TaskSwitchExperimentCsvLogger
 
     private void SubscribeSessionEvents()
     {
+        SubscribePauseLogging();
         taskSwitchExperimentManager.AuditorySubtaskEventOccurred += HandleAuditoryEvent;
         if (craneOperationManager != null) craneOperationManager.MovementInputAccepted += HandleMovementAccepted;
         foreach (CraneWorkPhaseTracker t in subscribedTrackers) t.PickupWeightInvalidated += HandleWeightInvalidated;
@@ -180,6 +182,7 @@ public partial class TaskSwitchExperimentCsvLogger
     }
     private void UnsubscribeSessionEvents()
     {
+        ExperimentPauseManager.PauseStateChanged -= HandleGlobalPauseChanged;
         if (taskSwitchExperimentManager != null) taskSwitchExperimentManager.AuditorySubtaskEventOccurred -= HandleAuditoryEvent;
         if (craneOperationManager != null) craneOperationManager.MovementInputAccepted -= HandleMovementAccepted;
         foreach (CraneWorkPhaseTracker t in subscribedTrackers) if (t != null) t.PickupWeightInvalidated -= HandleWeightInvalidated;
@@ -199,6 +202,7 @@ public partial class TaskSwitchExperimentCsvLogger
     }
     private void StopSession()
     {
+        EndPauseInterval(false, "LoggingStoppedWhilePaused");
         if (taskSwitchExperimentManager != null) taskSwitchExperimentManager.SuspendAuditoryForLoggingStop();
         WriteSessionMetadata("LoggingStopped");
         FinishSwitch("LoggingStopped");
@@ -208,10 +212,11 @@ public partial class TaskSwitchExperimentCsvLogger
     }
     private void DisposeSessionFiles()
     {
-        foreach (ExperimentCsvFile f in new[] { sessionFile, stateFile, inputFile, gazeFile, switchFile, cycleFile, auditoryEventFile, auditoryTrialFile })
+        foreach (ExperimentCsvFile f in new[] { sessionFile, stateFile, inputFile, gazeFile, switchFile, cycleFile, auditoryEventFile, auditoryTrialFile, pauseFile })
             if (f != null) f.Dispose();
         sessionFile = stateFile = inputFile = gazeFile = switchFile = cycleFile = null;
         auditoryEventFile = auditoryTrialFile = null;
+        pauseFile = null;
     }
     private void FlushSessionSamples()
     {

@@ -49,6 +49,7 @@ public class HumanSpawnManager : MonoBehaviour
 
     private void Update()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         /*if (currentHuman != null && Input.GetKeyDown(removeHumanKey))
         {
             RemoveCurrentHuman();

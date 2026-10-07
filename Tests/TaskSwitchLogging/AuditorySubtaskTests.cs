@@ -6,13 +6,14 @@ using UnityEngine;
 
 static class AuditorySubtaskTests
 {
+    static double pausedWallOffset;
     static void Require(bool condition,string message) { if (!condition) throw new Exception(message); }
     static void Set(object o,string field,object value) { o.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).SetValue(o,value); }
     static object Get(object o,string field) { return o.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).GetValue(o); }
     static void Call(object o,string method) { o.GetType().GetMethod(method,BindingFlags.NonPublic|BindingFlags.Instance).Invoke(o,null); }
     static void Advance(TaskSwitchExperimentManager manager,TaskSwitchExperimentCsvLogger logger,double dsp,float pedal)
     {
-        AudioSettings.dspTime=dsp;Time.realtimeSinceStartupAsDouble=200000+dsp-1000;Time.timeAsDouble=20000+dsp-1000;Time.frameCount++;
+        AudioSettings.dspTime=dsp;Time.realtimeSinceStartupAsDouble=200000+dsp-1000+pausedWallOffset;Time.timeAsDouble=20000+dsp-1000;Time.frameCount++;
         Input.axes["TaskSwitchPedal"]=pedal;Call(manager,"UpdateAuditorySubtask");Call(logger,"LateUpdate");
     }
     public static void Run(string output)
@@ -45,6 +46,14 @@ static class AuditorySubtaskTests
         engine=new TaskSwitchAuditoryTrial(settings);TaskSwitchAuditoryEvent reversed=null;engine.EventOccurred+=e=>reversed=e;
         engine.Schedule(true,10,10,0,0,0);engine.Tick(9,9,0);engine.Tick(10.2,10.2,1);
         Require(reversed.Outcome=="Correct" && reversed.ResponseSign==-1,"inversion/mapping not applied");
+        var frozen=new TaskSwitchAuditoryTrial(new TaskSwitchAuditorySettings());
+        var frozenEvents=new List<TaskSwitchAuditoryEvent>();frozen.EventOccurred+=frozenEvents.Add;
+        frozen.Schedule(true,10,10010,0,10000,0);frozen.Tick(7,10007,0);frozen.Pause(8,10008,0);
+        frozen.Tick(8,10038,1);Require(frozen.HasPendingTrial && frozenEvents.FindAll(e=>e.EventType=="PedalPressed").Count==0,"paused input advanced a pending trial");
+        frozen.Resume(8,10038,1);frozen.Tick(9,10039,0);frozen.Tick(10,10040,0);frozen.Tick(10.4,10040.4,1);
+        var frozenResult=frozenEvents.FindLast(e=>e.EventType=="TrialFinished");
+        Require(frozenResult.Outcome=="Correct" && frozenResult.EstimatedOnsetReal==10040 && frozenResult.PauseCount==1 && frozenResult.PausedSeconds==30,"scheduled onset was not shifted by wall-clock pause");
+        Require(Math.Abs(frozenResult.ReactionSeconds-.4)<.00001 && Math.Abs(frozenResult.WallReactionSeconds-.4)<.00001,"pre-onset pause inflated reaction time");
 
         var manager=new TaskSwitchExperimentManager();var op=new CraneOperationManager { IsOperationInputLocked=true };
         var registry=new CraneRegistry { cranes=new[]{new CraneInstance(),new CraneInstance()} };
@@ -53,7 +62,7 @@ static class AuditorySubtaskTests
         Set(manager,"enableAuditorySubtask",true);Set(manager,"auditorySubtask",new TaskSwitchAuditorySettings { randomSeed=17 });
         var logger=new TaskSwitchExperimentCsvLogger();Set(logger,"saveFolderPath",output);Set(logger,"taskSwitchExperimentManager",manager);
         Set(logger,"craneRegistry",registry);Set(logger,"craneOperationManager",op);Set(logger,"participantId","P02");Set(logger,"blockId","auditory");
-        Time.realtimeSinceStartupAsDouble=200000;Time.timeAsDouble=20000;AudioSettings.dspTime=1000;ExperimentPauseManager.IsPaused=false;
+        Time.realtimeSinceStartupAsDouble=200000;Time.timeAsDouble=20000;AudioSettings.dspTime=1000;PauseTestHarness.Set(false);
         Input.axes["TaskSwitchPedal"]=0;logger.StartLogging("auditory-test");
         manager.Emit("ExperimentPreparing");manager.CurrentState=TaskSwitchExperimentState.OperatingSource;manager.Emit("ExperimentStarted");
         Call(manager,"SubscribeAuditoryPauseEvents");Call(manager,"StartAuditorySubtask");
@@ -71,9 +80,14 @@ static class AuditorySubtaskTests
         Advance(manager,logger,onset+.3,0);double secondOnset=audio.Scheduled;
         Require(secondOnset-onset>=3 && secondOnset-onset<=5,"stimulus interval drifted with response time");
         Advance(manager,logger,secondOnset+.02,0);
-        ExperimentPauseManager.Set(true);Require(audio.Stopped,"pause did not stop sound immediately");
-        int plays=audio.Plays;Advance(manager,logger,secondOnset+20,sign);Require(audio.Plays==plays,"paused subtask issued tones");
-        ExperimentPauseManager.Set(false);Require(audio.Scheduled>=AudioSettings.dspTime+3,"resume presented accumulated stimuli");
+        PauseTestHarness.Set(true);Require(AudioListener.pause,"pause did not freeze audio");
+        int plays=audio.Plays;pausedWallOffset=20;
+        Advance(manager,logger,secondOnset+.02,sign);Require(audio.Plays==plays,"paused subtask issued tones");
+        PauseTestHarness.Set(false);Require(audio.Scheduled==secondOnset && audio.Plays==plays,"resume replaced the suspended stimulus");
+        sign=runtimeEvents.FindLast(e=>e.EventType=="StimulusOnsetObserved").ExpectedSign;
+        Advance(manager,logger,secondOnset+.2,0);Advance(manager,logger,secondOnset+.52,sign);
+        var resumed=runtimeEvents.FindLast(e=>e.EventType=="TrialFinished");
+        Require(resumed.Outcome=="Correct" && resumed.PauseCount==1 && Math.Abs(resumed.PausedSeconds-20)<.00001 && Math.Abs(resumed.ReactionSeconds-.52)<.00001,"suspended trial/active reaction time not preserved");
         double thirdOnset=audio.Scheduled;
         Advance(manager,logger,thirdOnset-.1,0);Advance(manager,logger,thirdOnset+.01,0);Advance(manager,logger,thirdOnset+2.1,0);
         Require(runtimeEvents.FindAll(e=>e.EventType=="TrialFinished" && e.Outcome=="Miss").Count==1,"timeout missing/duplicated");

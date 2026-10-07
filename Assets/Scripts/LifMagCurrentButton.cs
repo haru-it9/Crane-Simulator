@@ -42,6 +42,7 @@ public class LifMagCurrentButton : MonoBehaviour
 
     private void TurnOn()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         isOn = true;
 
         if (craneOperationManager != null)

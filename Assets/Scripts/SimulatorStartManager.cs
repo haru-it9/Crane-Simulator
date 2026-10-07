@@ -62,6 +62,7 @@ public class SimulatorStartManager : MonoBehaviour
     private CraneCountManager craneCountManager;
 
     public static bool IsOperationEnabled { get; private set; } = false;
+    public SimulatorMode CurrentMode => simulatorMode;
 
     private void Start()
     {

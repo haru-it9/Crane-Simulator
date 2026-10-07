@@ -7,12 +7,23 @@ using UnityEngine.UI;
 /// 介入対象クレーンだけを止める処理とは独立しています。
 /// </summary>
 [DisallowMultipleComponent]
+[DefaultExecutionOrder(-10000)]
 public class ExperimentPauseManager : MonoBehaviour
 {
     private static ExperimentPauseManager instance;
 
     public static bool IsPaused { get; private set; }
     public static event Action<bool> PauseStateChanged;
+    private static double pauseStartedReal = double.NaN;
+    private static double accumulatedPauseSeconds;
+    // Deadlines use this clock; CSV continues to use wall time so pauses remain visible.
+    public static double ActiveRealtime => Time.realtimeSinceStartupAsDouble - TotalPauseSeconds;
+    public static double TotalPauseSeconds => accumulatedPauseSeconds +
+        (IsPaused && !double.IsNaN(pauseStartedReal) ? Math.Max(0, Time.realtimeSinceStartupAsDouble - pauseStartedReal) : 0);
+
+    [Header("Task Switch初回開始")]
+    [SerializeField] private SimulatorStartManager simulatorStartManager;
+    [SerializeField] private TaskSwitchExperimentManager taskSwitchExperimentManager;
 
     [Header("開始設定")]
     [Tooltip("ONの場合、シミュレータ開始後も停止状態を維持します。")]
@@ -77,12 +88,15 @@ public class ExperimentPauseManager : MonoBehaviour
 
         instance = this;
         IsPaused = pauseOnSimulatorStart;
+        accumulatedPauseSeconds = 0;
+        pauseStartedReal = IsPaused ? Time.realtimeSinceStartupAsDouble : double.NaN;
         FindUiReferences();
         UpdateUi();
     }
 
     private void OnEnable()
     {
+        if (instance != this) return;
         FindUiReferences();
         RegisterButtonListeners();
         UpdateUi();
@@ -90,6 +104,7 @@ public class ExperimentPauseManager : MonoBehaviour
 
     private void Update()
     {
+        if (instance != this) return;
         if (CanApplyTimeScale)
         {
             ApplyPauseToTimeScale();
@@ -101,12 +116,8 @@ public class ExperimentPauseManager : MonoBehaviour
         UnregisterButtonListeners();
 
         RestoreTimeScale();
-
-        if (instance == this && IsPaused)
-        {
-            IsPaused = false;
-            PauseStateChanged?.Invoke(false);
-        }
+        RestoreAudioPause();
+        if (instance == this) ReleasePauseState();
     }
 
     private void OnDestroy()
@@ -117,13 +128,23 @@ public class ExperimentPauseManager : MonoBehaviour
         }
 
         RestoreTimeScale();
-        IsPaused = false;
+        RestoreAudioPause();
+        ReleasePauseState();
         instance = null;
     }
 
     public void TogglePause()
     {
         SetPaused(!IsPaused);
+    }
+
+    private void ReleasePauseState()
+    {
+        if (!IsPaused) return;
+        accumulatedPauseSeconds = TotalPauseSeconds;
+        pauseStartedReal = double.NaN;
+        IsPaused = false;
+        PauseStateChanged?.Invoke(false);
     }
 
     public void Pause()
@@ -138,7 +159,18 @@ public class ExperimentPauseManager : MonoBehaviour
 
     public void SetPaused(bool paused)
     {
+        if (instance != null && instance != this) return;
+        if (!paused && IsPaused && waitForSimulatorStart && !SimulatorStartManager.IsOperationEnabled) return;
         bool stateChanged = IsPaused != paused;
+        if (stateChanged)
+        {
+            if (paused) pauseStartedReal = Time.realtimeSinceStartupAsDouble;
+            else
+            {
+                accumulatedPauseSeconds = TotalPauseSeconds;
+                pauseStartedReal = double.NaN;
+            }
+        }
         IsPaused = paused;
 
         if (CanApplyTimeScale)
@@ -151,6 +183,8 @@ public class ExperimentPauseManager : MonoBehaviour
         if (stateChanged)
         {
             PauseStateChanged?.Invoke(IsPaused);
+            // Initial Start prepares an idle experiment exactly once. Resume never restarts it.
+            if (!IsPaused) StartIdleTaskSwitchExperiment();
             Debug.Log(
                 IsPaused
                     ? "実験全体を一時停止しました。"
@@ -172,10 +206,12 @@ public class ExperimentPauseManager : MonoBehaviour
             }
 
             Time.timeScale = 0f;
+            ApplyAudioPause();
             return;
         }
 
         RestoreTimeScale();
+        RestoreAudioPause();
     }
 
     private void RestoreTimeScale()
@@ -187,6 +223,28 @@ public class ExperimentPauseManager : MonoBehaviour
 
         Time.timeScale = Mathf.Max(0.0001f, timeScaleBeforePause);
         timeScalePauseApplied = false;
+    }
+
+    private bool audioPauseApplied, audioPausedBeforePause;
+    private void ApplyAudioPause()
+    {
+        if (!audioPauseApplied) { audioPausedBeforePause = AudioListener.pause; audioPauseApplied = true; }
+        AudioListener.pause = true;
+    }
+    private void RestoreAudioPause()
+    {
+        if (!audioPauseApplied) return;
+        AudioListener.pause = audioPausedBeforePause;
+        audioPauseApplied = false;
+    }
+    private void StartIdleTaskSwitchExperiment()
+    {
+        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (simulatorStartManager == null) simulatorStartManager = FindObjectOfType<SimulatorStartManager>(true);
+        if (simulatorStartManager == null || simulatorStartManager.CurrentMode != SimulatorStartManager.SimulatorMode.TaskSwitchExperiment) return;
+        if (taskSwitchExperimentManager == null) taskSwitchExperimentManager = FindObjectOfType<TaskSwitchExperimentManager>(true);
+        if (taskSwitchExperimentManager != null && taskSwitchExperimentManager.CurrentState == TaskSwitchExperimentState.Idle)
+            taskSwitchExperimentManager.StartExperiment();
     }
 
     private void FindUiReferences()
@@ -227,6 +285,15 @@ public class ExperimentPauseManager : MonoBehaviour
 
         // InspectorのOn Clickを設定しなくても動作します。
         // 同じButtonが重複登録されていても、Listenerは1つだけになります。
+        // Legacy scene bindings must not reset the experiment before the runtime toggle fires.
+        for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+        {
+            UnityEngine.Object target = button.onClick.GetPersistentTarget(i);
+            string method = button.onClick.GetPersistentMethodName(i);
+            if ((target is TaskSwitchExperimentManager && method == nameof(TaskSwitchExperimentManager.StartExperiment)) ||
+                (target == this && method == nameof(TogglePause)))
+                button.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+        }
         button.onClick.RemoveListener(TogglePause);
         button.onClick.AddListener(TogglePause);
     }

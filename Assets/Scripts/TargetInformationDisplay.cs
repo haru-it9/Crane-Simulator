@@ -97,6 +97,7 @@ public class TargetInformationDisplay : MonoBehaviour
 
     public void ShowNextTarget()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (generateMode == GenerateMode.CSV)
         {
             ShowNextCsvTarget();

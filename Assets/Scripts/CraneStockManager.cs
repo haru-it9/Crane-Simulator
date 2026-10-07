@@ -429,7 +429,7 @@ public class CraneStockManager : MonoBehaviour
 
         // 選択・介入に伴う生成直後の位置確定中は、
         // Stock Area外と誤判定して保持数を減らさないようにします。
-        if (Time.unscaledTime < materializedBoardDetectionStartTime)
+        if ((float)ExperimentPauseManager.ActiveRealtime < materializedBoardDetectionStartTime)
         {
             return;
         }
@@ -507,7 +507,7 @@ public class CraneStockManager : MonoBehaviour
     private void BeginMaterializedBoardDetectionGracePeriod()
     {
         materializedBoardDetectionStartTime =
-            Time.unscaledTime +
+            (float)ExperimentPauseManager.ActiveRealtime +
             MaterializedBoardDetectionGraceSeconds;
     }
 

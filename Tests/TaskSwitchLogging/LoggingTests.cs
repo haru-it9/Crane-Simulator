@@ -66,7 +66,7 @@ class LoggingTests
         Tick(logger,7);manager.Emit("SourceReturnConfirmationPressed");manager.Emit("SourceOperationResumed");manager.Emit("SwitchCompleted");
         Tick(logger,8);op.IsOperationInputLocked=false;manager.Emit("SourceInputUnlocked");registry.cranes[0].GetComponent<CraneWorkCycleController>().IsPaused=false;
         Tick(logger,9);op.Accept(new Vector3(1,0,0));registry.cranes[0].GetComponent<CraneWorkPhaseTracker>().CompleteStep();
-        ExperimentPauseManager.IsPaused=true;Tick(logger,10);ExperimentPauseManager.IsPaused=false;
+        PauseTestHarness.Set(true);Tick(logger,10);PauseTestHarness.Set(false);
         Tick(logger,11);manager.CurrentSwitchIndex=2;manager.Emit("SwitchRequested");
         Tick(logger,12);manager.Emit("SourceWorkSuspended");
         // Restart must close incomplete switch/cycle and isolate new run identity.
@@ -81,6 +81,7 @@ class LoggingTests
         Set(logger,"saveFolderPath",output);Set(logger,"participantId","P01");
         Console.WriteLine("PASS: timing markers, missing intervals, culture/escaping, row widths, both-crane sampling, gating, drops, rollback, full-cycle completion, restart, incomplete rows, repeated labels");
         AuditorySubtaskTests.Run(output);
+        PauseTests.Run(output);
         Console.WriteLine(first);return 0;
     }
 }

@@ -88,6 +88,7 @@ public class CraneStockGauge : MonoBehaviour
 
     private void Update()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         UpdateGauge(smoothChange);
     }
 

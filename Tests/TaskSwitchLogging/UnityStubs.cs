@@ -13,11 +13,12 @@ namespace UnityEngine
     public class MonoBehaviour : Object
     {
         public GameObject gameObject = new GameObject();
+        public bool enabled = true;
         public Dictionary<Type, object> components = new Dictionary<Type, object>();
         public T GetComponent<T>() where T : class { object o; return components.TryGetValue(typeof(T), out o) ? o as T : null; }
         public T GetComponentInChildren<T>(bool inactive = false) where T : class { return GetComponent<T>(); }
     }
-    public class GameObject { public string name; public bool activeInHierarchy = true; public T AddComponent<T>() where T:new() { return new T(); } }
+    public class GameObject { public string name; public bool activeInHierarchy = true; public void SetActive(bool value) { activeInHierarchy=value; } public T AddComponent<T>() where T:new() { return new T(); } }
     public class AudioClip : Object
     {
         public float[] Samples; public int SampleRate;
@@ -30,6 +31,7 @@ namespace UnityEngine
         public void Stop() { Stopped=true; } public void PlayScheduled(double t) { Scheduled=t;Stopped=false;Plays++; }
     }
     public static class AudioSettings { public static double dspTime; public static int outputSampleRate=48000; }
+    public static class AudioListener { public static bool pause; }
     public class Transform { public Vector3 position; }
     public class RectTransform : Transform { public GameObject gameObject = new GameObject(); public void GetWorldCorners(Vector3[] p) {} }
     public class Camera { }
@@ -40,7 +42,7 @@ namespace UnityEngine
         public float sqrMagnitude => x*x+y*y+z*z; public static Vector3 zero => new Vector3();
         public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x-b.x,a.y-b.y,a.z-b.z); }
     }
-    public static class Time { public static double realtimeSinceStartupAsDouble, timeAsDouble; public static float realtimeSinceStartup => (float)realtimeSinceStartupAsDouble; public static float time => (float)timeAsDouble; public static int frameCount; }
+    public static class Time { public static double realtimeSinceStartupAsDouble, timeAsDouble; public static float timeScale=1,deltaTime,unscaledDeltaTime; public static float realtimeSinceStartup => (float)realtimeSinceStartupAsDouble; public static float time => (float)timeAsDouble; public static int frameCount; }
     public static class Mathf { public static float Max(float a,float b) => Math.Max(a,b); public static int Max(int a,int b) => Math.Max(a,b); public static float Abs(float v) => Math.Abs(v); public static float Clamp(float v,float a,float b) => Math.Min(b,Math.Max(a,v)); }
     public static class Input
     {
@@ -53,7 +55,7 @@ namespace UnityEngine
     }
     public static class Application { public static string unityVersion = "test", version = "1"; public static bool isFocused = true; }
     public static class Screen { public static int width=1920,height=1080; }
-    public static class Debug { public static void Log(object s) {} public static int Errors; public static void LogError(object s) { Errors++; } }
+    public static class Debug { public static void Log(object s) {} public static void LogWarning(object s,object context=null) {} public static int Errors; public static void LogError(object s) { Errors++; } }
     public static class JsonUtility
     {
         static readonly Dictionary<string,object> values=new Dictionary<string,object>();
@@ -72,6 +74,27 @@ namespace UnityEngine
     public class Min : Attribute { public Min(float v) {} }
     public class Range : Attribute { public Range(float a,float b) {} }
 }
+namespace UnityEngine.Events { public enum UnityEventCallState { Off,EditorAndRuntime,RuntimeOnly } }
+namespace UnityEngine.UI
+{
+    public class Text : UnityEngine.MonoBehaviour { public string text; }
+    public class Button : UnityEngine.MonoBehaviour
+    {
+        public class ClickEvent
+        {
+            public class Persistent { public UnityEngine.Object Target;public string Method;public Action Callback;public UnityEngine.Events.UnityEventCallState State=UnityEngine.Events.UnityEventCallState.RuntimeOnly; }
+            public List<Persistent> persistent=new List<Persistent>();readonly List<Action> callbacks=new List<Action>();
+            public int GetPersistentEventCount() { return persistent.Count; }
+            public UnityEngine.Object GetPersistentTarget(int i) { return persistent[i].Target; }
+            public string GetPersistentMethodName(int i) { return persistent[i].Method; }
+            public void SetPersistentListenerState(int i,UnityEngine.Events.UnityEventCallState state) { persistent[i].State=state; }
+            public void RemoveListener(Action callback) { callbacks.RemoveAll(c=>c==callback); }
+            public void AddListener(Action callback) { callbacks.Add(callback); }
+            public void Invoke() { foreach(var p in persistent) if(p.State!=UnityEngine.Events.UnityEventCallState.Off) p.Callback();foreach(var callback in callbacks.ToArray()) callback(); }
+        }
+        public ClickEvent onClick=new ClickEvent();
+    }
+}
 namespace UnityEngine.SceneManagement
 {
     public struct Scene { public string name; }
@@ -84,11 +107,11 @@ namespace Tobii.Gaming
 }
 public enum CraneWorkTargetXSelection { Random }
 public class CraneStatusManager { public enum WorkPhase { Move1,LiftUp,Move2,Place,PlaceToTrack } public enum ErrorType { None } }
-public class SimulatorStartManager { public static bool IsOperationEnabled = true; }
-public class ExperimentPauseManager
+public class SimulatorStartManager : UnityEngine.MonoBehaviour
 {
-    public static bool IsPaused; public static event Action<bool> PauseStateChanged;
-    public static void Set(bool value) { IsPaused=value;PauseStateChanged?.Invoke(value); }
+    public enum SimulatorMode { AutomaticIntervention,TaskSwitchExperiment }
+    public SimulatorMode CurrentMode;
+    public static bool IsOperationEnabled = true;
 }
 public class DisplayLayoutManager : UnityEngine.MonoBehaviour { public enum DisplayLayoutMode { TaskSwitchDisplay } public DisplayLayoutMode CurrentMode; }
 public class CraneInstance : UnityEngine.MonoBehaviour { public UnityEngine.Transform InformationTarget = new UnityEngine.Transform(); public LifMagSystem LifMagSystem; }
@@ -105,6 +128,8 @@ public partial class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
     public int CurrentSwitchIndex; public bool TargetRunsFullCycle;
     public int SourceTotalCycleCount => 3; public float CountdownSeconds => 5; public string SwitchScheduleCsvText => "";
     public event Action<TaskSwitchEventData> ExperimentEventOccurred;
+    public int Starts;
+    public void StartExperiment() { Starts++;CurrentState=TaskSwitchExperimentState.OperatingSource; }
     public void Emit(string name)
     {
         ExperimentEventOccurred?.Invoke(new TaskSwitchEventData { eventName=name,switchMethod=SwitchMethod,state=CurrentState,

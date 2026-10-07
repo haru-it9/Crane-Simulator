@@ -5,7 +5,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 folders = list(root.glob('試行,1_*'))
 assert len(folders) == 2, 'same label must create unique session directories'
-required = {'session.csv', 'events.csv', 'crane_state.csv', 'input.csv', 'gaze.csv', 'switch_summary.csv', 'cycle_summary.csv', 'auditory_subtask.csv', 'auditory_trials.csv'}
+required = {'session.csv', 'events.csv', 'crane_state.csv', 'input.csv', 'gaze.csv', 'switch_summary.csv', 'cycle_summary.csv', 'auditory_subtask.csv', 'auditory_trials.csv', 'pause_intervals.csv'}
 all_data = []
 for folder in folders:
     assert {p.name for p in folder.iterdir()} == required
@@ -25,7 +25,7 @@ for folder in folders:
     all_data.append(data)
 d = next(data for data in all_data if data['crane_state'])
 assert not d['auditory_subtask'] and not d['auditory_trials'], 'disabled subtask must produce no trials'
-assert all(r['schema_version'] == '3' and r['auditory_subtask_enabled'] == '0' for r in d['session'])
+assert all(r['schema_version'] == '4' and r['auditory_subtask_enabled'] == '0' for r in d['session'])
 assert len(d['switch_summary']) == 3
 complete, incomplete, no_input = d['switch_summary']
 assert complete['outcome'] == 'Completed'
@@ -70,7 +70,7 @@ assert any(r['outcome'].startswith('Incomplete') for r in d['cycle_summary'])
 with (root / 'escaping.csv').open(encoding='utf-8-sig', newline='') as stream:
     row = list(csv.reader(stream))[1]
 assert row == ['参加者,"名前"\n改行', '1.250000', '', '1']
-print('PASS: parsed all nine CSV schemas, disabled subtask, shared clocks/IDs, exact summary intervals, blank missing values, two cranes, pauses, valid/invalid gaze, unique folders')
+print('PASS: parsed all ten CSV schemas, disabled subtask, shared clocks/IDs, exact summary intervals, blank missing values, two cranes, pauses, valid/invalid gaze, unique folders')
 
 # Rebuild derived summaries from raw records and compare every typed field.
 import importlib.util
@@ -105,7 +105,7 @@ assert len({r['session_id'] for data in auditory_data.values() for r in data}) =
 trials = auditory_data['auditory_trials']
 history = auditory_data['auditory_subtask']
 assert [r['trial_index'] for r in trials] == ['1', '2', '3', '4']
-assert [r['outcome'] for r in trials] == ['Correct', 'Interrupted', 'Miss', 'CancelledBeforeOnset']
+assert [r['outcome'] for r in trials] == ['Correct', 'Correct', 'Miss', 'CancelledBeforeOnset']
 assert all(r['event_type'] == 'TrialFinished' and r['random_seed'] == '17' for r in trials)
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished'], 'summary differs from original event'
 correct = trials[0]
@@ -117,9 +117,12 @@ assert correct['onset_switch_index'] == '0' and correct['switch_index'] == '1'
 assert abs(float(correct['onset_observed_real_s']) - float(correct['onset_estimated_real_s']) - .02) < .00001
 assert correct['onset_observation_lag_s'] == '0.020000'
 assert abs(float(correct['response_observed_real_s']) - float(correct['onset_estimated_real_s']) - .15) < .00001
-assert all(r['reaction_time_s'] == '' and r['correct'] == '' and r['response_observed_real_s'] == '' for r in trials[1:])
+resumed = trials[1]
+assert resumed['reaction_time_s'] == '0.520000' and resumed['wall_reaction_time_s'] == '20.520000'
+assert resumed['pause_count'] == '1' and resumed['paused_duration_s'] == '20.000000'
+assert all(r['reaction_time_s'] == '' and r['correct'] == '' and r['response_observed_real_s'] == '' for r in trials[2:])
 assert trials[-1]['presented'] == '0' and trials[-1]['onset_observed_real_s'] == ''
-assert trials[1]['detail'] == 'GlobalPauseOrSimulatorStopped' and trials[-1]['detail'] == 'LoggingStopped'
+assert trials[-1]['detail'] == 'LoggingStopped'
 assert any(r['event_type'] == 'SubtaskPaused' for r in history) and any(r['event_type'] == 'SubtaskResumed' for r in history)
 for event in (r for r in history if r['event_type'] == 'PedalPressed'):
     assert event['real_elapsed_s'] == event['response_observed_real_s'], 'pedal input has a different common clock'
@@ -128,3 +131,30 @@ for name in ['auditory_trials', 'auditory_subtask']:
     with (disabled_folder / (name + '.csv')).open(encoding='utf-8-sig', newline='') as stream:
         assert len(list(csv.reader(stream))) == 1, 'disabled feature recorded secondary-task events'
 print('PASS: auditory trial/event CSV widths, matching summaries, missing values, precise shared clock, onset/response switch context, pause and recording-stop outcomes')
+
+pause_folder, = root.glob('pause-test_*')
+pause_data = {}
+for path in pause_folder.glob('*.csv'):
+    with path.open(encoding='utf-8-sig', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert all(len(r) == len(rows[0]) for r in rows[1:]), path
+    pause_data[path.stem] = [dict(zip(rows[0], r)) for r in rows[1:]]
+intervals = pause_data['pause_intervals']
+assert len(intervals) == 2
+assert intervals[0]['start_s'] == '1.000000' and intervals[0]['end_s'] == '8.000000' and intervals[0]['duration_s'] == '7.000000'
+assert intervals[0]['start_observed'] == intervals[0]['end_observed'] == '1' and intervals[0]['outcome'] == 'Resumed'
+assert intervals[1]['start_s'] == '10.000000' and intervals[1]['end_s'] == '12.000000' and intervals[1]['duration_s'] == '2.000000'
+assert intervals[1]['end_observed'] == '0' and intervals[1]['outcome'] == 'LoggingStoppedWhilePaused'
+assert all(r['start_state'] == r['end_state'] == 'OperatingTarget' and r['start_crane_index'] == r['end_crane_index'] == '1' for r in intervals)
+for table in ['crane_state', 'input', 'gaze']:
+    paused = [r for r in pause_data[table] if r['global_paused'] == '1']
+    assert paused and all(r['pause_interval_index'] in {'1', '2'} and r['state'] == 'OperatingTarget' for r in paused)
+    assert len({r['simulation_elapsed_s'] for r in paused}) == 1, 'simulation clock changed during pause'
+markers = [r for r in pause_data['events'] if r['event_type'].startswith('GlobalPause')]
+assert [(r['event_type'], r['global_paused'], r['real_elapsed_s']) for r in markers] == [
+    ('GlobalPauseStarted', '1', '1.000000'), ('GlobalPauseEnded', '0', '8.000000'), ('GlobalPauseStarted', '1', '10.000000')]
+partial_folder, = root.glob('pause-partial-start_*')
+with (partial_folder / 'pause_intervals.csv').open(encoding='utf-8-sig', newline='') as stream:
+    partial, = csv.DictReader(stream)
+assert partial['start_observed'] == '0' and partial['end_observed'] == '1' and partial['duration_s'] == '3.000000'
+print('PASS: exact pause/resume event timestamps, paused samples with interval IDs, target state retention, seven-second interval, partial start and recording stop during pause')

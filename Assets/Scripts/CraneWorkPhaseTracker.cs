@@ -299,7 +299,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     private void Update()
     {
-        if (!isMonitoring || majorPhaseCompleted)
+        if (ExperimentPauseManager.IsPaused || !isMonitoring || majorPhaseCompleted)
         {
             return;
         }

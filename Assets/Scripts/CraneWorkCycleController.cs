@@ -211,6 +211,7 @@ public class CraneWorkCycleController : MonoBehaviour
 
     private void Update()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (!autoAdoptRunningTracker ||
             autoAdoptConsumed ||
             isRunning ||
@@ -613,27 +614,14 @@ public class CraneWorkCycleController : MonoBehaviour
         CraneStatusManager.WorkPhase completedPhase
     )
     {
-        if (phaseAdvanceDelaySeconds > 0f)
+        // Keep the pending phase and the remaining delay, including unscaled delay mode.
+        float remaining = Mathf.Max(0, phaseAdvanceDelaySeconds);
+        do
         {
-            if (useUnscaledAdvanceDelay)
-            {
-                yield return new WaitForSecondsRealtime(
-                    phaseAdvanceDelaySeconds
-                );
-            }
-            else
-            {
-                yield return new WaitForSeconds(
-                    phaseAdvanceDelaySeconds
-                );
-            }
-        }
-        else
-        {
-            // MajorPhaseCompletedの全購読先が完了フェーズを
-            // 読み終えてから次フェーズへ進めます。
             yield return null;
-        }
+            if (!ExperimentPauseManager.IsPaused)
+                remaining -= useUnscaledAdvanceDelay ? Time.unscaledDeltaTime : Time.deltaTime;
+        } while (ExperimentPauseManager.IsPaused || remaining > 0);
 
         advanceRoutine = null;
 

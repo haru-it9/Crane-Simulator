@@ -40,6 +40,8 @@ public class TaskSwitchAuditoryEvent
     public int TrialIndex, ExpectedSign, ResponseSign;
     public double RealTime, DspTime, ScheduledDsp = double.NaN, EstimatedOnsetReal = double.NaN;
     public double ObservedOnsetReal = double.NaN, ResponseReal = double.NaN, ReactionSeconds = double.NaN;
+    public double PausedSeconds, WallReactionSeconds = double.NaN;
+    public int PauseCount;
     public float RawPedal;
     public bool Presented, HeldAtOnset;
     public bool? Correct;
@@ -53,6 +55,9 @@ public sealed class TaskSwitchAuditoryTrial
     private string tone;
     private double onsetDsp, onsetReal, observedReal = double.NaN;
     private bool pending, presented, held, armed;
+    private bool paused;
+    private double pauseStartedReal, pausedSeconds;
+    private int pauseCount;
     public bool HasPendingTrial => pending;
     public bool PedalArmed => armed;
     public int LastTrialIndex => sequence;
@@ -71,10 +76,12 @@ public sealed class TaskSwitchAuditoryTrial
         expected = (high == settings.highToneUsesPositivePedal) ? 1 : -1;
         onsetDsp = scheduledDsp; onsetReal = estimatedReal;
         observedReal = double.NaN; held = presented = false; pending = true;
+        pausedSeconds = 0; pauseCount = 0;
         Emit("StimulusScheduled", dsp, real, raw);
     }
     public void Tick(double dsp, double real, float raw)
     {
+        if (paused) return;
         float effective = settings.invertPedalAxis ? -raw : raw;
         int sign = effective >= settings.pressThreshold ? 1 : effective <= -settings.pressThreshold ? -1 : 0;
         bool edge = armed && sign != 0;
@@ -104,6 +111,27 @@ public sealed class TaskSwitchAuditoryTrial
         Finish(presented ? "Interrupted" : "CancelledBeforeOnset", dsp, real, raw, detail: reason);
     }
     public void RequireNeutral() { armed = false; }
+    public void Pause(double dsp, double real, float raw)
+    {
+        if (paused) return;
+        ObserveOnset(dsp, real, raw, settings.invertPedalAxis ? -raw : raw);
+        paused = true; pauseStartedReal = real;
+        if (pending) { pauseCount++; Emit("TrialPaused", dsp, real, raw); }
+    }
+    public void Resume(double dsp, double real, float raw)
+    {
+        if (!paused) return;
+        double duration = Math.Max(0, real - pauseStartedReal);
+        paused = false;
+        if (pending)
+        {
+            pausedSeconds += duration;
+            // The DSP clock/scheduled audio is frozen by AudioListener.pause.
+            if (!presented) onsetReal += duration;
+            Emit("TrialResumed", dsp, real, raw);
+        }
+        RequireNeutral(); // Inputs made while paused cannot become a response on the first resumed frame.
+    }
     private void ObserveOnset(double dsp, double real, float raw, float effective)
     {
         if (!pending || presented || dsp < onsetDsp) return;
@@ -124,7 +152,10 @@ public sealed class TaskSwitchAuditoryTrial
             RealTime = real, DspTime = dsp, RawPedal = raw, ReactionSeconds = rt,
             ScheduledDsp = associated ? onsetDsp : double.NaN, EstimatedOnsetReal = associated ? onsetReal : double.NaN,
             ObservedOnsetReal = associated ? observedReal : double.NaN, ResponseReal = sign != 0 ? real : double.NaN,
-            Presented = associated && presented, HeldAtOnset = associated && held, Detail = detail
+            Presented = associated && presented, HeldAtOnset = associated && held, Detail = detail,
+            PauseCount = associated ? pauseCount : 0,
+            PausedSeconds = associated ? pausedSeconds + (paused ? Math.Max(0, real - pauseStartedReal) : 0) : 0,
+            WallReactionSeconds = associated && sign != 0 && presented ? real - onsetReal : double.NaN
         });
     }
 }

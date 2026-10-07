@@ -50,7 +50,7 @@ public partial class TaskSwitchExperimentManager
     }
     private void StartAuditorySubtask()
     {
-        if (!enableAuditorySubtask || auditoryRunning || auditorySuppressed || !AuditoryExperimentActive) return;
+        if (!enableAuditorySubtask || auditoryRunning || auditorySuppressed || !AuditoryExperimentActive || !SimulatorStartManager.IsOperationEnabled) return;
         // Freeze this activation's settings; changing parameters requires OFF -> ON or another experiment.
         try
         {
@@ -117,7 +117,7 @@ public partial class TaskSwitchExperimentManager
         if (!auditoryRunning) return;
         bool paused = ExperimentPauseManager.IsPaused || !SimulatorStartManager.IsOperationEnabled;
         HandleAuditoryPause(paused);
-        if (auditoryPaused) return;
+        if (!auditoryRunning || auditoryPaused) return;
         try
         {
             auditoryRawPedal = Input.GetAxisRaw(auditoryRunSettings.pedalAxisName);
@@ -130,22 +130,23 @@ public partial class TaskSwitchExperimentManager
     }
     private void HandleAuditoryPause(bool paused)
     {
-        paused = paused || !SimulatorStartManager.IsOperationEnabled;
+        if (!SimulatorStartManager.IsOperationEnabled && auditoryRunning)
+        {
+            StopAuditorySubtask("SimulatorStopped");
+            return;
+        }
         if (!auditoryRunning || auditoryPaused == paused) return;
         auditoryPaused = paused;
         if (paused)
         {
-            auditoryAudio.Stop();
-            auditoryTrial.Cancel("GlobalPauseOrSimulatorStopped", AudioSettings.dspTime, Time.realtimeSinceStartupAsDouble, auditoryRawPedal);
-            auditoryTrial.RequireNeutral();
-            EmitAuditoryLifecycle("SubtaskPaused", "GlobalPauseOrSimulatorStopped");
+            auditoryTrial.Pause(AudioSettings.dspTime, Time.realtimeSinceStartupAsDouble, auditoryRawPedal);
+            EmitAuditoryLifecycle("SubtaskPaused", "GlobalPause");
         }
         else
         {
-            auditoryLastScheduledDsp = double.NaN;
-            auditoryTrial.RequireNeutral();
+            auditoryTrial.Resume(AudioSettings.dspTime, Time.realtimeSinceStartupAsDouble, auditoryRawPedal);
             EmitAuditoryLifecycle("SubtaskResumed", "");
-            ScheduleAuditoryTrial();
+            if (double.IsNaN(auditoryLastScheduledDsp)) ScheduleAuditoryTrial();
         }
     }
     private void HandleAuditoryTrialEvent(TaskSwitchAuditoryEvent data)

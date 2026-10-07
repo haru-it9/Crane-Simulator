@@ -239,7 +239,7 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainCraneZ(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled || ExperimentPauseManager.IsPaused) return;
         
         if (mainCrane == null) return;
 
@@ -267,7 +267,7 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagX(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled || ExperimentPauseManager.IsPaused) return;
         
         if (mainLifMag == null) return;
 
@@ -298,7 +298,7 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveMainLifMagY(float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled || ExperimentPauseManager.IsPaused) return;
         
         if (mainLifMag == null) return;
 
@@ -746,7 +746,7 @@ public class CraneUnit : MonoBehaviour
 
     public void MoveLifMagX(int index, float input)
     {
-        if (!SimulatorStartManager.IsOperationEnabled) return;
+        if (!SimulatorStartManager.IsOperationEnabled || ExperimentPauseManager.IsPaused) return;
         
         if (lifMags == null || index < 0 || index >= lifMags.Length) return;
         if (lifMags[index] == null) return;

@@ -91,6 +91,7 @@ public class CraneSchematicDisplay : MonoBehaviour
 
     private void Update()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (craneStatusManager == null || craneIcon == null)
         {
             return;

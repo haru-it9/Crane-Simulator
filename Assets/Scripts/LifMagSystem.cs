@@ -180,7 +180,7 @@ public class LifMagSystem : MonoBehaviour
             ResolveWorkPhaseTracker();
         }
 
-        if (!SimulatorStartManager.IsOperationEnabled)
+        if (!SimulatorStartManager.IsOperationEnabled || ExperimentPauseManager.IsPaused)
         {
             return;
         }
@@ -1033,6 +1033,7 @@ public class LifMagSystem : MonoBehaviour
 
     public void ResetLifMagDisplayAccumValues()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (lifMagDisplayAccumValues == null || lifMagDisplayAccumValues.Length != magnetSensors.Length)
         {
             lifMagDisplayAccumValues = new float[magnetSensors.Length];
@@ -1196,6 +1197,7 @@ public class LifMagSystem : MonoBehaviour
 
     public void SetLifMagCurrent(int index, bool isOn)
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (lifMagCurrentOn == null || lifMagCurrentOn.Length != magnetSensors.Length)
         {
             lifMagCurrentOn = new bool[magnetSensors.Length];
@@ -1334,6 +1336,7 @@ public class LifMagSystem : MonoBehaviour
 
     public void DetachAllFromButton()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (IsBoardReleaseProtected(out string lockReason))
         {
             Debug.LogWarning(

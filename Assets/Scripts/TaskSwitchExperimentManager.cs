@@ -237,8 +237,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public int CompletedSwitchCount => completedSwitchCount;
     public bool TargetRunsFullCycle => targetRunsFullCycle;
     public bool CanRequestSwitch =>
-        currentState == TaskSwitchExperimentState.OperatingSource ||
-        currentState == TaskSwitchExperimentState.OperatingReturnedSource;
+        !ExperimentPauseManager.IsPaused &&
+        (currentState == TaskSwitchExperimentState.OperatingSource ||
+         currentState == TaskSwitchExperimentState.OperatingReturnedSource);
 
     public event Action<TaskSwitchEventData> ExperimentEventOccurred;
 
@@ -289,6 +290,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private void Update()
     {
         UpdateAuditorySubtask();
+        if (ExperimentPauseManager.IsPaused) return;
         UpdatePendingOperationInputUnlock();
         UpdateConfirmationButtonVisual();
 
@@ -306,7 +308,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (scheduledSwitchCountdownActive &&
             !scheduledSwitchAwaitingCarryoverPhase &&
             CanRequestSwitch &&
-            Time.realtimeSinceStartup >= scheduledSwitchDueRealtime)
+            (float)ExperimentPauseManager.ActiveRealtime >= scheduledSwitchDueRealtime)
         {
             scheduledSwitchCountdownActive = false;
             pendingScheduledSwitch = true;
@@ -390,6 +392,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     /// </summary>
     public void StartExperiment()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         FindReferences();
         ResolveWorkPhaseTrackers();
         ResolveCycleControllers();
@@ -589,6 +592,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     public void NotifySourcePhaseBoundary()
     {
+        if (ExperimentPauseManager.IsPaused) return;
         if (!allowLegacyPhaseBoundaryFallback)
         {
             Debug.LogWarning(
@@ -1102,7 +1106,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             float remainingSeconds = Mathf.Max(
                 0f,
                 scheduledSwitchDueRealtime -
-                    Time.realtimeSinceStartup
+                    (float)ExperimentPauseManager.ActiveRealtime
             );
 
             if (cycleNumber != scheduledSwitchOriginCycle ||
@@ -1163,7 +1167,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             scheduledSwitchOriginCycle = cycleNumber;
             scheduledSwitchOriginPhase = phase;
             scheduledSwitchDueRealtime =
-                Time.realtimeSinceStartup +
+                (float)ExperimentPauseManager.ActiveRealtime +
                 scheduledSwitchDelaySeconds;
             scheduledSwitchCountdownActive = true;
             scheduledSwitchAwaitingCarryoverPhase = false;
@@ -1200,7 +1204,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             float remainingSeconds = Mathf.Max(
                 0f,
                 scheduledSwitchDueRealtime -
-                    Time.realtimeSinceStartup
+                    (float)ExperimentPauseManager.ActiveRealtime
             );
 
             EmitEvent(
@@ -2201,11 +2205,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool CanAcceptConfirmationInput()
     {
-        return
-            currentState ==
-                TaskSwitchExperimentState.WaitingForConfirmation ||
-            currentState ==
-                TaskSwitchExperimentState.WaitingForSourceConfirmation;
+        return !ExperimentPauseManager.IsPaused &&
+            (currentState == TaskSwitchExperimentState.WaitingForConfirmation ||
+             currentState == TaskSwitchExperimentState.WaitingForSourceConfirmation);
     }
 
     private void ScheduleOperationInputUnlockAfterButtonRelease()
@@ -2243,7 +2245,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private void ShowConfirmationAcceptedFeedback()
     {
         confirmationAcceptedUntilRealtime =
-            Time.realtimeSinceStartup +
+            (float)ExperimentPauseManager.ActiveRealtime +
             Mathf.Max(0f, confirmationAcceptedDisplaySeconds);
 
         UpdateConfirmationButtonVisual();
@@ -2283,7 +2285,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         ResolveConfirmationButtonReferences();
 
         bool acceptedFeedbackActive =
-            Time.realtimeSinceStartup <
+            (float)ExperimentPauseManager.ActiveRealtime <
             confirmationAcceptedUntilRealtime;
 
         bool confirmationAvailable =

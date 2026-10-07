@@ -445,6 +445,8 @@ public class CraneStatusManager : MonoBehaviour
                     state.phaseDuration = 0f;
                     state.remainingTime = 0f;
                     yield return null;
+                    // Pause may have been pressed during the schematic preparation frame.
+                    while (ExperimentPauseManager.IsPaused) yield return null;
                 }
 
                 if (state.movementDurationPrepared)

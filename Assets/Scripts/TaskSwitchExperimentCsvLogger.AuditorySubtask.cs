@@ -7,7 +7,7 @@ public partial class TaskSwitchExperimentCsvLogger
     private int auditoryOnsetTrial;
     private string auditoryOnsetState = "", auditoryOnsetPhase = "", auditoryOnsetStep = "";
     private int? auditoryOnsetCrane, auditoryOnsetSwitch;
-    private const string AuditoryHeader = IdentityHeader + ",activation_index,event_type,utc_timestamp,real_elapsed_s,simulation_elapsed_s,frame,switch_index,active_crane_index,state,input_locked,global_paused,operation_enabled,trial_index,tone,frequency_hz,expected_sign,response_sign,outcome,correct,reaction_time_s,presented,held_at_onset,raw_pedal,pedal_axis,invert_axis,high_uses_positive,press_threshold,release_threshold,response_timeout_s,minimum_valid_reaction_s,tone_duration_s,volume,random_seed,dsp_time_s,scheduled_onset_dsp_s,onset_estimated_real_s,onset_observed_real_s,onset_observation_lag_s,response_observed_real_s,onset_switch_index,onset_crane_index,onset_state,onset_phase,onset_step,current_phase,current_step,app_focused,configuration_json,detail";
+    private const string AuditoryHeader = IdentityHeader + ",activation_index,event_type,utc_timestamp,real_elapsed_s,simulation_elapsed_s,frame,switch_index,active_crane_index,state,input_locked,global_paused,operation_enabled,trial_index,tone,frequency_hz,expected_sign,response_sign,outcome,correct,reaction_time_s,presented,held_at_onset,raw_pedal,pedal_axis,invert_axis,high_uses_positive,press_threshold,release_threshold,response_timeout_s,minimum_valid_reaction_s,tone_duration_s,volume,random_seed,dsp_time_s,scheduled_onset_dsp_s,onset_estimated_real_s,onset_observed_real_s,onset_observation_lag_s,response_observed_real_s,onset_switch_index,onset_crane_index,onset_state,onset_phase,onset_step,current_phase,current_step,app_focused,configuration_json,detail,pause_count,paused_duration_s,wall_reaction_time_s";
     private void OpenAuditoryFiles()
     {
         auditoryEventFile = Open("auditory_subtask", AuditoryHeader);
@@ -54,7 +54,8 @@ public partial class TaskSwitchExperimentCsvLogger
             onsetKnown ? (object)auditoryOnsetSwitch : null, onsetKnown ? (object)auditoryOnsetCrane : null,
             onsetKnown ? auditoryOnsetState : "", onsetKnown ? auditoryOnsetPhase : "", onsetKnown ? auditoryOnsetStep : "",
             tracker != null ? tracker.CurrentMajorPhase.ToString() : "", tracker != null ? tracker.CurrentStepId : "",
-            Application.isFocused, taskSwitchExperimentManager.AuditoryRunConfigurationJson, e.Detail);
+            Application.isFocused, taskSwitchExperimentManager.AuditoryRunConfigurationJson, e.Detail,
+            e.PauseCount, e.PausedSeconds, e.WallReactionSeconds);
         auditoryEventFile.Write(row);
         if (e.EventType == "TrialFinished") { auditoryTrialFile.Write(row); auditoryTrialFile.Flush(); }
         auditoryEventFile.Flush();

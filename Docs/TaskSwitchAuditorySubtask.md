@@ -16,7 +16,7 @@
 | Minimum Valid Reaction | 0.1秒。これ未満はTooEarlyとして分離 |
 | Random Seed | 0は有効化ごとに生成。非0は再現用固定シード |
 
-音種は各提示で独立に確率1/2で選び、交互提示・総数の厳密な均等化はしません。設定はサブタスク有効化時にコピーし、途中の数値変更はOFF→ONまたは次の実験で適用します。有効/無効の変更は実行中にも反映されます。初回提示と全体一時停止からの再開は3～5秒後です。フレーム遅延で本来の次回提示時刻を過ぎた場合は現在のDSP時刻から最低0.1秒後に予約し、過去の音をまとめて再生しません。
+音種は各提示で独立に確率1/2で選び、交互提示・総数の厳密な均等化はしません。設定はサブタスク有効化時にコピーし、途中の数値変更はOFF→ONまたは次の実験で適用します。有効/無効の変更は実行中にも反映されます。初回提示は3～5秒後です。全体一時停止からの再開では、予約済み音の残り待ち時間・再生位置・応答待ちをそのまま引き継ぎます。フレーム遅延で本来の次回提示時刻を過ぎた場合は現在のDSP時刻から最低0.1秒後に予約し、過去の音をまとめて再生しません。
 
 ## ペダルの接続
 
@@ -34,19 +34,19 @@
 ## 主タスク・一時停止との関係
 
 - クレーン切替、確認待ち、カウントダウン、主操作の入力ロック中も音への応答を受理します。確認ボタンや電流・ジョイスティック操作を反応入力として使用しません。ペダル操作はクレーンを動かしません。
-- `ExperimentPauseManager` の全体一時停止では予約/再生音を即時停止し、その提示を中断または提示前取消として確定します。途中の待ち時間を停止解除後まで持ち越さず、新しく提示を予約します。
+- `ExperimentPauseManager` の全体一時停止では音声とDSP時計を凍結し、同じ提示・応答待ちを保持します。再開しても新しい音へ置き換えず、残りの待ち時間/応答期限から続けます。Pause中のペダル入力は判定せず、再開後は中立を観測してから次の押下を受理します。
 - Simulatorの操作無効化も停止条件です。主タスクの完了/退出、Managerの無効化/破棄、再実験、InspectorでのOFFでも未確定提示を確定して音を止めます。
 - CSVのStopでは未確定提示を記録してからファイルを閉じ、その後のサブタスクを止めます。CSV開始または新しい実験で再開します。Debug開始では音のサブタスクを実行できますが、CSVは出力されません。
 - 起動直後/一時停止解除直後は中立を一度観測するまで押下を受理しません。押しっぱなし、＋から中立を経ずに−へ変えた入力は新しい押下にしません。
 - 提示後の最初の有効な押下で判定を確定します。間違えてから正しい側を踏んでも正解に書き換えません。100 ms未満の反応も最初の反応として確定し、TooEarlyとして分けます。
 
-## CSV（schema_version = 3）
+## CSV（schema_version = 4）
 
-既存7ファイルに以下の2ファイルを追加します。サブタスクOFFでもヘッダーを作成し、提示/応答の行は書きません。
+聴覚サブタスク用に以下の2ファイルを出力します（Pause区間を含めてセッションは計10ファイル）。サブタスクOFFでもヘッダーを作成し、提示/応答の行は書きません。
 
 | ファイル | 内容・分析時の用途 |
 | --- | --- |
-| `auditory_subtask.csv` | 全イベント。SubtaskStarted/Stopped/Paused/Resumed/Error、StimulusScheduled、StimulusOnsetObserved、PedalPressed、TrialFinished。音提示前・提示後の余分な押下も確認する |
+| `auditory_subtask.csv` | 全イベント。SubtaskStarted/Stopped/Paused/Resumed/Error、StimulusScheduled、StimulusOnsetObserved、PedalPressed、TrialPaused/TrialResumed、TrialFinished。音提示前・提示後の余分な押下も確認する |
 | `auditory_trials.csv` | TrialFinishedのみ、提示予約1回につき1行。反応時間、正誤、Miss率などの集計に使用。予約取消も含むためpresented列で実提示と区別する |
 
 `session.csv` に有効設定と設定JSON、`input.csv` にサブタスクの有効/動作状態・軸名・生ペダル値・次の押下を受理可能かを追加します。停止中・無効時のinputの生ペダル値は空欄です。ペダルイベントはManagerのUpdateごとに検出し、通常の0.05秒サンプル周期とは独立して記録します。
@@ -67,7 +67,7 @@
 | Incorrect | 最初の反応が反対側、時間範囲内 / 0 |
 | TooEarly | 最小有効反応時間未満 / 空欄 |
 | Miss | 応答期限までに押下なし / 空欄、反応時間も空欄 |
-| Interrupted | 提示後に停止・中断 / 空欄、反応時間も空欄 |
+| Interrupted | 提示後に実験終了・記録停止・OFFなどで打ち切り / 空欄、反応時間も空欄（Pauseは打ち切らない） |
 | CancelledBeforeOnset | 予約後、開始前に停止 / 空欄、presented=0 |
 | FalseAlarm | 反応対象となる音がないタイミングの押下。イベント履歴だけに保存 / 空欄、trial_indexも空欄 |
 | LateResponse | 更新フレームで期限超過と押下を同時に観測。提示はMissとして確定し、この入力は同じtrial_indexの追加イベントで記録 / 空欄 |
@@ -76,8 +76,12 @@
 
 ## 時計・検証の範囲
 
-音は `AudioSource.PlayScheduled` と `AudioSettings.dspTime` で予約します。reaction_time_sは**入力を観測したフレームのDSP時刻−予定開始DSP時刻**です。onset_estimated_real_sは予約時のDSP/実時間の対応から換算した推定値、onset_observed_real_sとonsetの作業状態は予定開始を過ぎた最初の更新フレームでの観測です。サウンド出力やペダル接点を外部計測した時刻ではなく、実機の音響遅延・入力遅延は校正していません。提示開始と同一フレームの作業切替は、そのフレームの更新順序にも依存します。
+音は `AudioSource.PlayScheduled` と `AudioSettings.dspTime` で予約します。全体PauseではAudioListener.pauseにより予定音とDSP時計を凍結します。reaction_time_sは**入力を観測したフレームのDSP時刻−予定開始DSP時刻**です。onset_estimated_real_sは予約時のDSP/実時間の対応から換算した推定値、onset_observed_real_sとonsetの作業状態は予定開始を過ぎた最初の更新フレームでの観測です。サウンド出力やペダル接点を外部計測した時刻ではなく、実機の音響遅延・入力遅延は校正していません。提示開始と同一フレームの作業切替は、そのフレームの更新順序にも依存します。
 
 反応検出は描画フレーム単位で、フレーム間の短い押下を完全には捕捉できません。長いフレーム遅延はonset_observation_lag_sを確認して扱ってください。ON/OFFで操作ロックやExperimentStatusを変更しません。設定の不整合・入力読取/音生成の例外はSubtaskErrorを記録し、サブタスクを停止します。修正後は実験またはCSVを再開始してください。
 
 `Tests/TaskSwitchLogging/run.sh` は実際の判定・音生成/予約コード・CSV実装を代替Unity APIで実行します。正誤、早過ぎる入力、無反応、遅延入力、入力保持、中立復帰、軸反転、設定検証、音のフェード/長さ、早い反応で音が切れないこと、クレーン入力ロック中の応答、一時停止・再開、CSV停止、OFFを検証します。CSVの列数、結果行と元イベントの一致、欠測空欄、共通時計、提示時と応答時の切替状態もPythonで確認します。Unity Editor・実際のスピーカー・足ペダルでの実行は別途確認が必要です。
+
+## Pauseをまたぐ提示（schema 4）
+
+PauseでTrialFinishedを発生させず、TrialPaused/TrialResumedを履歴に残します。結果行のpause_countはその提示がまたいだPauseの回数、paused_duration_sはその継続時間です。reaction_time_sはPauseを除いたDSP反応時間、wall_reaction_time_sは予定開始から応答フレームまでの壁時計の時間です。音開始前にPauseした場合はonset_estimated_real_sをそのPause分だけ先へ移し、反応時間に開始前のPauseを含めません。記録停止などによる最終打切りは従来通りInterrupted/CancelledBeforeOnsetで記録します。Pauseが介在した試行を分析で区別できるよう、pause_countを併用してください。Pause/Startの詳細は [TaskSwitchPause.md](TaskSwitchPause.md) を参照してください。
