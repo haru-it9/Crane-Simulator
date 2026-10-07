@@ -687,10 +687,19 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             }
         }
 
-        if (isHolding && !wasHoldingBoard && informationTarget != null)
+        if (isHolding && !wasHoldingBoard)
         {
-            attachmentReferenceY = informationTarget.position.y;
-            hasAttachmentReference = true;
+            if (informationTarget != null)
+            {
+                attachmentReferenceY = informationTarget.position.y;
+                hasAttachmentReference = true;
+            }
+
+            // 電流を入れたまま下降した場合、MagnetSensorの接触で
+            // 板が物理着床より先にKinematic化されることがあります。
+            // PickupLowering中の最初の吸着は実接触を意味するため、
+            // Pickup着床としてラッチします。
+            TryAcceptPickupTouchdownFromFirstAttachment();
         }
 
         if (!isHolding &&
@@ -1329,6 +1338,43 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         touchdownObserved = false;
         hasTouchdownReference = false;
         CurrentLiftMagClearance = 0f;
+    }
+
+    private void TryAcceptPickupTouchdownFromFirstAttachment()
+    {
+        if (!isMonitoring ||
+            !touchdownObservationArmed ||
+            CurrentMajorPhase != CraneStatusManager.WorkPhase.LiftUp ||
+            expectedTouchdownKind != CraneWorkTouchdownKind.Pickup ||
+            CurrentStepId != "LiftUp.PickupLowering")
+        {
+            return;
+        }
+
+        if (craneUnit == null ||
+            !craneUnit.TryGetMainLifMagLocalY(
+                out float mainLifMagLocalY
+            ))
+        {
+            WarnMissingTouchdownSource();
+            return;
+        }
+
+        if (logPhaseEvents)
+        {
+            Debug.Log(
+                $"CraneWork: PickupTouchdownDerivedFromAttachment, " +
+                $"Crane={GetCraneLabel()}, " +
+                $"MainLifMagLocalY={mainLifMagLocalY:F3}",
+                this
+            );
+        }
+
+        HandleTouchdownDetected(
+            craneUnit,
+            CraneWorkTouchdownKind.Pickup,
+            mainLifMagLocalY
+        );
     }
 
     private void HandleTouchdownDetected(
