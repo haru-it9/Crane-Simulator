@@ -83,6 +83,10 @@ public class LifMagSystem : MonoBehaviour
     public bool IsTaskSwitchSafeCurrentHoldActive =>
         isTaskSwitchSafeCurrentHoldMode;
 
+    public bool IsElectricCurrentInputReady => IsInputValueLiftMode &&
+        !isInterventionCurrentHoldMode && !isTaskSwitchSafeCurrentHoldMode &&
+        IsAnyLifMagCurrentOn();
+
     public event System.Action<LifMagSystem, float>
         TaskSwitchSafeCurrentHoldStarted;
 

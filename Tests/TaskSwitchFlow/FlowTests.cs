@@ -76,6 +76,22 @@ static class FlowTests
         Require(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Move2 && targetMag.AttachedBoards.Count==3 && targetMag.GetAttachedTotalWeightKgForDisplay()==600 && r.Target(1).targetX==24 && r.Target(1).targetZ==6,"Move2 preloaded real boards/placement coordinates failed");
         Require(load.IsPickupBoardCountSatisfied(3) && !load.IsPickupBoardCountSatisfied(2) && !load.IsPlacementBoardCountSatisfied(3) && load.IsPlacementBoardCountSatisfied(2),"CSV board count constraint missing");
         Require(load.TargetRemainingWeightKg==300 && load.PlannedReleaseWeightKg==300,"partial placement did not use last-attached board weight or bypass zero-remaining default");
+        // Display the resulting held weight, including a valid 0kg target.
+        float displayed;
+        load.SetExperimentBoardCounts(3,2);Require(load.PreparePlacementPlan(600),"partial display plan failed");
+        foreach(var phase in new[]{CraneStatusManager.WorkPhase.Move2,CraneStatusManager.WorkPhase.Place,CraneStatusManager.WorkPhase.PlaceToTrack})
+            Require(load.TryGetDisplayTargetWeightKg(phase,100,out displayed) && displayed==100 && load.PlannedReleaseWeightKg==500,"placement UI displayed released weight or drifted during release");
+        load.SetExperimentBoardCounts(1,1);targetMag.AttachedBoards.RemoveRange(1,2);
+        Require(load.PreparePlacementPlan(100) && load.TryGetDisplayTargetWeightKg(CraneStatusManager.WorkPhase.Place,0,out displayed) && displayed==0,"one-board full placement did not display 0kg");
+        targetMag.AttachedBoards.AddRange(r.Registry.cranes[1].BoardGenerator.Boards.GetRange(1,2));load.SetExperimentBoardCounts(3,1);load.PreparePlacementPlan(600);
+        Require(load.TryGetDisplayTargetWeightKg(CraneStatusManager.WorkPhase.LiftUp,600,out displayed) && displayed==600,"pickup display changed");
+        var legacyDisplay=new CraneWorkLoadPlanManager();Set(legacyDisplay,"forceZeroRemainingWeightOnPlacement",false);
+        legacyDisplay.SetPlannedReleaseWeightKg(200);
+        Require(legacyDisplay.TryGetDisplayTargetWeightKg(CraneStatusManager.WorkPhase.Move2,1000,out displayed) && displayed==800,"unprepared release-weight display did not subtract released weight");
+        legacyDisplay.PreparePlacementPlan(1000);
+        Require(legacyDisplay.TryGetDisplayTargetWeightKg(CraneStatusManager.WorkPhase.Place,800,out displayed) && displayed==800,"prepared release target was subtracted again");
+        legacyDisplay.ClearPlacementRuntimeState();legacyDisplay.SetTargetRemainingWeightKg(600);
+        Require(legacyDisplay.TryGetDisplayTargetWeightKg(CraneStatusManager.WorkPhase.Move2,1000,out displayed) && displayed==600,"explicit remaining-weight display showed released weight");
         r.Complete(1);Require(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Place && r.Target(1).targetZ==6,"Move2 to Place coordinate drift");
         targetMag.AttachedBoards.RemoveAt(2);r.Complete(1);Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForSourceConfirmation && !r.Cycle(1).IsRunning,"placement segment ran another cycle");r.Manager.ConfirmTargetTask();
         for(int cycle=2;cycle<=5;cycle++)

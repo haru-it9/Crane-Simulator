@@ -100,6 +100,12 @@ public class CraneOperationManager : MonoBehaviour
     [Header("Intervention Scenario Manager")]
     [SerializeField] private CraneInterventionScenarioManager interventionScenarioManager;
 
+    [Header("電流制御可否の表示（LifMagButton右側）")]
+    [SerializeField] private Vector2 currentControlIndicatorOffset = new Vector2(40f, 0f);
+    [SerializeField] private Vector2 currentControlIndicatorSize = new Vector2(180f, 100f);
+    [SerializeField] private Color currentControlAvailableColor = new Color(0.3f, 0.85f, 0.4f);
+    [SerializeField] private Color currentControlUnavailableColor = new Color(0.55f, 0.55f, 0.55f);
+
     [Header("Input Settings")]
     [SerializeField] private InputMode inputMode = InputMode.Keyboard;
 
@@ -212,6 +218,8 @@ public class CraneOperationManager : MonoBehaviour
         UpdateDisplay2();
         UpdateLifMagButtonViews();
         UpdateCurrentCraneNameText();
+
+        InitializeCurrentControlIndicators();
 
         UpdateSpeedControlUI();
 
@@ -1676,6 +1684,27 @@ public class CraneOperationManager : MonoBehaviour
             HandleActiveCraneCountChanged;
         craneRegistry.ActiveCraneCountChanged +=
             HandleActiveCraneCountChanged;
+    }
+
+    private void InitializeCurrentControlIndicators()
+    {
+        var anchors = new HashSet<RectTransform>();
+        foreach (OperationUiSet uiSet in GetUiSets())
+        {
+            if (uiSet.lifMagCurrentButtons == null) continue;
+            // Buttons are registered in magnet order: the last is the rightmost.
+            for (int i = uiSet.lifMagCurrentButtons.Length - 1; i >= 0; i--)
+            {
+                LifMagCurrentButton button = uiSet.lifMagCurrentButtons[i];
+                if (button == null) continue;
+                RectTransform anchor = button.transform as RectTransform;
+                if (anchor != null && anchors.Add(anchor))
+                    LifMagCurrentControlIndicator.Create(this, anchor,
+                        currentControlIndicatorOffset, currentControlIndicatorSize,
+                        currentControlAvailableColor, currentControlUnavailableColor);
+                break;
+            }
+        }
     }
 
     private IEnumerable<OperationUiSet> GetUiSets()

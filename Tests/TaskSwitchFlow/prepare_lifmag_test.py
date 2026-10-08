@@ -7,8 +7,16 @@ output = Path(sys.argv[1])
 stubs = (root / 'Tests/TaskSwitchFlow/UnityFlowStubs.cs').read_text()
 stubs = stubs[:stubs.index('public class CraneStatusManager')]
 stubs = stubs.replace('public class GameObject : Object {', 'public class GameObject : Object { public bool CompareTag(string tag) => tag=="Board"; public T[] GetComponentsInChildren<T>() where T:class {var c=GetComponent<T>();return c==null?new T[0]:new[]{c};}')
+stubs = stubs.replace('public string name; public bool activeInHierarchy', 'public int layer; public string name; public bool activeInHierarchy')
+stubs = stubs.replace('public GameObject(string n) { name=n; }', '''public GameObject(string n,params Type[] types) {name=n;foreach(var t in types) {
+    object c=Activator.CreateInstance(t);components[t]=c;
+    var rect=c as RectTransform;if(rect!=null) {transform=rect;rect.gameObject=this;}
+    var mono=c as MonoBehaviour;if(mono!=null) {mono.gameObject=this;mono.transform=transform;}
+}}''')
+stubs = stubs.replace('public T AddComponent<T>() where T:new() { return new T(); }', '''public T AddComponent<T>() where T:new() {var c=new T();components[typeof(T)]=c;var mono=c as MonoBehaviour;if(mono!=null) {mono.gameObject=this;mono.transform=transform;Object.Scene.Add(mono);}return c;}''')
 stubs = stubs.replace('public class Transform { public Vector3 position; }', '''public class Transform {
     public Vector3 localPosition,localScale=Vector3.one; public Quaternion rotation,localRotation; public Transform parent;
+    public T GetComponentInChildren<T>(bool inactive=false) where T:class {return null;}
     public Vector3 lossyScale=>parent==null?localScale:Scale(parent.lossyScale,localScale);
     public Vector3 position {get=>parent==null?localPosition:parent.position+Scale(parent.lossyScale,localPosition);set {localPosition=parent==null?value:Divide(value-parent.position,parent.lossyScale);}}
     public static Vector3 Scale(Vector3 a,Vector3 b)=>new Vector3(a.x*b.x,a.y*b.y,a.z*b.z);
@@ -22,8 +30,13 @@ stubs = stubs.replace('public static class Random {', 'public static class Rando
 stubs = stubs.replace('public static bool GetKey(KeyCode key)', 'public static bool GetKeyDown(KeyCode key)=>GetKey(key); public static bool GetKey(KeyCode key)')
 stubs = stubs.replace('None=0,Minus=', 'E=101,R=114,None=0,Minus=')
 stubs = stubs.replace('public static Color red', 'public static Color green=>new Color(0,1,0); public static Color red')
+stubs = stubs.replace('public static Color green', 'public static Color black=>new Color(0,0,0); public static Color green')
+stubs = stubs.replace('public class RectTransform : Transform {', 'public class RectTransform : Transform { public Vector2 anchorMin,anchorMax,pivot,anchoredPosition,sizeDelta,offsetMin,offsetMax;')
+stubs = stubs.replace('public class Text : UnityEngine.MonoBehaviour {', 'public class Text : UnityEngine.MonoBehaviour { public UnityEngine.Font font; public int fontSize; public UnityEngine.TextAnchor alignment; public UnityEngine.Color color; public bool raycastTarget=true;')
 output.joinpath('LifMagUnityStubs.cs').write_text(stubs + '''
 namespace UnityEngine {
+    public class CanvasRenderer {} public class Font {} public enum TextAnchor {MiddleCenter}
+    public static class Resources { public static T GetBuiltinResource<T>(string name) where T:new()=>new T(); }
     public struct Quaternion { public static Quaternion identity=>new Quaternion(); public static Quaternion Euler(Vector3 e)=>identity; }
     public class Rigidbody { public bool isKinematic,useGravity=true; public Vector3 velocity,angularVelocity; }
     public struct Bounds {
@@ -47,7 +60,8 @@ public static class ExperimentPauseManager {public static bool IsPaused;}
 public static class SimulatorStartManager {public static bool IsOperationEnabled=true;}
 public class CraneStatusManager {public enum WorkPhase {Move1,LiftUp,Move2,Place,PlaceToTrack} public enum ErrorType {None,ErrorA,ErrorB,ErrorC}}
 public class CraneWorkPhaseTracker {public bool IsMonitoring,IsPlacementTouchdownConfirmed; public CraneStatusManager.WorkPhase CurrentMajorPhase;}
-public class CraneOperationManager {public bool IsTaskSwitchExperimentMode=true,IsOperationInputLocked; public CraneUnit CurrentCrane;}
+public partial class CraneOperationManager {public bool IsTaskSwitchExperimentMode=true,IsOperationInputLocked; public CraneUnit CurrentCrane;}
+public class LifMagCurrentButton:UnityEngine.MonoBehaviour {}
 ''')
 
 # Use the unchanged production parenting and Rigidbody methods, not fake attachment lists.
@@ -60,6 +74,19 @@ public class CraneUnit {
     public LifMagSystem LifMagSystem=>lifMagSystem;
     public void ConfigureZRangeForCraneIndex(int i) {} public void SetInterventionPose(float z,float x,float y) {}
     public bool TryGetMainLifMagLocalY(out float y) {y=mainLifMag.localPosition.y;return true;}
+''' + source[start:end] + '}\n')
+
+# Compile the actual automatic UI placement method as well as the indicator.
+source = (root / 'Assets/Scripts/CraneOperationManager.cs').read_text()
+start = source.index('    private void InitializeCurrentControlIndicators()')
+end = source.index('    private void SetWaitingScreensActive(', start)
+output.joinpath('CurrentIndicatorPlacementProduction.cs').write_text('''using System.Collections.Generic; using UnityEngine;
+public partial class CraneOperationManager {
+    public class OperationUiSet {public LifMagCurrentButton[] lifMagCurrentButtons=new LifMagCurrentButton[0];}
+    private OperationUiSet multiDisplayUiSet,singleDisplayUiSet,taskSwitchDisplayUiSet;
+    private Vector2 currentControlIndicatorOffset=new Vector2(40,0),currentControlIndicatorSize=new Vector2(180,100);
+    private Color currentControlAvailableColor=new Color(.3f,.85f,.4f),currentControlUnavailableColor=new Color(.55f,.55f,.55f);
+    public void InitializeIndicatorsForTest() {InitializeCurrentControlIndicators();}
 ''' + source[start:end] + '}\n')
 
 # Execute the actual scenario setup branch with generated-object counters.

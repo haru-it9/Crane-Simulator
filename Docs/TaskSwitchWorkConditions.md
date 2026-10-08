@@ -78,3 +78,15 @@ OperatorSwitchAvailableとOperatorSwitchConfirmationPressedで要請後の判断
 ## 検証範囲
 
 Tests/TaskSwitchFlow/run.shは実際のManager・CycleController・LoadPlanManagerを代替Unity APIで動かし、2パターン、CSV解析、5サイクル、復帰座標の保持、事前吸着・部分配置重量、作業者主導の継続・1押下切替・押下解除待ち、Pause、既存3手法、CSV要請の自動発生を検証します。LifMagSystem本体とCraneUnitの実際の吸着メソッドを使い、複数板の下面整列・厚みの積み重ね・非一様な親の縮尺と板のピボットずれへの対応・Rigidbody固定、必要電流を下回った際の下層からの解除とイベント、通常板の解除制限、70A/10Aの境界値、閾値前の吸着抑止、Pause・確認ロックを検証します。BoardGeneratorの実際の選択メソッドを切り出して、上側からの枚数・重量、板不足、移動済みの板を確認します。Tests/TaskSwitchLogging/run.shで12ファイル・再集計・Pause・視線・サブタスクの回帰を確認します。Unity Editorの実描画・衝突・物理挙動と実機入力は別途確認してください。
+
+## 配置時の目標重量表示
+
+Move2・Place・PlaceToTrackの「目標重量」は、配置完了後にリフマグへ残る重量[t]です。1枚把持して1枚配置する場合は0.00 t、全数配置も0.00 tです。一部配置では、外す予定の下層板の実重量を把持重量から差し引きます（例：合計0.60 tの3枚から0.50 tの2枚を配置する場合、目標は0.10 t）。確定済みの目標は配置操作・作業中断中に現在重量が変わっても維持します。Move1・LiftUpは従来どおり吸着すべき重量です。
+
+CSVのplacement_remaining_target_kgと配置達成判定は同じ残存重量を使用します。配置する重量はPlannedReleaseWeightKgに保持し、表示値と区別します。
+
+## 電流制御の可否表示
+
+各表示モードのLifMagButton列の右端にElectricCurrentControlIndicatorをPlay開始時に自動生成します。緑の「電流制御 可」は電流スライダーによる制御が可能、灰色の「電流制御 不可」は70A/10Aの再開入力待ち・確認待ち・Pause・操作開始前・電流OFF・対象クレーンなしなどを示します。選択中のクレーンを毎フレーム参照し、解除条件を満たしたフレームに表示を更新します。サブタスクの左右刺激と独立した表示です。
+
+位置・大きさ・色はCraneOperationManagerのInspector「電流制御可否の表示（LifMagButton右側）」で設定します。Current Control Indicator Offsetは右端ボタンの右中央からの距離（初期値40,0）、Sizeは180,100です。画像・文字はクリックを遮らず、既存のON/OFFボタンの色や入力を変更しません。

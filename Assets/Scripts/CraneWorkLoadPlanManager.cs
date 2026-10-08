@@ -335,7 +335,7 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
 
     /// <summary>
     /// 操作画面の「目標重量」に表示する重量を返します。
-    /// Move1/LiftUpでは吸着目標、Move2/Place系では今回配置する重量です。
+    /// Move1/LiftUpでは吸着目標、Move2/Place系では配置後に保持する重量です。
     /// 単位はkgです。
     /// </summary>
     public bool TryGetDisplayTargetWeightKg(
@@ -378,11 +378,14 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     {
         displayTargetWeightKg = 0f;
 
-        if (experimentPlacementCount.HasValue && placementPlanPrepared)
+        // Once prepared, keep the same outcome target even while plates are
+        // released or the task is interrupted. Zero is a valid full-placement target.
+        if (placementPlanPrepared)
         {
-            displayTargetWeightKg=plannedReleaseWeightKg;
+            displayTargetWeightKg=targetRemainingWeightKg;
             return true;
         }
+        if (experimentPlacementCount.HasValue) return false;
         if (forceZeroRemainingWeightOnPlacement)
         {
             // 配置時のUIも、配置後にリフマグへ残す目標重量を表示します。
@@ -397,7 +400,7 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
                 return false;
             }
 
-            displayTargetWeightKg = plannedReleaseWeightKg;
+            displayTargetWeightKg = Mathf.Max(0f, currentAttachedWeightKg - plannedReleaseWeightKg);
             return true;
         }
 
@@ -410,11 +413,8 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
             return false;
         }
 
-        displayTargetWeightKg = Mathf.Max(
-            0f,
-            placementStart - explicitRemainingWeightKg
-        );
-        return displayTargetWeightKg > 0f;
+        displayTargetWeightKg = Mathf.Max(0f, explicitRemainingWeightKg);
+        return true;
     }
 
     private void NotifyPlanChanged()

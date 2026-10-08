@@ -1,12 +1,15 @@
 using System;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
 
 static class LifMagTests
 {
+    static LifMagCurrentControlIndicator indicator;
     static void Require(bool condition,string message) {if(!condition)throw new Exception(message);}
     static void Set(object o,string field,object value) {o.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).SetValue(o,value);}
-    static void Tick(LifMagSystem m,float amps) {Input.axes[m.CurrentSliderAxis]=amps/75f;typeof(LifMagSystem).GetMethod("Update",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(m,null);}
+    static void Tick(LifMagSystem m,float amps) {Input.axes[m.CurrentSliderAxis]=amps/75f;typeof(LifMagSystem).GetMethod("Update",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(m,null);if(indicator!=null)indicator.RefreshDisplay();}
+    static object Get(object o,string field) {return o.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).GetValue(o);}
     static void Near(float a,float b,string reason) {Require(Math.Abs(a-b)<.0001f,reason+": "+a+" != "+b);}
     static GameObject Board(string name,float weight) {
         var b=new GameObject(name);b.components[typeof(BoardInfo)]=new BoardInfo {Weight=weight};
@@ -26,6 +29,19 @@ static class LifMagTests
         var magnetCollider=new Collider {gameObject=sensor.gameObject,isTrigger=true,LocalSize=new Vector3(2,.2f,1)};
         sensor.components[typeof(Collider)]=magnetCollider;
         Set(m,"liftJudgementMode",LifMagSystem.LiftJudgementMode.CurrentSliderInputByWeight);
+        var left=new GameObject("left",typeof(RectTransform)).AddComponent<LifMagCurrentButton>();
+        var right=new GameObject("right",typeof(RectTransform)).AddComponent<LifMagCurrentButton>();
+        right.gameObject.layer=5;
+        var ui=new CraneOperationManager.OperationUiSet {lifMagCurrentButtons=new[]{left,right}};
+        Set(op,"taskSwitchDisplayUiSet",ui);Set(op,"singleDisplayUiSet",ui);op.InitializeIndicatorsForTest();
+        var created=UnityEngine.Object.Scene.FindAll(o=>o is LifMagCurrentControlIndicator);
+        Require(created.Count==1,"current indicator was missing or duplicated on shared UI");indicator=(LifMagCurrentControlIndicator)created[0];
+        var markerRect=indicator.gameObject.GetComponent<RectTransform>();
+        Require(markerRect.parent==right.transform && markerRect.anchorMin.x==1 && markerRect.pivot.x==0 && markerRect.anchoredPosition.x==40,"indicator is not to the right of LifMagButton");
+        var statusImage=(Image)Get(indicator,"stateImage");var statusText=(Text)Get(indicator,"stateText");
+        Require(!statusImage.raycastTarget && !statusText.raycastTarget,"indicator intercepts clicks");
+        Require(statusImage.gameObject.layer==5 && statusText.gameObject.layer==5,"indicator did not inherit UI layer");
+        Require(!indicator.IsControlAvailable && statusText.text.EndsWith("不可"),"indicator allowed current before magnets are enabled");
         var scenario=new CraneInterventionScenarioManager();
         scenario.SetupInterventionState(crane,CraneStatusManager.WorkPhase.Move2,CraneStatusManager.ErrorType.None,1,null,false);
         Require(scenario.SyntheticPlateCount==0,"CSV Move2 scenario spawned a spare falling plate");
@@ -51,9 +67,14 @@ static class LifMagTests
         Require(m.BeginTaskSwitchSafeCurrentHold() && m.TaskSwitchCurrentRearmCondition=="AtLeast" && m.TaskSwitchCurrentRearmThresholdAmpere==70,"holding gate wrong");
         Tick(m,0);Tick(m,69.99f);Attached(first,crane);Attached(second,crane);
         Require(m.IsTaskSwitchSafeCurrentHoldActive && m.CurrentElectricCurrentA==70 && released==0 && accepted==0,"holding gate applied low current");
+        Require(!indicator.IsControlAvailable && statusImage.color.r==.55f && statusText.text.EndsWith("不可"),"holding gate indicator not gray/unavailable");
         ExperimentPauseManager.IsPaused=true;Tick(m,75);Require(m.IsTaskSwitchSafeCurrentHoldActive,"Pause released gate");ExperimentPauseManager.IsPaused=false;
         op.IsOperationInputLocked=true;Tick(m,75);Require(m.IsTaskSwitchSafeCurrentHoldActive,"confirmation lock released gate");op.IsOperationInputLocked=false;
         Tick(m,70);Require(!m.IsTaskSwitchSafeCurrentHoldActive && released==1 && accepted==1,"70A inclusive threshold did not rearm");
+        Require(indicator.IsControlAvailable && statusImage.color.g==.85f && statusText.text.EndsWith("\n可"),"unlocked current indicator not green/available");
+        ExperimentPauseManager.IsPaused=true;indicator.RefreshDisplay();Require(!indicator.IsControlAvailable && statusText.text.EndsWith("不可"),"Pause left indicator available");ExperimentPauseManager.IsPaused=false;
+        op.IsOperationInputLocked=true;indicator.RefreshDisplay();Require(!indicator.IsControlAvailable,"confirmation lock indicator available");op.IsOperationInputLocked=false;
+        op.CurrentCrane=new CraneUnit();indicator.RefreshDisplay();Require(!indicator.IsControlAvailable,"indicator retained old crane availability");op.CurrentCrane=crane;
         Attached(first,crane);Attached(second,crane);
         m.BeginTaskSwitchSafeCurrentHold();Tick(m,10);Require(m.IsTaskSwitchSafeCurrentHoldActive && m.CurrentAttachedWeightKg==3000,"holding return did not rearm or lost weight");Tick(m,75);
         var tracker=new CraneWorkPhaseTracker {IsMonitoring=true,CurrentMajorPhase=CraneStatusManager.WorkPhase.Move2};
@@ -79,7 +100,9 @@ static class LifMagTests
         int before=accepted;
         Tick(m,75);Tick(m,10.01f);Tick(m,float.NaN);
         Require(m.IsTaskSwitchSafeCurrentHoldActive && !m.HasAttachedBoard && m.CurrentElectricCurrentA==10 && accepted==before,"empty gate lost 10A display, accepted high/invalid current or picked up plate");
+        Require(!indicator.IsControlAvailable && statusText.text.EndsWith("不可"),"10A wait indicator available");
         Tick(m,10);Require(!m.IsTaskSwitchSafeCurrentHoldActive && m.HasAttachedBoard && accepted==before+1,"10A inclusive threshold did not enable ordinary pickup");
+        Require(indicator.IsControlAvailable,"10A release did not enable indicator");
         crane.ClearInterventionBoardAttachment();m.SetLifMagCurrent(0,true);sensor.TouchingBoards.Clear();m.BeginTaskSwitchSafeCurrentHold();Tick(m,0);
         Require(!m.IsTaskSwitchSafeCurrentHoldActive && m.CurrentElectricCurrentA==0,"0A empty input did not rearm");
         Set(m,"liftJudgementMode",LifMagSystem.LiftJudgementMode.CumulativeSliderInput);
