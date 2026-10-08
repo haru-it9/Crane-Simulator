@@ -29937,7 +29937,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 1
+  switchMethod: 0
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
