@@ -29937,7 +29937,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 3
+  switchMethod: 1
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -30003,8 +30003,8 @@ MonoBehaviour:
     invertPedalAxis: 0
     pressThreshold: 0.5
     releaseThreshold: 0.2
-    minimumIntervalSeconds: 2
-    maximumIntervalSeconds: 5
+    minimumIntervalSeconds: 5
+    maximumIntervalSeconds: 10
     minimumValidReactionSeconds: 0.1
     randomSeed: 0
   visualLeftIndicator: {fileID: 9000001004}

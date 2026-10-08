@@ -1,0 +1,5 @@
+﻿session_id,participant_id,block_id,experiment_run_index,cycle_instance_id,crane_index,cycle_number,switch_index_at_start,first_phase,outcome,start_s,end_s,elapsed_s,monitoring_s,control_available_s,global_pause_s,steps_completed,weight_invalidations,current_drop_events,rollbacks,duration_sampled_until_s
+20261008T074542090Z_efe66f44da5143e4bda68797f13d5fff,,,1,2,1,1,1,Move1,Completed,75.951441,107.163479,31.212037,31.041148,31.040306,0.000000,5,0,0,0,107.079079
+20261008T074542090Z_efe66f44da5143e4bda68797f13d5fff,,,1,1,0,1,0,Move1,Completed,5.775769,109.364444,103.588675,68.874803,68.768605,0.000000,10,0,4,0,109.318548
+20261008T074542090Z_efe66f44da5143e4bda68797f13d5fff,,,1,3,0,2,1,Move1,Incomplete,109.428197,234.767455,125.339258,35.703183,35.703183,0.000000,4,0,0,0,234.679791
+20261008T074542090Z_efe66f44da5143e4bda68797f13d5fff,,,1,4,1,1,2,Move2,Incomplete,146.901703,234.767613,87.865910,87.778088,87.717641,0.000000,2,3,5,3,234.679791
