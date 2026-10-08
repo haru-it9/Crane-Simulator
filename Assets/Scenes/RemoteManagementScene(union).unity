@@ -419,6 +419,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -14840,6 +14841,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -19692,6 +19694,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -29934,7 +29937,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 1
+  switchMethod: 3
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29955,7 +29958,7 @@ MonoBehaviour:
     targetXSelection: 0
   countdownSeconds: 5
   sourceTotalCycleCount: 5
-  useSwitchScheduleCsv: 1
+  useSwitchScheduleCsv: 0
   switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
   sourcePhaseTracker: {fileID: 1378636668}
   targetPhaseTracker: {fileID: 1229067184}
@@ -30007,6 +30010,19 @@ MonoBehaviour:
   visualLeftIndicator: {fileID: 9000001004}
   visualRightIndicator: {fileID: 9000001008}
   pedalInputDiagnostics: Enter Play Mode to check pedal input.
+  useSwitchMethodCsvPairs: 1
+  confirmAfterDisplaySwitchCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: 9beb77a66b10416409b572c87c506429, type: 3}
+  countdownCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: fc5dc007f7a25f341b91c4849385be96, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: 0024d3cb9b7e7e44882ba95bd7f1bbba, type: 3}
+  phaseBoundaryCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: a9e00e6c22bb93a4193aad01cb5f8326, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: 4e7d2016ec3912142a46d18ecb834bee, type: 3}
+  operatorInitiatedCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: 474444c205321a64c9136f54f73d77e8, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: d896c4e184ec70942913b9da9de25a80, type: 3}
   workConditionsCsv: {fileID: 4900000, guid: 70256d08a71148448c60d00f157166bc, type: 3}
   targetTaskPattern: 0
 --- !u!4 &333508957
@@ -51360,6 +51376,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -55574,6 +55591,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -65636,6 +65654,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -83210,6 +83229,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -98083,7 +98103,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1061987997
 RectTransform:
   m_ObjectHideFlags: 0
@@ -98479,6 +98499,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -124083,6 +124104,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -137098,6 +137120,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -144673,6 +144696,10 @@ MonoBehaviour:
     mainLifMagXSpeedText: {fileID: 0}
     mainLifMagYSpeedText: {fileID: 0}
   interventionScenarioManager: {fileID: 1123226829}
+  currentControlIndicatorOffset: {x: 40, y: 0}
+  currentControlIndicatorSize: {x: 180, y: 100}
+  currentControlAvailableColor: {r: 0.3, g: 0.85, b: 0.4, a: 1}
+  currentControlUnavailableColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
   inputMode: 1
   speedControlMode: 1
   debugMode: 0
@@ -182371,6 +182398,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
@@ -187600,6 +187628,7 @@ MonoBehaviour:
   maximumCurrentAmpere: 75
   interventionInitialCurrentAmpere: 70
   interventionReleaseCurrentAmpere: 70
+  taskSwitchEmptyReleaseCurrentAmpere: 10
   isInterventionCurrentHoldMode: 0
   useBoundsWeightForInterventionBoards: 1
   detachCurrentEpsilonAmpere: 0.01
