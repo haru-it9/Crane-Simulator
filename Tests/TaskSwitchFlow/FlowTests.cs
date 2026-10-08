@@ -46,6 +46,70 @@ static class FlowTests
         public void Attach(int i,int count) {var boards=Registry.cranes[i].BoardGenerator.Boards;Registry.cranes[i].LifMagSystem.AttachedBoards.Clear();for(int b=0;b<count;b++)Registry.cranes[i].LifMagSystem.AttachedBoards.Add(boards[b]);}
         public void Update() {Call(Manager,"Update");}
     }
+    static void CheckSwitchMethodCsvPairs()
+    {
+        string[] fields={"confirmAfterDisplaySwitchCsv","countdownCsv","phaseBoundaryCsv","operatorInitiatedCsv"};
+        var rig=new Rig(TaskSwitchMethod.OperatorInitiated);
+        // Start once without schedules: enabling method pairs on the next run must subscribe correctly.
+        Set(rig.Manager,"useSwitchScheduleCsv",false);
+        rig.Manager.StartExperiment();
+        Require(rig.Target(0).targetZ==1,"common work CSV compatibility");
+        rig.Manager.ExitExperimentMode();
+        var pairs=new TaskSwitchMethodCsvPair[4];
+        for(int i=0;i<4;i++)
+        {
+            int delay=20+i;
+            pairs[i]=new TaskSwitchMethodCsvPair {
+                switchScheduleCsv=new TextAsset(Schedule.Replace("10,10",delay+","+delay)) {name="schedule-"+i+".csv"},
+                workConditionsCsv=new TextAsset(Work().Replace("Source,1,-4,1,","Source,1,-4,"+(30+i)+",")) {name="work-"+i+".csv"}
+            };
+            Set(rig.Manager,fields[i],pairs[i]);
+        }
+        Set(rig.Manager,"useSwitchMethodCsvPairs",true);
+        var loaded=new List<TaskSwitchEventData>();
+        rig.Manager.ExperimentEventOccurred+=e=>loaded.Add(e);
+        for(int i=0;i<4;i++)
+        {
+            rig.Manager.SetSwitchMethod(i);
+            Require(rig.Manager.SwitchScheduleCsvText==pairs[i].switchScheduleCsv.text && rig.Manager.WorkConditionsCsvText==pairs[i].workConditionsCsv.text,"selected method CSV preview: "+i);
+            Time.realtimeSinceStartupAsDouble=0;
+            rig.Manager.StartExperiment();
+            Require(rig.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource && rig.Target(0).targetZ==30+i,"selected method work CSV not applied: "+i);
+            Require(loaded.Exists(e=>e.eventName=="SwitchScheduleLoaded" && e.detail.Contains("File=schedule-"+i+".csv;BySwitchMethod=True")) &&
+                loaded.Exists(e=>e.eventName=="WorkConditionsLoaded" && e.detail.Contains("File=work-"+i+".csv;BySwitchMethod=True")),"applied CSV provenance missing: "+i);
+            // Editing the Inspector table during a run must not change the logged input files.
+            TextAsset scheduleFile=pairs[i].switchScheduleCsv,workFile=pairs[i].workConditionsCsv;
+            pairs[i].switchScheduleCsv=new TextAsset("invalid");pairs[i].workConditionsCsv=null;
+            Require(rig.Manager.SwitchScheduleCsvText==scheduleFile.text && rig.Manager.WorkConditionsCsvText==workFile.text,"active-run CSV references changed");
+            Time.realtimeSinceStartupAsDouble=19+i;rig.Update();
+            Require(rig.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource,"schedule used common file delay: "+i);
+            Time.realtimeSinceStartupAsDouble=21+i;rig.Update();
+            Require(rig.Manager.CurrentState!=TaskSwitchExperimentState.OperatingSource && rig.Manager.CurrentSwitchIndex==1,"selected schedule ignored when common schedule disabled: "+i);
+            pairs[i].switchScheduleCsv=scheduleFile;pairs[i].workConditionsCsv=workFile;
+            rig.Manager.ExitExperimentMode();
+        }
+        // Both slots are required; valid common CSVs must not silently replace missing or invalid pairs.
+        rig.Manager.SetSwitchMethod(3);
+        for(int missing=0;missing<2;missing++)
+        {
+            TextAsset file=missing==0 ? pairs[3].switchScheduleCsv : pairs[3].workConditionsCsv;
+            if(missing==0)pairs[3].switchScheduleCsv=null;else pairs[3].workConditionsCsv=null;
+            int errors=Debug.Errors;rig.Manager.StartExperiment();
+            Require(rig.Manager.CurrentState==TaskSwitchExperimentState.Idle && Debug.Errors==errors+1,"missing method CSV started experiment");
+            if(missing==0)pairs[3].switchScheduleCsv=file;else pairs[3].workConditionsCsv=file;
+        }
+        var valid=pairs[3].workConditionsCsv;pairs[3].workConditionsCsv=new TextAsset("invalid");
+        int before=Debug.Errors;rig.Manager.StartExperiment();
+        Require(rig.Manager.CurrentState==TaskSwitchExperimentState.Idle && Debug.Errors==before+1,"invalid method CSV started experiment");
+        pairs[3].workConditionsCsv=valid;
+        Set(rig.Manager,"useSwitchMethodCsvPairs",false);Set(rig.Manager,"useSwitchScheduleCsv",true);
+        Require(rig.Manager.SwitchScheduleCsvText==Schedule && rig.Manager.WorkConditionsCsvText==Work(),"common CSV selection not restored");
+        Time.realtimeSinceStartupAsDouble=0;rig.Manager.StartExperiment();
+        Require(rig.Target(0).targetZ==1,"common work CSV not restored");
+        Time.realtimeSinceStartupAsDouble=11;rig.Update();
+        Require(rig.Manager.CurrentState==TaskSwitchExperimentState.WaitingForOperatorSwitch,"common schedule not restored");
+        Console.WriteLine("PASS: four method CSV pairs, automatic schedule despite common toggle, restart selection, active-run snapshots, file provenance, missing/invalid pair rejection and common CSV compatibility");
+    }
     public static void Main()
     {
         CultureInfo.CurrentCulture=CultureInfo.GetCultureInfo("fr-FR");
@@ -111,6 +175,7 @@ static class FlowTests
         }
         var automatic=new Rig(TaskSwitchMethod.OperatorInitiated);Time.realtimeSinceStartupAsDouble=0;automatic.Manager.StartExperiment();Time.realtimeSinceStartupAsDouble=11;automatic.Update();
         Require(automatic.Manager.CurrentState==TaskSwitchExperimentState.WaitingForOperatorSwitch,"CSV request did not arm operator confirmation");
+        CheckSwitchMethodCsvPairs();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

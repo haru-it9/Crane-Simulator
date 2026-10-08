@@ -2,6 +2,25 @@
 
 TaskSwitchExperimentManagerの **Switch Schedule Csv** に切替要請スケジュール、**Work Conditions Csv** に作業条件を割り当てます。RemoteManagementScene(union)には作業条件テンプレートを割り当て済みです。Source Total Cycle Countは5です。CSVはヘッダー付き、数値は小数点「.」、枚数と番号は整数とします。
 
+## SwitchMethodごとのCSV登録
+
+TaskSwitchExperimentManagerのInspectorで **Use Switch Method Csv Pairs** をONにし、次の4つの欄を展開します。各欄の **Switch Schedule Csv** と **Work Conditions Csv** に、対応するCSVアセットをそれぞれドラッグします。
+
+| Inspectorの登録欄 | 適用されるSwitch Method |
+| --- | --- |
+| Confirm After Display Switch Csv | Confirm After Display Switch |
+| Countdown Csv | Countdown |
+| Phase Boundary Csv | Phase Boundary |
+| Operator Initiated Csv | Operator Initiated |
+
+**Switch Method** を選択してStartすると、その手法の2ファイルを読み込みます。次の実験で手法を変えた場合は、次回のStartで新しい組を読み込みます。実行中のCSV割り当ての編集はその実験の適用内容を変更しません。CSVの中身・形式は従来と同じです。
+
+この設定がONの場合、共通欄のUse Switch Schedule Csvの値にかかわらず手法別スケジュールを使用します。選択した手法にどちらかのCSVが未登録、または内容が無効ならConsoleに理由を出して開始を中止します。他の手法や共通欄のCSVを自動的に代用しません。
+
+既存シーンでは **Use Switch Method Csv Pairs** の初期値はOFFで、従来の共通CSV設定を使用します。手法別設定を使う際はONにしてください。用意したCSVの組はInspectorで登録してください。
+
+session.csvのswitch_schedule_csvとwork_conditions_csvには、選択した手法に実際に適用したCSV全文を記録します。events.csvのSwitchScheduleLoadedとWorkConditionsLoadedにはファイル名とBySwitchMethodを記録します。CSV出力の列構成は変更しません。
+
 ## 切替要請スケジュール
 
 ```csv

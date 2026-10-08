@@ -219,7 +219,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [Min(0)]
     private int completedSwitchCount;
 
-    public string SwitchScheduleCsvText => switchScheduleCsv != null ? switchScheduleCsv.text : "";
+    public string SwitchScheduleCsvText => EffectiveSwitchScheduleCsv != null ? EffectiveSwitchScheduleCsv.text : "";
     public int SourceTotalCycleCount => sourceTotalCycleCount;
     public float CountdownSeconds => countdownSeconds;
     public TaskSwitchMethod SwitchMethod => switchMethod;
@@ -414,8 +414,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         scheduledSwitchDelaySeconds = 0f;
         currentSwitchIndex = 0;
         completedSwitchCount = 0;
-        EmitEvent("SwitchScheduleLoaded", $"Count={scheduledSwitches.Count};File={(switchScheduleCsv!=null?switchScheduleCsv.name:"")}");
-        EmitEvent("WorkConditionsLoaded", $"Count={experimentWorkConditions.Count};SourceCycles={sourceTotalCycleCount}");
+        EmitEvent("SwitchScheduleLoaded", $"Count={scheduledSwitches.Count};File={(runSwitchScheduleCsv!=null?runSwitchScheduleCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
+        EmitEvent("WorkConditionsLoaded", $"Count={experimentWorkConditions.Count};SourceCycles={sourceTotalCycleCount};File={(runWorkConditionsCsv!=null?runWorkConditionsCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
         pendingOperationInputUnlock = false;
         confirmationAcceptedUntilRealtime = 0f;
         HideAutomaticOperationObjects();
@@ -492,7 +492,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         scheduledSwitchAwaitingCarryoverPhase = false;
 
         SelectTargetCondition(nextSwitchIndex);
-        if (workConditionsCsv != null && activeTargetWorkCondition == null)
+        if (EffectiveWorkConditionsCsv != null && activeTargetWorkCondition == null)
         {
             EmitEvent("NextTargetPreparationFailed", $"Missing Target CSV row: {nextSwitchIndex}");
             return;
@@ -1109,7 +1109,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         int cycleNumber
     )
     {
-        if (!useSwitchScheduleCsv ||
+        if (!ShouldUseSwitchScheduleCsv ||
             controller != sourceCycleController ||
             scheduledSwitches.Count == 0)
         {
@@ -1859,8 +1859,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceCycleSubscribed = true;
         }
 
-        if (useSwitchScheduleCsv &&
-            !sourceSchedulePhaseSubscribed &&
+        if (!sourceSchedulePhaseSubscribed &&
             sourceCycleController != null)
         {
             sourceCycleController.PhaseStarted +=

@@ -2,8 +2,23 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+[Serializable]
+public class TaskSwitchMethodCsvPair
+{
+    public TextAsset switchScheduleCsv;
+    public TextAsset workConditionsCsv;
+}
+
 public partial class TaskSwitchExperimentManager
 {
+    [Header("SwitchMethod別CSV設定")]
+    [Tooltip("ONにすると、選択したSwitch Methodに対応する2つのCSVを実験開始時に適用します。両方の登録が必要です。")]
+    [SerializeField] private bool useSwitchMethodCsvPairs;
+    [SerializeField] private TaskSwitchMethodCsvPair confirmAfterDisplaySwitchCsv = new TaskSwitchMethodCsvPair();
+    [SerializeField] private TaskSwitchMethodCsvPair countdownCsv = new TaskSwitchMethodCsvPair();
+    [SerializeField] private TaskSwitchMethodCsvPair phaseBoundaryCsv = new TaskSwitchMethodCsvPair();
+    [SerializeField] private TaskSwitchMethodCsvPair operatorInitiatedCsv = new TaskSwitchMethodCsvPair();
+
     [Header("CSV作業条件（Source:サイクル / Target:切替番号）")]
     [Tooltip("role,index,pickupX,pickupZ,placementX,placementZ,pickupCount,placementCount。座標はワールドXZ[m]。")]
     [SerializeField] private TextAsset workConditionsCsv;
@@ -11,9 +26,34 @@ public partial class TaskSwitchExperimentManager
     private TaskSwitchTargetTaskPattern activeTargetTaskPattern;
     private TaskSwitchWorkCondition activeTargetWorkCondition;
     private List<TaskSwitchWorkCondition> experimentWorkConditions = new List<TaskSwitchWorkCondition>();
-    public string WorkConditionsCsvText => workConditionsCsv != null ? workConditionsCsv.text : "";
+    private TextAsset runSwitchScheduleCsv, runWorkConditionsCsv;
+    private bool runUseSwitchScheduleCsv, runCsvFilesLoaded;
+    private bool HasActiveRunCsvFiles => runCsvFilesLoaded &&
+        currentState != TaskSwitchExperimentState.Idle && currentState != TaskSwitchExperimentState.Completed;
+    private TextAsset EffectiveSwitchScheduleCsv => HasActiveRunCsvFiles ? runSwitchScheduleCsv :
+        useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.switchScheduleCsv : switchScheduleCsv;
+    private TextAsset EffectiveWorkConditionsCsv => HasActiveRunCsvFiles ? runWorkConditionsCsv :
+        useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.workConditionsCsv : workConditionsCsv;
+    private bool ShouldUseSwitchScheduleCsv => HasActiveRunCsvFiles ? runUseSwitchScheduleCsv :
+        useSwitchMethodCsvPairs || useSwitchScheduleCsv;
+    public string WorkConditionsCsvText => EffectiveWorkConditionsCsv != null ? EffectiveWorkConditionsCsv.text : "";
     public string ActiveTargetWorkConditionJson => activeTargetWorkCondition != null ? JsonUtility.ToJson(activeTargetWorkCondition) : "";
     public TaskSwitchTargetTaskPattern ActiveTargetTaskPattern => activeTargetTaskPattern;
+
+    private TaskSwitchMethodCsvPair SelectedMethodCsvPair
+    {
+        get
+        {
+            switch (switchMethod)
+            {
+                case TaskSwitchMethod.ConfirmAfterDisplaySwitch: return confirmAfterDisplaySwitchCsv;
+                case TaskSwitchMethod.Countdown: return countdownCsv;
+                case TaskSwitchMethod.PhaseBoundary: return phaseBoundaryCsv;
+                case TaskSwitchMethod.OperatorInitiated: return operatorInitiatedCsv;
+                default: return null;
+            }
+        }
+    }
 
     private TaskSwitchWorkCondition SourceWorkCondition(int cycle) => experimentWorkConditions.Find(c=>c.role=="Source" && c.index==cycle);
     private void SelectTargetCondition(int switchIndex)
@@ -26,19 +66,28 @@ public partial class TaskSwitchExperimentManager
     {
         try
         {
-            var schedule=useSwitchScheduleCsv && switchScheduleCsv!=null
-                ? TaskSwitchConditionCsv.ParseSchedule(switchScheduleCsv.text,targetTaskPattern,sourceTotalCycleCount)
+            // Resolve from Inspector for this start, not from the previous run's snapshot.
+            var pair = SelectedMethodCsvPair;
+            if(useSwitchMethodCsvPairs && (pair==null || pair.switchScheduleCsv==null || pair.workConditionsCsv==null))
+                throw new FormatException($"{switchMethod}: SwitchMethod別設定のSwitch Schedule CSVとWork Conditions CSVを両方登録してください。");
+            TextAsset scheduleFile = useSwitchMethodCsvPairs ? pair.switchScheduleCsv : switchScheduleCsv;
+            TextAsset workFile = useSwitchMethodCsvPairs ? pair.workConditionsCsv : workConditionsCsv;
+            bool scheduleEnabled = useSwitchMethodCsvPairs || useSwitchScheduleCsv;
+            var schedule=scheduleEnabled && scheduleFile!=null
+                ? TaskSwitchConditionCsv.ParseSchedule(scheduleFile.text,targetTaskPattern,sourceTotalCycleCount)
                 : new List<TaskSwitchScheduleRow>();
-            var work=workConditionsCsv!=null ? TaskSwitchConditionCsv.ParseWork(workConditionsCsv.text,sourceTotalCycleCount) : new List<TaskSwitchWorkCondition>();
-            if(workConditionsCsv!=null)
+            var work=workFile!=null ? TaskSwitchConditionCsv.ParseWork(workFile.text,sourceTotalCycleCount) : new List<TaskSwitchWorkCondition>();
+            if(workFile!=null)
             {
                 foreach(var e in schedule) if(!work.Exists(c=>c.role=="Target" && c.index==e.switchIndex)) throw new FormatException("Missing Target work condition: " + e.switchIndex);
             }
             else if(schedule.Exists(e=>e.targetTaskPattern==TaskSwitchTargetTaskPattern.Move2ToPlace) || targetTaskPattern==TaskSwitchTargetTaskPattern.Move2ToPlace)
                 throw new FormatException("Move2ToPlace requires Work Conditions CSV to specify the preloaded boards");
             work.Sort((a,b)=>a.index.CompareTo(b.index));
+            runSwitchScheduleCsv=scheduleFile; runWorkConditionsCsv=workFile;
+            runUseSwitchScheduleCsv=scheduleEnabled; runCsvFilesLoaded=true;
             experimentWorkConditions=work;
-            if(workConditionsCsv!=null) sourceCondition.workPhase=CraneStatusManager.WorkPhase.Move1;
+            if(workFile!=null) sourceCondition.workPhase=CraneStatusManager.WorkPhase.Move1;
             scheduledSwitches.Clear();
             foreach(var e in schedule) scheduledSwitches.Add(new ScheduledSwitchEntry { switchIndex=e.switchIndex,sourceCycle=e.sourceCycle,sourcePhase=e.sourcePhase,
                 minimumDelaySeconds=e.minimumDelaySeconds,maximumDelaySeconds=e.maximumDelaySeconds,targetTaskPattern=e.targetTaskPattern });
