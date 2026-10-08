@@ -1,0 +1,2 @@
+﻿session_id,participant_id,block_id,experiment_run_index,cycle_instance_id,crane_index,cycle_number,switch_index_at_start,first_phase,outcome,start_s,end_s,elapsed_s,monitoring_s,control_available_s,global_pause_s,steps_completed,weight_invalidations,current_drop_events,rollbacks,duration_sampled_until_s
+20261008T062744678Z_89c40871f7754b0487f89f9a721d7543,,,1,1,0,1,0,Move1,Incomplete,4.496952,24.403225,19.906273,19.824218,19.824218,0.000000,0,0,0,0,24.321170

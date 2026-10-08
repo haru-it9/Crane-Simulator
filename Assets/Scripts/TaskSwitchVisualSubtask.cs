@@ -18,8 +18,8 @@ public class TaskSwitchVisualSettings
     [UnityEngine.Range(0.01f, 1f)] public float pressThreshold = 0.5f;
     [UnityEngine.Range(0f, 0.99f)] public float releaseThreshold = 0.2f;
     [Tooltip("青に戻ってから次の赤までのランダム待ち時間。正しい側の押下までは赤を保持し、時間制限なし。")]
-    [UnityEngine.Range(2f, 5f)] public float minimumIntervalSeconds = 2f;
-    [UnityEngine.Range(2f, 5f)] public float maximumIntervalSeconds = 5f;
+    [UnityEngine.Range(2f, 5f)] public float minimumIntervalSeconds = 5f;
+    [UnityEngine.Range(2f, 10f)] public float maximumIntervalSeconds = 10f;
     [Min(0f)] public float minimumValidReactionSeconds = 0.1f;
     [Tooltip("0は有効化ごとに生成。それ以外は左右・提示間隔のシードを固定。")]
     public int randomSeed = 0;
