@@ -290,6 +290,7 @@ with (rearm_folder / 'crane_state.csv').open(encoding='utf-8-sig', newline='') a
     rearm = [r for r in csv.DictReader(stream) if r['crane_index'] == '0']
 assert [r['safe_current_hold_active'] for r in rearm] == ['1', '0']
 assert all(r['current_rearm_condition'] == 'AtMost' and r['current_rearm_threshold_a'] == '10.000000' for r in rearm)
+assert all(r['electric_current_a'] == '10.000000' for r in rearm)
 with (rearm_folder / 'events.csv').open(encoding='utf-8-sig', newline='') as stream:
     rearm_events = [r for r in csv.DictReader(stream) if r['event_type'] in ('SafeCurrentHoldStarted', 'SafeCurrentHoldReleased')]
 assert len(rearm_events) == 2

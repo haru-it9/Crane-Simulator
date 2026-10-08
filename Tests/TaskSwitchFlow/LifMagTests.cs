@@ -75,9 +75,10 @@ static class LifMagTests
         crane.ClearInterventionBoardAttachment();m.SetLifMagCurrent(0,true);first.GetComponent<BoardInfo>().Weight=500;
         sensor.TouchingBoards.Add(first);Time.timeAsDouble=1;
         Require(m.BeginTaskSwitchSafeCurrentHold() && m.TaskSwitchCurrentRearmCondition=="AtMost" && m.TaskSwitchCurrentRearmThresholdAmpere==10,"empty gate wrong");
+        Require(m.CurrentElectricCurrentA==10,"empty rearm did not immediately display 10A");
         int before=accepted;
         Tick(m,75);Tick(m,10.01f);Tick(m,float.NaN);
-        Require(m.IsTaskSwitchSafeCurrentHoldActive && !m.HasAttachedBoard && m.CurrentElectricCurrentA==0 && accepted==before,"empty gate accepted high/invalid current or picked up plate");
+        Require(m.IsTaskSwitchSafeCurrentHoldActive && !m.HasAttachedBoard && m.CurrentElectricCurrentA==10 && accepted==before,"empty gate lost 10A display, accepted high/invalid current or picked up plate");
         Tick(m,10);Require(!m.IsTaskSwitchSafeCurrentHoldActive && m.HasAttachedBoard && accepted==before+1,"10A inclusive threshold did not enable ordinary pickup");
         crane.ClearInterventionBoardAttachment();m.SetLifMagCurrent(0,true);sensor.TouchingBoards.Clear();m.BeginTaskSwitchSafeCurrentHold();Tick(m,0);
         Require(!m.IsTaskSwitchSafeCurrentHoldActive && m.CurrentElectricCurrentA==0,"0A empty input did not rearm");

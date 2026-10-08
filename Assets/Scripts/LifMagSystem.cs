@@ -873,9 +873,9 @@ public class LifMagSystem : MonoBehaviour
         if (isTaskSwitchSafeCurrentHoldMode &&
             taskSwitchCurrentRearmCondition == CurrentRearmCondition.AtMost)
         {
-            CurrentSliderInput01 = 0f;
-            CurrentElectricCurrentA = 0f;
-            CurrentLiftCapacityKg = 0f;
+            CurrentSliderInput01 = Mathf.Clamp01(taskSwitchEmptyReleaseCurrentAmpere / maximumCurrentAmpere);
+            CurrentElectricCurrentA = taskSwitchEmptyReleaseCurrentAmpere;
+            CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(CurrentSliderInput01);
             CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(CurrentAttachedWeightKg);
             return;
         }
@@ -930,7 +930,7 @@ public class LifMagSystem : MonoBehaviour
 
     /// <summary>
     /// Task Switchで操作対象へ戻る際、吸着状態に合った入力を確認します。
-    /// 吸着中は70Aの仮想保持電流、吸着なしは0Aで待機します。
+    /// 吸着中は70A、吸着なしは10Aの仮想電流を表示して待機します。
     /// </summary>
     public bool BeginTaskSwitchSafeCurrentHold()
     {
@@ -947,7 +947,7 @@ public class LifMagSystem : MonoBehaviour
         taskSwitchCurrentRearmCondition = HasAttachedBoard
             ? CurrentRearmCondition.AtLeast : CurrentRearmCondition.AtMost;
 
-        float heldCurrentA = HasAttachedBoard ? interventionInitialCurrentAmpere : 0f;
+        float heldCurrentA = HasAttachedBoard ? interventionInitialCurrentAmpere : taskSwitchEmptyReleaseCurrentAmpere;
 
         float fixedInput01 = Mathf.Clamp01(
             heldCurrentA / maximumCurrentAmpere

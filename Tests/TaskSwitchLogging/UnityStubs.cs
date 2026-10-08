@@ -204,7 +204,7 @@ public class LifMagSystem : UnityEngine.MonoBehaviour
     public float ReadSliderCurrentAmpere() { return Math.Max(0,ReadRawSliderInput())*75; }
     public event Action<LifMagSystem,float> TaskSwitchSafeCurrentHoldStarted,TaskSwitchSafeCurrentHoldReleased,ElectricCurrentInputAccepted;
     public event Action<LifMagSystem,string,string> BoardAttachmentChanged;
-    public void StartEmptyHold() {TaskSwitchCurrentRearmCondition="AtMost";TaskSwitchCurrentRearmThresholdAmpere=10;IsTaskSwitchSafeCurrentHoldActive=true;CurrentElectricCurrentA=0;TaskSwitchSafeCurrentHoldStarted?.Invoke(this,0);}
+    public void StartEmptyHold() {TaskSwitchCurrentRearmCondition="AtMost";TaskSwitchCurrentRearmThresholdAmpere=10;IsTaskSwitchSafeCurrentHoldActive=true;CurrentElectricCurrentA=10;TaskSwitchSafeCurrentHoldStarted?.Invoke(this,10);}
     public void ReleaseEmptyHold() {IsTaskSwitchSafeCurrentHoldActive=false;CurrentElectricCurrentA=10;TaskSwitchSafeCurrentHoldReleased?.Invoke(this,10);}
     public void Current(float v) { CurrentElectricCurrentA=v;ElectricCurrentInputAccepted?.Invoke(this,v); }
     public void Drop() { AttachedBoards.Clear();BoardAttachmentChanged?.Invoke(this,"BoardDetachedInsufficientCurrent","test board"); }
