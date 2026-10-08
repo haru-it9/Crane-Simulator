@@ -198,12 +198,14 @@ public class LifMagSystem : UnityEngine.MonoBehaviour
     public List<UnityEngine.GameObject> AttachedBoards = new List<UnityEngine.GameObject>();
     public bool HasAttachedBoard => AttachedBoards.Count > 0; public bool IsTaskSwitchSafeCurrentHoldActive;
     public float CurrentElectricCurrentA,CurrentRequiredCurrentA,CurrentLiftCapacityKg;
-    public string CurrentSliderAxis => "JoyStick1LeftSlider"; public float MaximumCurrentAmpere => 75; public float SafeHoldReleaseCurrentAmpere => 70;
+    public string CurrentSliderAxis => "JoyStick1LeftSlider"; public float MaximumCurrentAmpere => 75; public float SafeHoldReleaseCurrentAmpere => 70; public string TaskSwitchCurrentRearmCondition="AtLeast"; public float TaskSwitchCurrentRearmThresholdAmpere=70;
     public float GetAttachedTotalWeightKgForDisplay() { return AttachedBoards.Count*1000; }
     public float ReadRawSliderInput() { return UnityEngine.Input.GetAxis(CurrentSliderAxis); }
     public float ReadSliderCurrentAmpere() { return Math.Max(0,ReadRawSliderInput())*75; }
     public event Action<LifMagSystem,float> TaskSwitchSafeCurrentHoldStarted,TaskSwitchSafeCurrentHoldReleased,ElectricCurrentInputAccepted;
     public event Action<LifMagSystem,string,string> BoardAttachmentChanged;
+    public void StartEmptyHold() {TaskSwitchCurrentRearmCondition="AtMost";TaskSwitchCurrentRearmThresholdAmpere=10;IsTaskSwitchSafeCurrentHoldActive=true;CurrentElectricCurrentA=0;TaskSwitchSafeCurrentHoldStarted?.Invoke(this,0);}
+    public void ReleaseEmptyHold() {IsTaskSwitchSafeCurrentHoldActive=false;CurrentElectricCurrentA=10;TaskSwitchSafeCurrentHoldReleased?.Invoke(this,10);}
     public void Current(float v) { CurrentElectricCurrentA=v;ElectricCurrentInputAccepted?.Invoke(this,v); }
     public void Drop() { AttachedBoards.Clear();BoardAttachmentChanged?.Invoke(this,"BoardDetachedInsufficientCurrent","test board"); }
 }

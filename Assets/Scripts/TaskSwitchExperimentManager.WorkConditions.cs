@@ -69,6 +69,7 @@ public partial class TaskSwitchExperimentManager
         load.SetPickupTargetWeightKg(weight);
         if(condition==targetCondition && ActiveTargetTaskPattern==TaskSwitchTargetTaskPattern.Move2ToPlace)
         {
+            if(crane.LifMagSystem==null) { Debug.LogError("Move2ToPlace requires LifMagSystem",this);return false; }
             // Use the real boards and their CSV weights, rather than resizing a synthetic single plate.
             crane.CraneUnit.ClearInterventionBoardAttachment();
             float depth=0;
@@ -79,6 +80,11 @@ public partial class TaskSwitchExperimentManager
                 crane.CraneUnit.SetInterventionBoardAttached(board,new Vector3(0,-depth-thickness*.5f,0),Vector3.zero,true);
                 depth+=thickness;
             }
+            if(crane.LifMagSystem.AttachedBoards.Count!=boards.Count)
+            { Debug.LogError("Move2ToPlace: pickup boards were not attached to the lifting magnet",this);return false; }
+            for(int i=0;i<boards.Count;i++)
+                if(crane.LifMagSystem.AttachedBoards[i]!=boards[i])
+                { Debug.LogError("Move2ToPlace: attached boards differ from the CSV pickup boards",this);return false; }
             load.PreparePlacementPlan(crane.LifMagSystem.GetAttachedTotalWeightKgForDisplay());
         }
         EmitEvent("WorkConditionPrepared", $"Role={work.role};Index={work.index};PickupX={work.pickupX};PickupZ={work.pickupZ};PlacementX={work.placementX};PlacementZ={work.placementZ};PickupCount={work.pickupCount};PlacementCount={work.placementCount};PickupWeightKg={weight}");

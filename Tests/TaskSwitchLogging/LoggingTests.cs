@@ -77,6 +77,9 @@ class LoggingTests
         string first=logger.SessionDirectory;logger.StopLogging();logger.StopLogging();
         logger.StartLogging("試行,1");string second=logger.SessionDirectory;logger.StopLogging();
         Require(first!=second,"repeated label overwrote session");
+        var emptyMag=registry.cranes[0].LifMagSystem;emptyMag.AttachedBoards.Clear();
+        logger.StartLogging("current-rearm");emptyMag.StartEmptyHold();Tick(logger,14);
+        emptyMag.ReleaseEmptyHold();Tick(logger,15);logger.StopLogging();
         string unavailable=Path.Combine(output,"not-a-directory");File.WriteAllText(unavailable,"test");
         Set(logger,"saveFolderPath",unavailable);logger.StartLogging("failed");
         Require(!logger.IsLogging && Debug.Errors==1,"failed startup must report failure and remain stopped");

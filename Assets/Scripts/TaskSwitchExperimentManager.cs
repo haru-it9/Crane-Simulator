@@ -847,7 +847,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             condition.workPhase,
             condition.errorType,
             condition.craneIndex,
-            interventionStartLocalZ
+            interventionStartLocalZ,
+            !(condition == targetCondition && activeTargetWorkCondition != null &&
+              ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move2ToPlace)
         );
 
         if (!PrepareCsvWorkCondition(condition, craneInstance)) return false;

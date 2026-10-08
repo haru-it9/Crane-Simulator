@@ -43,7 +43,7 @@ Play中のManagerの **Pedal Input Diagnostics** に、入力元（Source）、�
 
 全体Pauseでは、現在の色・未提示の残り待ち・提示済みの回答待ちを保持します。停止中の入力は判定しません。Startで同じ提示から再開し、再開後に中立を観測してから次の押下を受理します。赤のままPauseしても新しい提示に置き換えません。開始前にPauseした場合も、残り待ちを再開します。停止時間は反応時間に含めません。
 
-## CSV（schema_version = 8）
+## CSV（schema_version = 9）
 
 保存先とセッション識別は [TaskSwitchLogging.md](TaskSwitchLogging.md) と共通です。既定の保存先は `C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData\` のセッションフォルダです。
 

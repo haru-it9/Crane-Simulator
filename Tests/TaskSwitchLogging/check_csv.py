@@ -27,7 +27,7 @@ for folder in folders:
 d = next(data for data in all_data if data['crane_state'])
 assert not d['auditory_subtask'] and not d['auditory_trials'], 'disabled subtask must produce no trials'
 assert not d['visual_subtask'] and not d['visual_trials']
-assert all(r['schema_version'] == '8' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
+assert all(r['schema_version'] == '9' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '0' and r['secondary_task_mode'] == 'None' for r in d['session'])
 assert len(d['switch_summary']) == 3
 complete, incomplete, no_input = d['switch_summary']
 assert complete['outcome'] == 'Completed'
@@ -61,6 +61,7 @@ for sample in {r['sample_index'] for r in d['crane_state']}:
     assert {r['real_elapsed_s'] for r in state} == {inputs['real_elapsed_s'], gaze['real_elapsed_s']}
     assert {r['utc_timestamp'] for r in state} == {inputs['utc_timestamp'], gaze['utc_timestamp']}
     assert all(r['safe_hold_release_threshold_a'] == '70.000000' for r in state)
+    assert all(r['current_rearm_condition'] == 'AtLeast' and r['current_rearm_threshold_a'] == '70.000000' for r in state)
 assert all(r['slider_axis'] == 'JoyStick1LeftSlider' for r in d['input'])
 assert any(r['global_paused'] == '1' for r in d['crane_state']), 'pause must remain visible in wall-clock sampling'
 assert any(r['is_valid'] == '0' and r['viewport_x'] == '' for r in d['gaze'])
@@ -173,7 +174,7 @@ for path in visual_folder.glob('*.csv'):
     assert all(r['participant_id'] == 'P04' and r['block_id'] == 'visual' for r in visual_data[path.stem])
 assert len({r['session_id'] for data in visual_data.values() for r in data}) == 1
 assert not visual_data['auditory_subtask'] and not visual_data['auditory_trials'], 'visual mode emitted auditory events'
-assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '8' for r in visual_data['session'])
+assert all(r['secondary_task_mode'] == 'Visual' and r['schema_version'] == '9' for r in visual_data['session'])
 trials = visual_data['visual_trials']
 history = visual_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
@@ -258,7 +259,7 @@ for path in keyboard_folder.glob('*.csv'):
     assert len(set(rows[0])) == len(rows[0]) and all(len(r) == len(rows[0]) for r in rows[1:]), path
     keyboard_data[path.stem] = [dict(zip(rows[0], r)) for r in rows[1:]]
     assert all(r['participant_id'] == 'P05' and r['block_id'] == 'pedal_keys' for r in keyboard_data[path.stem])
-assert all(r['schema_version'] == '8' for r in keyboard_data['session'])
+assert all(r['schema_version'] == '9' for r in keyboard_data['session'])
 trials = keyboard_data['visual_trials']
 history = keyboard_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
@@ -282,4 +283,15 @@ print('PASS: keyboard pedal CSV zero-axis/nonzero-response provenance, wrong-the
 # Schema 8 keeps work-condition CSV newlines/commas and the active per-request pattern.
 assert all(r["work_conditions_csv"].startswith("role,index,") and "Target,1,16,2,24,0,3,1\n" in r["work_conditions_csv"] and r["target_task_pattern"] == "Move2ToPlace" for r in d["session"])
 assert all(r["target_task_pattern"] == "Move2ToPlace" and json.loads(r["target_work_condition_json"])["placementCount"] == 1 for r in d["events"])
-print("PASS: schema 8 work-condition CSV escaping and per-event pattern/count configuration")
+print("PASS: schema 9 work-condition CSV escaping and per-event pattern/count configuration")
+
+rearm_folder = next(root.glob('current-rearm_*'))
+with (rearm_folder / 'crane_state.csv').open(encoding='utf-8-sig', newline='') as stream:
+    rearm = [r for r in csv.DictReader(stream) if r['crane_index'] == '0']
+assert [r['safe_current_hold_active'] for r in rearm] == ['1', '0']
+assert all(r['current_rearm_condition'] == 'AtMost' and r['current_rearm_threshold_a'] == '10.000000' for r in rearm)
+with (rearm_folder / 'events.csv').open(encoding='utf-8-sig', newline='') as stream:
+    rearm_events = [r for r in csv.DictReader(stream) if r['event_type'] in ('SafeCurrentHoldStarted', 'SafeCurrentHoldReleased')]
+assert len(rearm_events) == 2
+assert all('releaseCondition=AtMost;releaseThresholdA=10.00' in r['detail'] for r in rearm_events)
+print('PASS: empty current rearm state, 10A threshold and latched release condition in both CSV events')

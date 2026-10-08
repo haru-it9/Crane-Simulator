@@ -198,7 +198,8 @@ public class CraneInterventionScenarioManager : MonoBehaviour
         CraneStatusManager.WorkPhase phase,
         CraneStatusManager.ErrorType errorType,
         int craneIndex,
-        float? mainCraneLocalZOverride = null
+        float? mainCraneLocalZOverride = null,
+        bool createAttachedPlate = true
     )
     {
         if (craneUnit == null)
@@ -282,7 +283,12 @@ public class CraneInterventionScenarioManager : MonoBehaviour
             cranePose.mainLifMagLocalY
         );
 
-        SetupPlate(craneUnit, phase, errorType);
+        // CSV work preloads the generated pickup boards instead of a synthetic plate.
+        // Do not spawn an extra plate that would fall when that preload replaces it.
+        if (createAttachedPlate)
+            SetupPlate(craneUnit, phase, errorType);
+        else
+            craneUnit.ClearInterventionBoardAttachment();
         SetupHuman(errorType, craneIndex);
         SetupTrailer(errorType, craneIndex);
 

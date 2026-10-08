@@ -12,4 +12,7 @@ trap 'rm -rf "$output"' EXIT
 python3 "$root/Tests/TaskSwitchFlow/prepare_board_selection_test.py" "$output"
 "${MCS:-mcs}" -out:"$output/boards.exe" "$output/BoardUnityStubs.cs" "$output/BoardSelectionProduction.cs" "$root/Tests/TaskSwitchFlow/BoardSelectionTests.cs"
 "${MONO:-mono}" "$output/boards.exe"
+python3 "$root/Tests/TaskSwitchFlow/prepare_lifmag_test.py" "$output"
+"${MCS:-mcs}" -out:"$output/lifmag.exe" "$output/LifMagUnityStubs.cs" "$output/CraneAttachmentProduction.cs" "$output/ScenarioSetupProduction.cs" "$root/Assets/Scripts/LifMagSystem.cs" "$root/Tests/TaskSwitchFlow/LifMagTests.cs"
+"${MONO:-mono}" "$output/lifmag.exe"
 python3 "$root/Tests/TaskSwitchFlow/check_templates.py"

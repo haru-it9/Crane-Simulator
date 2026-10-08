@@ -71,6 +71,7 @@ static class FlowTests
         r.Complete(0);r.Attach(0,2);r.Complete(0);Require(r.Target(0).targetX==4 && r.Target(0).targetZ==11,"source placement CSV not applied");r.Complete(0);r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
         Require(r.Cycle(0).CurrentCycleNumber==2 && r.Target(0).targetZ==2,"next source cycle CSV not applied");
         r.Manager.RequestSwitch();r.Manager.ConfirmTargetTask();
+        Require(!((CraneInterventionScenarioManager)Get(r.Manager,"interventionScenarioManager")).LastCreateAttachedPlate,"Move2 CSV preload generated an extra synthetic plate");
         var targetMag=r.Registry.cranes[1].LifMagSystem;var load=r.Registry.cranes[1].GetComponent<CraneWorkLoadPlanManager>();
         Require(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Move2 && targetMag.AttachedBoards.Count==3 && targetMag.GetAttachedTotalWeightKgForDisplay()==600 && r.Target(1).targetX==24 && r.Target(1).targetZ==6,"Move2 preloaded real boards/placement coordinates failed");
         Require(load.IsPickupBoardCountSatisfied(3) && !load.IsPickupBoardCountSatisfied(2) && !load.IsPlacementBoardCountSatisfied(3) && load.IsPlacementBoardCountSatisfied(2),"CSV board count constraint missing");

@@ -415,7 +415,9 @@ public partial class TaskSwitchExperimentCsvLogger : MonoBehaviour
                 ? tracker.CurrentMajorPhase
                 : (CraneStatusManager.WorkPhase?)null,
             tracker != null ? tracker.CurrentStepId : "",
-            "current=" + F(currentAmpere, "F2") + " A"
+            "current=" + F(currentAmpere, "F2") + " A" +
+            ";releaseCondition=" + lifMagSystem.TaskSwitchCurrentRearmCondition +
+            ";releaseThresholdA=" + F(lifMagSystem.TaskSwitchCurrentRearmThresholdAmpere, "F2")
         );
     }
 

@@ -569,9 +569,8 @@ public class CraneOperationManager : MonoBehaviour
 
         CurrentCrane.ResetSpeedLevel();
 
-        // Task Switchで板を保持中のクレーンへ操作を移す場合、
-        // 前のクレーンで使用していた低い電流入力を引き継がないようにします。
-        // まず全リフマグをONにし、40Aの仮想保持電流から再開します。
+        // 全リフマグをONにし、吸着中は70A以上、吸着なしは10A以下の
+        // 入力を確認してから、前のクレーンのスライダー入力を適用します。
         ForceCurrentCraneLifMagOnIfNeeded();
 
         if (CurrentCrane.LifMagSystem != null)

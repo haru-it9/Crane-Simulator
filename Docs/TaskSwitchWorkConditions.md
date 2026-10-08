@@ -38,6 +38,8 @@ Target,1,16,2,24,0,1,1
 
 座標は地点番号や操作UIの表示座標ではなく、CraneWorkTargetManager／BoardGeneratorと同じワールドXZです。例えばCrane1のX=-4、Crane2のX=16は、それぞれのクレーンの左側置場です。pickup座標はBoardGeneratorのSpawn Positionsに対応させ、指定枚数以上の板が必要です。テンプレートはSourceの5サイクルとTargetの8要請分を用意し、枚数はすべて1です。
 
+Move2→Placeの開始時はCSVで指定された置場の実際の厚板を、pickupCount枚まとめてリフマグへ吸着させます。別の仮の厚板は生成しません。吸着登録できない場合はConsoleにエラーを出して開始を中止します。
+
 Move1→LiftUpおよびMove2→Placeの間は同じ座標を維持します。切替元は各サイクルの開始で条件を更新し、中断からの復帰で目標を再抽選しません。Sourceの完了サイクル数は切替を挟んでも累積し、5回目のPlace完了で終了します。
 
 枚数から実際のBoardInfo.Weightの合計を計算し、重量と枚数の両方で達成を判定します。配置はリフマグが最後に吸着した板から外す順序に合わせます。placementCountはpickupCount以下です。TargetのMove2→Placeは一部配置にも対応し、余った板を保持したままその作業を終了できます。Sourceは次のMove1が吸着なしを前提とするため、最終サイクル以外のplacementCountをpickupCountと同じにしてください。無効なCSVは開始前にConsoleへ理由を表示し、開始を中止します。
@@ -56,7 +58,18 @@ Managerの **Switch Method = Operator Initiated** を選びます。
 
 Pause中は切替確認を受理せず、Start後も同じ要請待ちを維持します。要請待ちの間に切替元の5サイクルがすべて完了した場合は実験を終了します。既存の表示先切替後確認・Countdown・Phase Boundaryは、切替先画面を表示した後の確認操作を維持します。既存enum値0～2は変えず、OperatorInitiatedを3として追加しています。
 
-## CSV記録（schema 8）
+## 切替・復帰時の電流制御
+
+操作対象に切り替わった時点の吸着状態で、電流スライダーの再開条件を固定します。切替先への移行と切替元への復帰の両方に適用します。
+
+| 吸着状態 | 待機中の電流 | 通常制御へ戻る入力 |
+| --- | --- | --- |
+| 厚板あり | 仮想保持電流70A（厚板と重量を保持） | 70A以上 |
+| 厚板なし | 0A（前のクレーンの高い入力による吸着を抑止） | 10A以下 |
+
+条件を満たした入力から通常の重量判定・吸着処理を再開します。Pause中・確認入力の解除待ちには条件を判定しません。10A側の閾値は各LifMagSystemのInspectorにあるTask Switch Empty Release Current Ampere（初期値10）で設定できます。従来の累積入力モードは変更しません。ExperimentStatus(Text)は変更しません。
+
+## CSV記録（schema 9）
 
 出力は既存の12ファイルです。session.csvにwork_conditions_csvとtarget_task_pattern、events.csvにtarget_task_patternとtarget_work_condition_jsonを追加します。作業条件CSV全体と各要請の適用条件を残します。WorkConditionPreparedには座標・枚数・吊り上げ目標重量、TargetTaskSegmentStartedには開始/終了フェーズを記録します。
 
@@ -64,4 +77,4 @@ OperatorSwitchAvailableとOperatorSwitchConfirmationPressedで要請後の判断
 
 ## 検証範囲
 
-Tests/TaskSwitchFlow/run.shは実際のManager・CycleController・LoadPlanManagerを代替Unity APIで動かし、2パターン、CSV解析、5サイクル、復帰座標の保持、事前吸着・部分配置重量、作業者主導の継続・1押下切替・押下解除待ち、Pause、既存3手法、CSV要請の自動発生を検証します。BoardGeneratorの実際の選択メソッドを切り出して、上側からの枚数・重量、板不足、移動済みの板を確認します。Tests/TaskSwitchLogging/run.shで12ファイル・再集計・Pause・視線・サブタスクの回帰を確認します。Unity Editorの実描画・衝突・物理挙動と実機入力は別途確認してください。
+Tests/TaskSwitchFlow/run.shは実際のManager・CycleController・LoadPlanManagerを代替Unity APIで動かし、2パターン、CSV解析、5サイクル、復帰座標の保持、事前吸着・部分配置重量、作業者主導の継続・1押下切替・押下解除待ち、Pause、既存3手法、CSV要請の自動発生を検証します。LifMagSystem本体とCraneUnitの実際の吸着メソッドを使い、複数板の親子付け・Rigidbody固定、70A/10Aの境界値、閾値前の吸着抑止、Pause・確認ロックを検証します。BoardGeneratorの実際の選択メソッドを切り出して、上側からの枚数・重量、板不足、移動済みの板を確認します。Tests/TaskSwitchLogging/run.shで12ファイル・再集計・Pause・視線・サブタスクの回帰を確認します。Unity Editorの実描画・衝突・物理挙動と実機入力は別途確認してください。

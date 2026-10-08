@@ -1,4 +1,4 @@
-# TaskSwitchExperiment CSV（schema_version = 8）
+# TaskSwitchExperiment CSV（schema_version = 9）
 
 Task SwitchモードでStartを押すと、保存先の中に `<入力ファイル名>_<UTC時刻>_<UUID>/` を作成します。同じ名前で開始しても以前の実験を上書きしません。1セッションの標準出力は次の12ファイルです。通常の自動管理モードは既存のLoggerを使用します。Debug開始はCSVを出力しません。
 
@@ -154,6 +154,12 @@ Pauseは主タスク・切替・監視・電流制御・音/色提示を保持�
 
 音・視覚イベント/試行CSVとinput.csvに `pedal_axis_raw, pedal_positive_key, pedal_negative_key, pedal_input_source, pedal_input_conflict, plus_minus_keys_enabled` を追加します。通常/テンキーの＋/−を直接取得でき、元の軸値が0でも回答できます。raw_pedalはキーまたは軸を統合した未反転値、pedal_axis_rawはInput Managerの元値です。pedal_input_sourceはAxis / PlusMinusKeys / ConflictingKeys。両キー同時押下は回答として受理せずraw_pedalを空欄にし、中立復帰を要求します。Pause中・サブタスク停止中のinputの実入力列は空欄、plus_minus_keys_enabledは設定値を保存します。設定JSONにキー入力の有効フラグと正負のキーコードを記録します。既存の12ファイル構成と主作業の集計は維持します。
 
-## 作業条件と作業者主導切替（schema 8）
+## 作業条件と作業者主導切替（schema 9）
 
 切替先はMove1→LiftUp / Move2→PlaceをスケジュールCSVで選択します。切替元は5サイクルです。session.csvにwork_conditions_csv / target_task_pattern、events.csvにtarget_task_pattern / target_work_condition_jsonを追加し、座標・枚数・各要請の作業を記録します。設定と新イベントの説明は [TaskSwitchWorkConditions.md](TaskSwitchWorkConditions.md) を参照してください。cycle_summaryの切替先行は2フェーズの部分作業を表し、切替元の完全サイクルと分けて集計してください。既存の12ファイル構成を維持します。
+
+## 電流制御の再開条件（schema 9）
+
+crane_state.csvにcurrent_rearm_condition（None / AtLeast / AtMost）とcurrent_rearm_threshold_aを追加しました。厚板を持って操作対象に戻った場合はAtLeast・70A、空の状態ならAtMost・10Aです。safe_current_hold_active=1はどちらの条件でも解除待ちを表します。待機中は厚板ありで仮想70A、厚板なしで0Aを適用し、input.csvのrequested_current_aに実際のスライダー入力を残します。
+
+SafeCurrentHoldStarted / SafeCurrentHoldReleasedのdetailにもreleaseConditionとreleaseThresholdAを記録します。条件・閾値の列は解除後もその再開条件を保持するため、待機中かどうかはsafe_current_hold_activeで判断してください。シナリオの初期化・吸着解除ではNoneに戻します。既存のsafe_hold_release_threshold_aは厚板保持時の上側閾値70Aのままです。ファイル数は12、再集計ツールとの互換は維持します。

@@ -63,10 +63,22 @@ public class LifMagSystem : MonoBehaviour
     [Tooltip("介入開始時、スライダー電流がこの値以上になったら通常のスライダー制御に移行する")]
     [SerializeField] private float interventionReleaseCurrentAmpere = 70f;
 
+    [Tooltip("Task Switchで厚板を吸着していない場合、この電流[A]以下の入力で制御を再開します。")]
+    [SerializeField] private float taskSwitchEmptyReleaseCurrentAmpere = 10f;
+
     [Tooltip("介入開始時の仮想保持電流モード中かどうか")]
     [SerializeField] private bool isInterventionCurrentHoldMode = false;
 
     private bool isTaskSwitchSafeCurrentHoldMode = false;
+    private enum CurrentRearmCondition { None, AtLeast, AtMost }
+    private CurrentRearmCondition taskSwitchCurrentRearmCondition;
+    // The selected condition stays latched after release so the release event records it.
+    public string TaskSwitchCurrentRearmCondition => taskSwitchCurrentRearmCondition.ToString();
+    public float TaskSwitchCurrentRearmThresholdAmpere =>
+        taskSwitchCurrentRearmCondition == CurrentRearmCondition.AtMost
+            ? taskSwitchEmptyReleaseCurrentAmpere
+            : taskSwitchCurrentRearmCondition == CurrentRearmCondition.AtLeast
+                ? interventionReleaseCurrentAmpere : 0f;
 
     public bool IsTaskSwitchSafeCurrentHoldActive =>
         isTaskSwitchSafeCurrentHoldMode;
@@ -421,6 +433,7 @@ public class LifMagSystem : MonoBehaviour
             sliderSampleTimer = 0f;
             isInterventionCurrentHoldMode = false;
             isTaskSwitchSafeCurrentHoldMode = false;
+            taskSwitchCurrentRearmCondition = CurrentRearmCondition.None;
 
             CurrentSliderInput01 = 0f;
             CurrentElectricCurrentA = 0f;
@@ -526,12 +539,24 @@ public class LifMagSystem : MonoBehaviour
         float sliderCurrentA = currentInput01 * maximumCurrentAmpere;
         bool taskSwitchSafeHoldReleased = false;
 
+        if (isTaskSwitchSafeCurrentHoldMode &&
+            taskSwitchCurrentRearmCondition == CurrentRearmCondition.AtMost)
+        {
+            // Ignore the previous crane's high input, including automatic pickup,
+            // until the operator has returned the slider to the empty-board range.
+            // Compare in the slider's normalized range so a 10A input does not
+            // become 10.000001A after float multiplication and miss the boundary.
+            if (!(currentInput01 <= taskSwitchEmptyReleaseCurrentAmpere / maximumCurrentAmpere)) return;
+            isTaskSwitchSafeCurrentHoldMode = false;
+            taskSwitchSafeHoldReleased = true;
+        }
+
         // ================================
         // 介入開始時の仮想保持電流モード
         // ================================
         if (isInterventionCurrentHoldMode)
         {
-            if (sliderCurrentA >= interventionReleaseCurrentAmpere)
+            if (currentInput01 >= interventionReleaseCurrentAmpere / maximumCurrentAmpere)
             {
                 isInterventionCurrentHoldMode = false;
                 taskSwitchSafeHoldReleased =
@@ -829,6 +854,16 @@ public class LifMagSystem : MonoBehaviour
 
         CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
 
+        if (isTaskSwitchSafeCurrentHoldMode &&
+            taskSwitchCurrentRearmCondition == CurrentRearmCondition.AtMost)
+        {
+            CurrentSliderInput01 = 0f;
+            CurrentElectricCurrentA = 0f;
+            CurrentLiftCapacityKg = 0f;
+            CurrentRequiredCurrentA = GetRequiredCurrentAmpereForWeight(CurrentAttachedWeightKg);
+            return;
+        }
+
         // ================================
         // 介入開始時の仮想保持電流表示
         // ================================
@@ -878,13 +913,12 @@ public class LifMagSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Task Switchで板を保持中のクレーンへ操作を切り替える際、
-    /// 古いスライダー入力を直ちに適用せず、安全な仮想保持電流から再開します。
-    /// スライダー入力が解除電流に達するまで、表示・判定電流を固定します。
+    /// Task Switchで操作対象へ戻る際、吸着状態に合った入力を確認します。
+    /// 吸着中は70Aの仮想保持電流、吸着なしは0Aで待機します。
     /// </summary>
     public bool BeginTaskSwitchSafeCurrentHold()
     {
-        if (!IsInputValueLiftMode || !HasAttachedBoard)
+        if (!IsInputValueLiftMode)
         {
             return false;
         }
@@ -892,15 +926,19 @@ public class LifMagSystem : MonoBehaviour
         isAttachAccumulating = false;
         sliderAccumulatedValue = 0f;
         sliderSampleTimer = 0f;
-        isInterventionCurrentHoldMode = true;
+        isInterventionCurrentHoldMode = HasAttachedBoard;
         isTaskSwitchSafeCurrentHoldMode = true;
+        taskSwitchCurrentRearmCondition = HasAttachedBoard
+            ? CurrentRearmCondition.AtLeast : CurrentRearmCondition.AtMost;
+
+        float heldCurrentA = HasAttachedBoard ? interventionInitialCurrentAmpere : 0f;
 
         float fixedInput01 = Mathf.Clamp01(
-            interventionInitialCurrentAmpere / maximumCurrentAmpere
+            heldCurrentA / maximumCurrentAmpere
         );
 
         CurrentSliderInput01 = fixedInput01;
-        CurrentElectricCurrentA = interventionInitialCurrentAmpere;
+        CurrentElectricCurrentA = heldCurrentA;
         CurrentLiftCapacityKg = GetCurrentLiftCapacityKg(fixedInput01);
         CurrentAttachedWeightKg = GetAttachedTotalWeightKg();
         CurrentRequiredCurrentA =
@@ -908,14 +946,15 @@ public class LifMagSystem : MonoBehaviour
 
         Debug.Log(
             $"Task Switch安全電流保持を開始: " +
-            $"current={interventionInitialCurrentAmpere:F1} A, " +
-            $"releaseWhenAtLeast={interventionReleaseCurrentAmpere:F1} A, " +
+            $"current={heldCurrentA:F1} A, " +
+            $"releaseCondition={TaskSwitchCurrentRearmCondition}, " +
+            $"releaseThreshold={TaskSwitchCurrentRearmThresholdAmpere:F1} A, " +
             $"attachedWeight={CurrentAttachedWeightKg:F1} kg"
         );
 
         TaskSwitchSafeCurrentHoldStarted?.Invoke(
             this,
-            interventionInitialCurrentAmpere
+            heldCurrentA
         );
 
         return true;
@@ -1323,6 +1362,7 @@ public class LifMagSystem : MonoBehaviour
 
         isInterventionCurrentHoldMode = false;
         isTaskSwitchSafeCurrentHoldMode = false;
+        taskSwitchCurrentRearmCondition = CurrentRearmCondition.None;
 
         CurrentSliderInput01 = 0f;
         CurrentElectricCurrentA = 0f;
@@ -1598,6 +1638,7 @@ public class LifMagSystem : MonoBehaviour
         // まず仮想保持電流表示モードに入る
         isInterventionCurrentHoldMode = true;
         isTaskSwitchSafeCurrentHoldMode = false;
+        taskSwitchCurrentRearmCondition = CurrentRearmCondition.None;
 
         float fixedInput01 = Mathf.Clamp01(interventionInitialCurrentAmpere / maximumCurrentAmpere);
         CurrentSliderInput01 = fixedInput01;
@@ -1641,6 +1682,7 @@ public class LifMagSystem : MonoBehaviour
 
         isInterventionCurrentHoldMode = false;
         isTaskSwitchSafeCurrentHoldMode = false;
+        taskSwitchCurrentRearmCondition = CurrentRearmCondition.None;
 
         interventionForcedAttachedBoards.Clear();
 
