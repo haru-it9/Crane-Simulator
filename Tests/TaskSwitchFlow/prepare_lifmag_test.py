@@ -7,8 +7,16 @@ output = Path(sys.argv[1])
 stubs = (root / 'Tests/TaskSwitchFlow/UnityFlowStubs.cs').read_text()
 stubs = stubs[:stubs.index('public class CraneStatusManager')]
 stubs = stubs.replace('public class GameObject : Object {', 'public class GameObject : Object { public bool CompareTag(string tag) => tag=="Board"; public T[] GetComponentsInChildren<T>() where T:class {var c=GetComponent<T>();return c==null?new T[0]:new[]{c};}')
-stubs = stubs.replace('public class Transform { public Vector3 position; }', 'public class Transform { public Vector3 position,localPosition; public Quaternion rotation,localRotation; public Transform parent; public void SetParent(Transform p,bool keepWorld) {parent=p;} }')
+stubs = stubs.replace('public class Transform { public Vector3 position; }', '''public class Transform {
+    public Vector3 localPosition,localScale=Vector3.one; public Quaternion rotation,localRotation; public Transform parent;
+    public Vector3 lossyScale=>parent==null?localScale:Scale(parent.lossyScale,localScale);
+    public Vector3 position {get=>parent==null?localPosition:parent.position+Scale(parent.lossyScale,localPosition);set {localPosition=parent==null?value:Divide(value-parent.position,parent.lossyScale);}}
+    public static Vector3 Scale(Vector3 a,Vector3 b)=>new Vector3(a.x*b.x,a.y*b.y,a.z*b.z);
+    static Vector3 Divide(Vector3 a,Vector3 b)=>new Vector3(a.x/b.x,a.y/b.y,a.z/b.z);
+    public void SetParent(Transform p,bool keepWorld) {var pos=position;var size=lossyScale;parent=p;if(keepWorld) {position=pos;localScale=p==null?size:Divide(size,p.lossyScale);}}
+}''')
 stubs = stubs.replace('public static Vector3 zero', 'public static Vector3 one => new Vector3(1,1,1); public static Vector3 operator *(Vector3 a,float b) => new Vector3(a.x*b,a.y*b,a.z*b); public static Vector3 zero')
+stubs = stubs.replace('public static Vector3 operator -', 'public static Vector3 operator +(Vector3 a,Vector3 b)=>new Vector3(a.x+b.x,a.y+b.y,a.z+b.z); public static Vector3 operator -')
 stubs = stubs.replace('public static class Mathf {', 'public static class Mathf { public static float Clamp01(float x)=>Clamp(x,0,1);')
 stubs = stubs.replace('public static class Random {', 'public static class Random { public static float value=>1;')
 stubs = stubs.replace('public static bool GetKey(KeyCode key)', 'public static bool GetKeyDown(KeyCode key)=>GetKey(key); public static bool GetKey(KeyCode key)')
@@ -18,14 +26,22 @@ output.joinpath('LifMagUnityStubs.cs').write_text(stubs + '''
 namespace UnityEngine {
     public struct Quaternion { public static Quaternion identity=>new Quaternion(); public static Quaternion Euler(Vector3 e)=>identity; }
     public class Rigidbody { public bool isKinematic,useGravity=true; public Vector3 velocity,angularVelocity; }
-    public struct Bounds { public Vector3 center,size,min,extents; public void Encapsulate(Bounds b) {} }
-    public class Collider { public Bounds bounds; public GameObject gameObject; }
-    public static class Physics { public static Collider[] OverlapBox(Vector3 p,Vector3 size,Quaternion q)=>new Collider[0]; }
+    public struct Bounds {
+        public Vector3 center,size; public Bounds(Vector3 c,Vector3 s) {center=c;size=s;}
+        public Vector3 extents=>size*.5f; public Vector3 min=>center-extents; public Vector3 max=>center+extents;
+        public void Encapsulate(Bounds b) {var lo=new Vector3(Math.Min(min.x,b.min.x),Math.Min(min.y,b.min.y),Math.Min(min.z,b.min.z));var hi=new Vector3(Math.Max(max.x,b.max.x),Math.Max(max.y,b.max.y),Math.Max(max.z,b.max.z));center=(lo+hi)*.5f;size=hi-lo;}
+    }
+    public class Collider {
+        public GameObject gameObject; public bool enabled=true,isTrigger; public Vector3 LocalCenter,LocalSize=Vector3.one;
+        public Bounds bounds=>new Bounds(gameObject.transform.position+Transform.Scale(LocalCenter,gameObject.transform.lossyScale),Transform.Scale(LocalSize,gameObject.transform.lossyScale));
+    }
+    public class Renderer { public Bounds bounds; public bool enabled=true; }
+    public static class Physics { public static void SyncTransforms() {} public static Collider[] OverlapBox(Vector3 p,Vector3 size,Quaternion q)=>new Collider[0]; }
     public struct Matrix4x4 { public static Matrix4x4 identity=>new Matrix4x4(); public static Matrix4x4 TRS(Vector3 p,Quaternion q,Vector3 s)=>identity; }
     public static class Gizmos { public static Matrix4x4 matrix; public static Color color; public static void DrawWireCube(Vector3 p,Vector3 s) {} public static void DrawSphere(Vector3 p,float r) {} }
 }
 public class BoardInfo { public float Weight,SizeX=1,SizeY=.1f,SizeZ=1; public bool UsesExplicitWeight=true; }
-public class MagnetSensor { public string name="sensor"; public List<UnityEngine.GameObject> TouchingBoards=new List<UnityEngine.GameObject>(); }
+public class MagnetSensor:UnityEngine.MonoBehaviour { public List<UnityEngine.GameObject> TouchingBoards=new List<UnityEngine.GameObject>(); }
 public class HoldBoardSensor { public UnityEngine.GameObject Owner; public UnityEngine.GameObject TouchingBoard; public void SetOwnerBoard(UnityEngine.GameObject b) {Owner=b;} public void ClearOwnerBoard() {Owner=null;} }
 public static class ExperimentPauseManager {public static bool IsPaused;}
 public static class SimulatorStartManager {public static bool IsOperationEnabled=true;}

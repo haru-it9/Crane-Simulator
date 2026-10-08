@@ -111,6 +111,10 @@ public class LifMagSystem : MonoBehaviour
     private readonly HashSet<GameObject> interventionForcedAttachedBoards =
         new HashSet<GameObject>();
 
+    // Only CSV-preloaded Task Switch boards use current release without the
+    // transport/touchdown interlock. Pause and the 70A rearm gate still apply.
+    private bool allowTaskSwitchPreloadedCurrentRelease;
+
     public bool IsInputValueLiftMode =>
         liftJudgementMode == LiftJudgementMode.CurrentSliderInputByWeight;
 
@@ -267,6 +271,17 @@ public class LifMagSystem : MonoBehaviour
         return false;
     }
 
+    private bool IsCurrentReleaseProtected(out string reason)
+    {
+        if (allowTaskSwitchPreloadedCurrentRelease &&
+            craneOperationManager != null && craneOperationManager.IsTaskSwitchExperimentMode)
+        {
+            reason = string.Empty;
+            return false;
+        }
+        return IsBoardReleaseProtected(out reason);
+    }
+
     private void ResolveWorkPhaseTracker()
     {
         if (workPhaseTracker == null)
@@ -407,7 +422,7 @@ public class LifMagSystem : MonoBehaviour
                         attachedWeightKg
                     );
 
-                if (IsBoardReleaseProtected(out string lockReason))
+                if (IsCurrentReleaseProtected(out string lockReason))
                 {
                     Debug.LogWarning(
                         $"安全インターロックにより電流OFF解除を抑止: " +
@@ -601,7 +616,7 @@ public class LifMagSystem : MonoBehaviour
         // ================================
         // 表示電流値による強制吸着板の解除判定
         // ================================
-        if (!IsBoardReleaseProtected(out _) &&
+        if (!IsCurrentReleaseProtected(out _) &&
             ShouldDetachByCurrent(
                 sliderCurrentA,
                 attachedWeightKg,
@@ -821,6 +836,7 @@ public class LifMagSystem : MonoBehaviour
         }
 
         interventionForcedAttachedBoards.Remove(board);
+        if (!HasAttachedBoard) allowTaskSwitchPreloadedCurrentRelease = false;
         BoardAttachmentChanged?.Invoke(this, "BoardDetachedInsufficientCurrent", board.name);
 
         Debug.Log(
@@ -1359,6 +1375,7 @@ public class LifMagSystem : MonoBehaviour
         attachedHoldSensors.Clear();
 
         interventionForcedAttachedBoards.Clear();
+        allowTaskSwitchPreloadedCurrentRelease = false;
 
         isInterventionCurrentHoldMode = false;
         isTaskSwitchSafeCurrentHoldMode = false;
@@ -1581,6 +1598,89 @@ public class LifMagSystem : MonoBehaviour
     // 介入開始状態の再現用
     // ================================
 
+    /// <summary>
+    /// CSVの実物板を磁石の下面に上板から並べます。通常吸着と同じ
+    /// worldPositionStays=trueで親子付けし、板の実寸・向きを維持します。
+    /// </summary>
+    public bool TryPreloadTaskSwitchBoards(IReadOnlyList<GameObject> boards)
+    {
+        if (boards == null || boards.Count == 0 || magnetSensors == null) return false;
+        Physics.SyncTransforms();
+
+        bool hasSurface = false;
+        Bounds surface = new Bounds();
+        foreach (MagnetSensor sensor in magnetSensors)
+        {
+            if (sensor == null || !sensor.gameObject.activeInHierarchy) continue;
+            Collider collider = sensor.GetComponent<Collider>();
+            Renderer renderer = sensor.GetComponent<Renderer>();
+            Bounds candidate;
+            // These are the magnet contact sensors themselves, including their
+            // trigger colliders, rather than the frame/cables or held plates.
+            if (collider != null && collider.enabled) candidate = collider.bounds;
+            else if (renderer != null && renderer.enabled) candidate = renderer.bounds;
+            else continue;
+            if (candidate.size.y <= 0f) continue;
+            if (!hasSurface) { surface = candidate; hasSurface = true; }
+            else surface.Encapsulate(candidate);
+        }
+        if (!hasSurface) return false;
+
+        // Validate every plate before changing attachment or position.
+        var boardBounds = new List<Bounds>();
+        var unique = new HashSet<GameObject>();
+        foreach (GameObject board in boards)
+        {
+            Bounds bounds;
+            if (board == null || board.GetComponent<Rigidbody>() == null || !unique.Add(board) ||
+                !TryGetPreloadBoardBounds(board, out bounds)) return false;
+            boardBounds.Add(bounds);
+        }
+
+        ForceDetachAllForIntervention();
+        float topY = surface.min.y;
+        for (int i = 0; i < boards.Count; i++)
+        {
+            GameObject board = boards[i];
+            Bounds bounds = boardBounds[i];
+            board.SetActive(true);
+            board.transform.position += new Vector3(
+                surface.center.x - bounds.center.x,
+                topY - bounds.max.y,
+                surface.center.z - bounds.center.z);
+            board.transform.SetParent(transform, true);
+            ForceAttachBoardForIntervention(board, true);
+            topY -= bounds.size.y;
+        }
+        Physics.SyncTransforms();
+        allowTaskSwitchPreloadedCurrentRelease = true;
+        BoardAttachmentChanged?.Invoke(this, "TaskSwitchBoardsPreloaded",
+            $"Count={boards.Count};MagnetBottomWorldY={surface.min.y};CurrentReleaseWithoutTouchdown=True");
+        return true;
+    }
+
+    private static bool TryGetPreloadBoardBounds(GameObject board, out Bounds bounds)
+    {
+        bounds = new Bounds();
+        bool found = false;
+        foreach (Collider collider in board.GetComponentsInChildren<Collider>())
+        {
+            if (collider == null || !collider.enabled || collider.isTrigger) continue;
+            if (!found) { bounds = collider.bounds; found = true; }
+            else bounds.Encapsulate(collider.bounds);
+        }
+        if (!found)
+        {
+            foreach (Renderer renderer in board.GetComponentsInChildren<Renderer>())
+            {
+                if (renderer == null || !renderer.enabled) continue;
+                if (!found) { bounds = renderer.bounds; found = true; }
+                else bounds.Encapsulate(renderer.bounds);
+            }
+        }
+        return found && bounds.size.y > 0f;
+    }
+
     public void ForceAttachBoardForIntervention(GameObject board, bool append = false)
     {
         if (board == null) return;
@@ -1685,6 +1785,7 @@ public class LifMagSystem : MonoBehaviour
         taskSwitchCurrentRearmCondition = CurrentRearmCondition.None;
 
         interventionForcedAttachedBoards.Clear();
+        allowTaskSwitchPreloadedCurrentRelease = false;
 
         CurrentSliderInput01 = 0f;
         CurrentElectricCurrentA = 0f;

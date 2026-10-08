@@ -71,15 +71,8 @@ public partial class TaskSwitchExperimentManager
         {
             if(crane.LifMagSystem==null) { Debug.LogError("Move2ToPlace requires LifMagSystem",this);return false; }
             // Use the real boards and their CSV weights, rather than resizing a synthetic single plate.
-            crane.CraneUnit.ClearInterventionBoardAttachment();
-            float depth=0;
-            foreach(var board in boards)
-            {
-                var info=board.GetComponent<BoardInfo>();
-                float thickness=info.SizeY;
-                crane.CraneUnit.SetInterventionBoardAttached(board,new Vector3(0,-depth-thickness*.5f,0),Vector3.zero,true);
-                depth+=thickness;
-            }
+            if(!crane.LifMagSystem.TryPreloadTaskSwitchBoards(boards))
+            { Debug.LogError("Move2ToPlace: magnet contact surface or pickup board geometry is missing",this);return false; }
             if(crane.LifMagSystem.AttachedBoards.Count!=boards.Count)
             { Debug.LogError("Move2ToPlace: pickup boards were not attached to the lifting magnet",this);return false; }
             for(int i=0;i<boards.Count;i++)
