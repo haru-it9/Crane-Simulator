@@ -1173,7 +1173,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -100}
   m_SizeDelta: {x: 1500, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14138010
@@ -144700,7 +144700,7 @@ MonoBehaviour:
   currentControlIndicatorSize: {x: 180, y: 100}
   currentControlAvailableColor: {r: 0.3, g: 0.85, b: 0.4, a: 1}
   currentControlUnavailableColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
-  inputMode: 0
+  inputMode: 1
   speedControlMode: 1
   debugMode: 0
   joyStick2Horizontal: JoyStick2Horizontal
@@ -159863,7 +159863,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 700, y: 0}
+  m_AnchoredPosition: {x: 700, y: -110}
   m_SizeDelta: {x: 250, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1784259947
@@ -183136,7 +183136,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 69119a8064278c84d8be2dddb0799b01, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
 --- !u!114 &2080963381
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -183153,7 +183153,7 @@ MonoBehaviour:
   joyStick2Vertical: JoyStick2Vertical
   joyStick3Vertical: JoyStick3Vertical
   joyStick3Slider: JoyStick3Slider
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
   logInterval: 0.05
   flushEveryLines: 100
 --- !u!114 &2080963382
@@ -183213,7 +183213,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b985f06951a1d9d478c99a27c00f61c0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
   craneTransform: {fileID: 1514171645}
   logInterval: 0.05
   flushEveryLines: 100
@@ -183229,7 +183229,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b28cf6fb507d024a970a266f13f12a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
   logInterval: 0.05
   flushEveryLines: 100
 --- !u!114 &2080963386
@@ -183244,7 +183244,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70641a283f8d48b4da145fcd001f714a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
   craneInformationDisplay: {fileID: 565197926}
   lifMagAccumValueTexts:
   - {fileID: 1120257988}
@@ -183266,7 +183266,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 492a24ff789109140af8a004015b4568, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
   craneRegistry: {fileID: 2123578659}
   craneStatusManager: {fileID: 825525979}
   craneStockManager: {fileID: 1791779318}
@@ -183286,7 +183286,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1885f85f6e983ed468cf4e26fd2f9b16, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveFolderPath: C:\Users\sakin\OneDrive\Desktop\unity\Crane-Simulator\Assets\yuba_EyeTrackData
+  saveFolderPath: C:\Users\harui\GitHub\Crane-Simulator\Assets\ExperimentData
   taskSwitchExperimentManager: {fileID: 333508956}
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
