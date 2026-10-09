@@ -28,7 +28,7 @@ public class TobiiDebugCheck : MonoBehaviour
 
         try
         {
-            // Let the SDK tick before reading native connection/initialization status.
+            // Compare the selector result with the SDK stream to identify where gaze is rejected.
             GazePoint gazePoint = TobiiTrackedGameView.GetGazePoint();
             Debug.Log(
                 "Tobii IsConnected = " + TobiiAPI.IsConnected +
@@ -39,12 +39,32 @@ public class TobiiDebugCheck : MonoBehaviour
                 ", ExperimentPaused = " + ExperimentPauseManager.IsPaused +
                 ", GameScreen = " + Screen.width + "x" + Screen.height +
                 ", GameViewSelection = " + TobiiTrackedGameView.SelectionStatus +
+                ReadSdkGazeDiagnostics() +
                 ", " + ReadHostDiagnostics() + ReadNativeDiagnostics()
             );
         }
         catch (Exception exception)
         {
             Debug.LogWarning("Tobii diagnostic failed: " + exception.GetType().Name + ": " + exception.Message);
+        }
+    }
+
+    private static string ReadSdkGazeDiagnostics()
+    {
+        try
+        {
+            // Diagnostic only: do not feed this unverified window's point to the CSV loggers.
+            GazePoint point = TobiiAPI.GetGazePoint();
+            return ", SdkGazeIsValid = " + point.IsValid +
+                ", SdkGazeIsRecent = " + point.IsRecent() +
+                ", SdkScreen = " + point.Screen +
+                ", SdkViewport = " + point.Viewport +
+                ", SdkGazeTimestamp = " + point.Timestamp.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) +
+                ", SdkGazeAge = " + (Time.unscaledTime - point.Timestamp).ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (Exception exception)
+        {
+            return ", SdkGazeDiagnostics = " + exception.GetType().Name + ": " + exception.Message;
         }
     }
 
