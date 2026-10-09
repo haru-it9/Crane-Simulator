@@ -91,7 +91,9 @@ public class TobiiTrackedGameView : MonoBehaviour
     }
 
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+    // ready means a matching Game view is bound; each sample still needs a connected, fresh SDK point.
     private bool ready, enumerationPending;
+    private bool trackWindowAccepted;
     private float nextSearch, nextEnumeration;
     private List<TrackerInfo> enumeratedTrackers;
     private IntPtr selected;
@@ -177,7 +179,11 @@ public class TobiiTrackedGameView : MonoBehaviour
         if (changed)
         {
             ready = false;
-            if (!NativeApi.TrackWindow(chosen)) { Reject("TrackWindowRejected:" + monitor); return; }
+            // Keep the verified window binding even if the native call returns false.
+            // The SDK also calls TrackWindow each frame. Restoring its old HWND here
+            // makes this selector rebind on every search and can interrupt stream recovery.
+            // Recording still requires an actual fresh point after this cache reset.
+            trackWindowAccepted = NativeApi.TrackWindow(chosen);
             NativeApi.GetGazePoints(); // Discard queued coordinates from the previous window.
             ClearLastGaze(host);
             changedFrame = Time.frameCount;
@@ -186,7 +192,10 @@ public class TobiiTrackedGameView : MonoBehaviour
         selectedMonitor = monitor;
         selectedBounds = bounds;
         ready = true;
-        SetStatus("Matched:" + monitor + ":0x" + chosen.ToInt64().ToString("X"), false);
+        if (changed)
+            SetStatus((trackWindowAccepted ? "Matched:" : "Bound:") + monitor +
+                ":0x" + chosen.ToInt64().ToString("X") +
+                (trackWindowAccepted ? "" : ":TrackWindowReturnedFalse"), !trackWindowAccepted);
     }
 
     private TrackerInfo ReadConfiguredTracker()
