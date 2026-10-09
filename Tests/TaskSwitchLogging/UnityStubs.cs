@@ -122,7 +122,7 @@ namespace UnityEngine.SceneManagement
 }
 namespace Tobii.Gaming
 {
-    public class GazePoint { public bool IsValid; public UnityEngine.Vector2 Viewport,Screen; public float Timestamp; public static GazePoint Invalid => new GazePoint { Viewport=new UnityEngine.Vector2(float.NaN,float.NaN),Screen=new UnityEngine.Vector2(float.NaN,float.NaN) }; }
+    public class GazePoint { public bool IsValid; public UnityEngine.Vector2 Viewport,Screen; public float Timestamp; public bool IsRecent() { return IsValid && UnityEngine.Time.unscaledTime - Timestamp < 0.5f; } public static GazePoint Invalid => new GazePoint { Viewport=new UnityEngine.Vector2(float.NaN,float.NaN),Screen=new UnityEngine.Vector2(float.NaN,float.NaN) }; }
     public static class TobiiAPI { public static bool IsConnected; public static GazePoint gaze = new GazePoint(); public static GazePoint GetGazePoint() { return gaze; } }
 }
 public enum CraneWorkTargetXSelection { Random }

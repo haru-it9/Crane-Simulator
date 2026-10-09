@@ -28,7 +28,7 @@ public class TobiiDebugCheck : MonoBehaviour
 
         try
         {
-            // Compare the selector result with the SDK stream to identify where gaze is rejected.
+            // Compare the CSV sample checks with the original SDK point (for example, stale data).
             GazePoint gazePoint = TobiiTrackedGameView.GetGazePoint();
             Debug.Log(
                 "Tobii IsConnected = " + TobiiAPI.IsConnected +
@@ -53,7 +53,7 @@ public class TobiiDebugCheck : MonoBehaviour
     {
         try
         {
-            // Diagnostic only: do not feed this unverified window's point to the CSV loggers.
+            // Keep the original SDK validity/timestamp visible when the CSV reader rejects a stale or nonfinite point.
             GazePoint point = TobiiAPI.GetGazePoint();
             return ", SdkGazeIsValid = " + point.IsValid +
                 ", SdkGazeIsRecent = " + point.IsRecent() +
