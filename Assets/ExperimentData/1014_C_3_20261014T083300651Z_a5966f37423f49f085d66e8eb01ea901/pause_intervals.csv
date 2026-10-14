@@ -1,0 +1,4 @@
+﻿session_id,participant_id,block_id,experiment_run_index,pause_interval_index,start_s,end_s,duration_s,start_observed,end_observed,outcome,start_switch_index,end_switch_index,start_crane_index,end_crane_index,start_state,end_state,start_phase,start_step,end_phase,end_step
+20261014T083300651Z_a5966f37423f49f085d66e8eb01ea901,,,1,1,0.028152,4.773154,4.745002,0,1,Resumed,0,0,-1,-1,Idle,Idle,,,,
+20261014T083300651Z_a5966f37423f49f085d66e8eb01ea901,,,1,2,602.322161,607.188163,4.866003,1,1,Resumed,7,7,0,0,OperatingSource,OperatingSource,Place,Place.PlacementLowering,Place,Place.PlacementLowering
+20261014T083300651Z_a5966f37423f49f085d66e8eb01ea901,,,1,3,619.847181,623.821403,3.974222,1,0,LoggingStoppedWhilePaused,7,7,0,0,OperatingSource,OperatingSource,Place,Place.PlacementLowering,Place,Place.PlacementLowering
