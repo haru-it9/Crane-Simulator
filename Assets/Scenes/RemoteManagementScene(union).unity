@@ -30003,8 +30003,8 @@ MonoBehaviour:
     invertPedalAxis: 0
     pressThreshold: 0.5
     releaseThreshold: 0.2
-    minimumIntervalSeconds: 5
-    maximumIntervalSeconds: 10
+    minimumIntervalSeconds: 2
+    maximumIntervalSeconds: 5
     minimumValidReactionSeconds: 0.1
     randomSeed: 0
   visualLeftIndicator: {fileID: 9000001004}
@@ -53252,7 +53252,6 @@ MonoBehaviour:
   achievedValueColor: {r: 0.65, g: 1, b: 0.1, a: 1}
   fineAlignTolerance: 0.05
   weightToleranceKg: 100
-  coordinateHighlightReleaseLocalY: -1.66
   boardDensity: 7850
   weightDisplayHeight: 0.2
   zeroWeightText: 0.00 t
@@ -188768,7 +188767,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9000001001}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -188778,7 +188777,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -1900, y: 0}
+  m_AnchoredPosition: {x: -2571.4287, y: 971.4286}
   m_SizeDelta: {x: 120, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &9000001003
@@ -188844,7 +188843,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9000001005}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -188854,7 +188853,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1900, y: 0}
+  m_AnchoredPosition: {x: 2571.4287, y: 971.4286}
   m_SizeDelta: {x: 120, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &9000001007
