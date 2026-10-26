@@ -1529,6 +1529,30 @@ public class CraneOperationManager : MonoBehaviour
         float mainYInput = GetMainLifMagYInput();
         float mainZInput = GetMainCraneZInput();
 
+        // 入力取得・生ログは変更せず、機体へ渡す操作値だけを制限します。
+        // ReadMovementCommand()は制限前、LastAcceptedMovementは制限後の値です。
+        CraneWorkPhaseTracker phaseTracker =
+            FindComponentForCrane<CraneWorkPhaseTracker>(CurrentCraneInstance);
+
+        if (phaseTracker != null &&
+            !string.IsNullOrEmpty(phaseTracker.CurrentStepId))
+        {
+            switch (phaseTracker.CurrentMajorPhase)
+            {
+                case CraneStatusManager.WorkPhase.Move1:
+                case CraneStatusManager.WorkPhase.Move2:
+                    mainYInput = 0f;
+                    break;
+
+                case CraneStatusManager.WorkPhase.LiftUp:
+                case CraneStatusManager.WorkPhase.Place:
+                case CraneStatusManager.WorkPhase.PlaceToTrack:
+                    mainXInput = 0f;
+                    mainZInput = 0f;
+                    break;
+            }
+        }
+
         CurrentCrane.MoveMainLifMagX(mainXInput);
         CurrentCrane.MoveMainLifMagY(mainYInput);
         CurrentCrane.MoveMainCraneZ(mainZInput);
