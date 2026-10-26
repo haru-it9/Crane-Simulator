@@ -91,9 +91,10 @@ public class CraneUnit
 {
     public bool IsDownwardMovementBlockedByTouchdown;
     public float LocalY, LoweringDistance=1.2f; public bool DistanceKnown=true;
+    public int RaisingQueries,LoweringQueries;
     public bool TryGetMainLifMagLocalY(out float y) { y=LocalY;return true; }
-    public bool TryGetSupportRaisingDistance(float target,out float d) { d=Math.Max(0,target-LocalY);return DistanceKnown; }
-    public bool TryGetSupportLoweringDistance(out float d) { d=LoweringDistance;return DistanceKnown; }
+    public bool TryGetSupportRaisingDistance(float target,out float d) { RaisingQueries++;d=Math.Max(0,target-LocalY);return DistanceKnown; }
+    public bool TryGetSupportLoweringDistance(out float d) { LoweringQueries++;d=LoweringDistance;return DistanceKnown; }
 }
 public class CraneWorkPhaseTracker
 {

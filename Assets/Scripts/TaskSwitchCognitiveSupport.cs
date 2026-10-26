@@ -28,7 +28,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private TaskSwitchDirectionPresentation directionPresentation =
         TaskSwitchDirectionPresentation.SingleArrow;
     private const int maximumChevrons = 3;
-    [Tooltip("山形記号1個に相当する残り距離（ワールド座標単位）。各軸で個別に計算します。")]
+    [Tooltip("切替・復帰時点の残り距離に対する山形記号1個分の距離。個数は次の切替・復帰まで固定します。")]
     [SerializeField, Min(0.01f)] private float xDistancePerChevron = 0.5f;
     [SerializeField, Min(0.01f)] private float yDistancePerChevron = 0.5f;
     [SerializeField, Min(0.01f)] private float zDistancePerChevron = 2f;
@@ -64,6 +64,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private CraneWorkStepDefinition previewStep;
     private CraneStatusManager.WorkPhase previewPhase;
     private string lastPresentation = string.Empty;
+    private bool chevronCountsCaptured, capturedVerticalDistanceKnown;
+    private int capturedXCount = 1, capturedYCount = 1, capturedZCount = 1;
 
     public TaskSwitchSupportContent SupportContent => supportContent;
     public float DisplaySeconds => displaySeconds;
@@ -144,6 +146,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         targetSide = isTarget;
         awaitingConfirmation = true;
         previewStep = null;
+        chevronCountsCaptured = false;
         lastPresentation = string.Empty;
         hideAt = ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, displaySeconds);
         visible = true;
@@ -152,6 +155,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";Content=" + supportContent + ";DurationSeconds=" +
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
+            ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
             ";DistancePerChevron=" + xDistancePerChevron.ToString(CultureInfo.InvariantCulture) + "," +
             yDistancePerChevron.ToString(CultureInfo.InvariantCulture) + "," +
             zDistancePerChevron.ToString(CultureInfo.InvariantCulture) +
@@ -213,22 +217,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
         bool showPhase = supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool showDirection = supportContent != TaskSwitchSupportContent.PhaseOnly;
-        Vector3 distances = position != null
-            ? TaskSwitchSupportGuidance.RemainingTravelDistance(step, position.position, hasGoal, goalX, goalZ)
-            : Vector3.zero;
-        bool hasVerticalDistance = false;
-        float verticalDistance = -1f, raisingTarget;
-        if (showDirection && directionPresentation == TaskSwitchDirectionPresentation.DistanceChevrons && unit != null)
-        {
-            if (movement.y < 0f)
-                hasVerticalDistance = unit.TryGetSupportLoweringDistance(out verticalDistance);
-            else if (movement.y > 0f && TaskSwitchSupportGuidance.TryGetRaisingTarget(step, out raisingTarget))
-                hasVerticalDistance = unit.TryGetSupportRaisingDistance(raisingTarget, out verticalDistance);
-        }
-        int xCount = TaskSwitchSupportGuidance.ChevronCount(distances.x, xDistancePerChevron, maximumChevrons);
-        int yCount = TaskSwitchSupportGuidance.ChevronCount(hasVerticalDistance ? verticalDistance : -1f,
-            yDistancePerChevron, maximumChevrons);
-        int zCount = TaskSwitchSupportGuidance.ChevronCount(distances.z, zDistancePerChevron, maximumChevrons);
+        if (!chevronCountsCaptured)
+            CaptureChevronCounts(step, position, unit, movement, hasGoal, goalX, goalZ);
+        int xCount = capturedXCount, yCount = capturedYCount, zCount = capturedZCount;
         string label = TaskSwitchSupportGuidance.PhaseLabel(phase);
         if (phaseText != null)
         {
@@ -249,12 +240,37 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";ChevronsX=" + DisplayedCount(showDirection, movement.x, xCount) +
             ";ChevronsY=" + DisplayedCount(showDirection, movement.y, yCount) +
             ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
-            ";VerticalDistanceKnown=" + hasVerticalDistance;
+            ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
+            ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True";
         if (presentation != lastPresentation)
         {
             lastPresentation = presentation;
             Record("Updated", presentation);
         }
+    }
+
+    private void CaptureChevronCounts(CraneWorkStepDefinition step, Transform position,
+        CraneUnit unit, Vector3 movement, bool hasGoal, float goalX, float goalZ)
+    {
+        // Called once in the display-switch/return event. Confirmation, movement and phase
+        // changes may update visibility/direction, but must never recalculate the glyph counts.
+        Vector3 distances = position != null
+            ? TaskSwitchSupportGuidance.RemainingTravelDistance(step, position.position, hasGoal, goalX, goalZ)
+            : Vector3.zero;
+        capturedVerticalDistanceKnown = false;
+        float verticalDistance = -1f, raisingTarget;
+        if (directionPresentation == TaskSwitchDirectionPresentation.DistanceChevrons && unit != null)
+        {
+            if (movement.y < 0f)
+                capturedVerticalDistanceKnown = unit.TryGetSupportLoweringDistance(out verticalDistance);
+            else if (movement.y > 0f && TaskSwitchSupportGuidance.TryGetRaisingTarget(step, out raisingTarget))
+                capturedVerticalDistanceKnown = unit.TryGetSupportRaisingDistance(raisingTarget, out verticalDistance);
+        }
+        capturedXCount = TaskSwitchSupportGuidance.ChevronCount(distances.x, xDistancePerChevron, maximumChevrons);
+        capturedYCount = TaskSwitchSupportGuidance.ChevronCount(capturedVerticalDistanceKnown ? verticalDistance : -1f,
+            yDistancePerChevron, maximumChevrons);
+        capturedZCount = TaskSwitchSupportGuidance.ChevronCount(distances.z, zDistancePerChevron, maximumChevrons);
+        chevronCountsCaptured = true;
     }
 
     private int DisplayedCount(bool shown, float command, int count)
