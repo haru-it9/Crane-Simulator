@@ -24,6 +24,15 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private TaskSwitchSupportContent supportContent =
         TaskSwitchSupportContent.PhaseAndInputDirection;
 
+    [Header("入力方向の表示パターン")]
+    [SerializeField] private TaskSwitchDirectionPresentation directionPresentation =
+        TaskSwitchDirectionPresentation.SingleArrow;
+    private const int maximumChevrons = 3;
+    [Tooltip("山形記号1個に相当する残り距離（ワールド座標単位）。各軸で個別に計算します。")]
+    [SerializeField, Min(0.01f)] private float xDistancePerChevron = 0.5f;
+    [SerializeField, Min(0.01f)] private float yDistancePerChevron = 0.5f;
+    [SerializeField, Min(0.01f)] private float zDistancePerChevron = 2f;
+
     [Header("表示時間")]
     [Tooltip("画面切替・復帰からの表示秒数。一時停止時間を除く固定時間です。")]
     [SerializeField, Min(0.1f)] private float displaySeconds = 8f;
@@ -142,6 +151,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         Record("Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
             ";Content=" + supportContent + ";DurationSeconds=" +
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
+            ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
+            ";DistancePerChevron=" + xDistancePerChevron.ToString(CultureInfo.InvariantCulture) + "," +
+            yDistancePerChevron.ToString(CultureInfo.InvariantCulture) + "," +
+            zDistancePerChevron.ToString(CultureInfo.InvariantCulture) +
             ";PositiveXUp=" + positiveXPointsUp + ";PositiveYUp=" + positiveYPointsUp +
             ";PositiveZRight=" + positiveZPointsRight);
         RefreshPresentation();
@@ -200,6 +213,22 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
         bool showPhase = supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool showDirection = supportContent != TaskSwitchSupportContent.PhaseOnly;
+        Vector3 distances = position != null
+            ? TaskSwitchSupportGuidance.RemainingTravelDistance(step, position.position, hasGoal, goalX, goalZ)
+            : Vector3.zero;
+        bool hasVerticalDistance = false;
+        float verticalDistance = -1f, raisingTarget;
+        if (showDirection && directionPresentation == TaskSwitchDirectionPresentation.DistanceChevrons && unit != null)
+        {
+            if (movement.y < 0f)
+                hasVerticalDistance = unit.TryGetSupportLoweringDistance(out verticalDistance);
+            else if (movement.y > 0f && TaskSwitchSupportGuidance.TryGetRaisingTarget(step, out raisingTarget))
+                hasVerticalDistance = unit.TryGetSupportRaisingDistance(raisingTarget, out verticalDistance);
+        }
+        int xCount = TaskSwitchSupportGuidance.ChevronCount(distances.x, xDistancePerChevron, maximumChevrons);
+        int yCount = TaskSwitchSupportGuidance.ChevronCount(hasVerticalDistance ? verticalDistance : -1f,
+            yDistancePerChevron, maximumChevrons);
+        int zCount = TaskSwitchSupportGuidance.ChevronCount(distances.z, zDistancePerChevron, maximumChevrons);
         string label = TaskSwitchSupportGuidance.PhaseLabel(phase);
         if (phaseText != null)
         {
@@ -207,15 +236,20 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             phaseText.text = label;
         }
         SetArrow(leftXGroup, leftXArrow, showDirection ? movement.x : 0f,
-            positiveXPointsUp, true);
+            positiveXPointsUp, true, xCount);
         SetArrow(rightYGroup, rightYArrow, showDirection ? movement.y : 0f,
-            positiveYPointsUp, true);
+            positiveYPointsUp, true, yCount);
         SetArrow(rightZGroup, rightZArrow, showDirection ? movement.z : 0f,
-            positiveZPointsRight, false);
+            positiveZPointsRight, false, zCount);
 
         string presentation = "Phase=" + phase + ";Step=" + (step != null ? step.stepId : "") +
             ";X=" + movement.x + ";Y=" + movement.y + ";Z=" + movement.z +
-            ";Content=" + supportContent + ";GoalAvailable=" + hasGoal;
+            ";Content=" + supportContent + ";GoalAvailable=" + hasGoal +
+            ";DirectionPresentation=" + directionPresentation +
+            ";ChevronsX=" + DisplayedCount(showDirection, movement.x, xCount) +
+            ";ChevronsY=" + DisplayedCount(showDirection, movement.y, yCount) +
+            ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
+            ";VerticalDistanceKnown=" + hasVerticalDistance;
         if (presentation != lastPresentation)
         {
             lastPresentation = presentation;
@@ -223,11 +257,18 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
     }
 
-    private static void SetArrow(RectTransform group, TaskSwitchSupportArrow arrow,
-        float command, bool positiveDirection, bool vertical)
+    private int DisplayedCount(bool shown, float command, int count)
+    {
+        if (!shown || command == 0f) return 0;
+        return directionPresentation == TaskSwitchDirectionPresentation.DistanceChevrons ? count : 1;
+    }
+
+    private void SetArrow(RectTransform group, TaskSwitchSupportArrow arrow,
+        float command, bool positiveDirection, bool vertical, int count)
     {
         if (group != null) group.gameObject.SetActive(command != 0f);
         if (arrow == null) return;
+        arrow.SetPresentation(directionPresentation, count, maximumChevrons);
         bool positive = (command > 0f) == positiveDirection;
         float angle = vertical ? (positive ? 0f : 180f) : (positive ? -90f : 90f);
         arrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, angle);

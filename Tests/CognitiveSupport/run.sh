@@ -13,4 +13,7 @@ trap 'rm -rf "$output"' EXIT
     "$root/Tests/CognitiveSupport/SupportStubs.cs" \
     "$root/Tests/CognitiveSupport/SupportTests.cs"
 "${MONO:-mono}" "$output/support.exe"
+python3 "$root/Tests/CognitiveSupport/prepare_distance_test.py" "$output"
+"${MCS:-mcs}" -out:"$output/distances.exe" "$output/DistanceProduction.cs" "$root/Tests/CognitiveSupport/DistanceProbeTests.cs"
+"${MONO:-mono}" "$output/distances.exe"
 python3 "$root/Tests/CognitiveSupport/check_scene.py"

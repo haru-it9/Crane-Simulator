@@ -8,7 +8,11 @@ assert len(docs)==len(re.findall(r'^--- !u!',s,re.M))
 component=docs['9000010090'][1]
 for key,id in {'experimentManager':'333508956','operationManager':'1612894383','supportRoot':'9000010000','phaseText':'9000010013','leftXGroup':'9000010021','leftXArrow':'9000010025','rightYGroup':'9000010041','rightYArrow':'9000010045','rightZGroup':'9000010061','rightZArrow':'9000010065'}.items():
     assert f'{key}: {{fileID: {id}}}' in component and id in docs,key
-assert 'supportContent: 2' in component and 'displaySeconds: 8' in component
+assert 'supportContent: 2' in component
+assert float(re.search(r'^  displaySeconds: (.+)$',component,re.M)[1])>0
+assert 'directionPresentation: 1' in component
+for field,value in [('xDistancePerChevron','0.5'),('yDistancePerChevron','0.5'),('zDistancePerChevron','2')]:
+    assert f'{field}: {value}' in component
 assert 'm_IsActive: 0' in docs['9000010000'][1]
 assert '  - {fileID: 9000010001}' in docs['1796973733'][1]
 for base in [9000010020,9000010040,9000010060]:

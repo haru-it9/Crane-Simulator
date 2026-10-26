@@ -3,6 +3,47 @@ using UnityEngine;
 /// <summary>Side-effect-free desired movement calculation, in CraneUnit command axes.</summary>
 public static class TaskSwitchSupportGuidance
 {
+    /// <summary>One glyph per distance interval, capped; unknown distance shows direction only.</summary>
+    public static int ChevronCount(float remainingDistance, float distancePerChevron, int maximum)
+    {
+        maximum = Mathf.Clamp(maximum, 1, 3);
+        if (!IsFinite(remainingDistance) || remainingDistance < 0f) return 1;
+        if (!IsFinite(distancePerChevron) || distancePerChevron <= 0f) distancePerChevron = 1f;
+        // Clamp before converting to int so very large distances cannot overflow.
+        return Mathf.Max(1, Mathf.CeilToInt(Mathf.Min(maximum, remainingDistance / distancePerChevron)));
+    }
+
+    public static Vector3 RemainingTravelDistance(CraneWorkStepDefinition step,
+        Vector3 current, bool hasGoal, float goalX, float goalZ)
+    {
+        if (step == null || step.completionConditions == null || !hasGoal ||
+            !IsFinite(goalX) || !IsFinite(goalZ) || !IsFinite(current.x) || !IsFinite(current.z))
+            return Vector3.zero;
+        foreach (CraneWorkConditionDefinition condition in step.completionConditions)
+        {
+            if (condition == null || condition.conditionType != CraneWorkConditionType.PositionWithinTarget)
+                continue;
+            return new Vector3(
+                Mathf.Max(0f, Mathf.Abs(goalX - current.x) - Mathf.Max(0f, condition.threshold)), 0f,
+                Mathf.Max(0f, Mathf.Abs(goalZ - current.z) - Mathf.Max(0f, condition.secondaryThreshold)));
+        }
+        return Vector3.zero;
+    }
+
+    public static bool TryGetRaisingTarget(CraneWorkStepDefinition step, out float targetLocalY)
+    {
+        targetLocalY = 0f;
+        if (step == null || step.completionConditions == null) return false;
+        foreach (CraneWorkConditionDefinition condition in step.completionConditions)
+        {
+            if (condition == null || condition.conditionType != CraneWorkConditionType.MainLifMagLocalYAtLeast ||
+                !IsFinite(condition.threshold)) continue;
+            targetLocalY = condition.threshold;
+            return true;
+        }
+        return false;
+    }
+
     public static string PhaseLabel(CraneStatusManager.WorkPhase phase)
     {
         switch (phase)

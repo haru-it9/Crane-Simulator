@@ -164,6 +164,65 @@ public class CraneUnit : MonoBehaviour
         return true;
     }
 
+    /// <summary>Read-only world-distance estimate for the optional support display.</summary>
+    public bool TryGetSupportRaisingDistance(float targetLocalY, out float distance)
+    {
+        distance = 0f;
+        if (mainLifMag == null || float.IsNaN(targetLocalY) || float.IsInfinity(targetLocalY)) return false;
+        float scale = mainLifMag.parent != null ? Mathf.Abs(mainLifMag.parent.lossyScale.y) : 1f;
+        distance = Mathf.Max(0f, targetLocalY - mainLifMag.localPosition.y) * scale;
+        return !float.IsNaN(distance) && !float.IsInfinity(distance);
+    }
+
+    /// <summary>
+    /// Preview distance to the same surfaces used by the existing downward stop checks.
+    /// Does not move, latch touchdown, modify debug state, or emit work events.
+    /// Unknown surfaces return false rather than estimating from a previous touchdown.
+    /// </summary>
+    public bool TryGetSupportLoweringDistance(out float distance)
+    {
+        distance = 0f;
+        if (IsDownwardMovementBlockedByTouchdown) return true;
+        if (mainLifMag == null) return false;
+        float scale = mainLifMag.parent != null ? Mathf.Abs(mainLifMag.parent.lossyScale.y) : 1f;
+        float maxDistance = Mathf.Max(0f, mainLifMag.localPosition.y - minMainY) * scale;
+        if (maxDistance <= 0f || float.IsNaN(maxDistance) || float.IsInfinity(maxDistance)) return false;
+        float nearest = float.PositiveInfinity;
+        bool attached = lifMagSystem != null && lifMagSystem.HasAttachedBoard;
+        if (attached)
+        {
+            GameObject lowestBoard;
+            Collider boardCollider;
+            if (!TryGetLowestAttachedBoardCollider(out lowestBoard, out boardCollider)) return false;
+            Bounds bounds = boardCollider.bounds;
+            Vector3 origin = new Vector3(bounds.center.x, bounds.min.y + skinWidth, bounds.center.z);
+            Vector3 halfExtents = new Vector3(bounds.extents.x * 0.95f, skinWidth, bounds.extents.z * 0.95f);
+            RaycastHit[] hits = Physics.BoxCastAll(origin, halfExtents, Vector3.down,
+                boardCollider.transform.rotation, maxDistance, boardLayer, QueryTriggerInteraction.Ignore);
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider == null || IsColliderPartOfAttachedBoard(hit.collider)) continue;
+                if (!HasTagOnSelfOrParent(hit.collider, "Board") && !HasTagOnSelfOrParent(hit.collider, "BoardStage")) continue;
+                if (hit.distance >= 0f && hit.distance < nearest) nearest = hit.distance;
+            }
+        }
+        else if (lifMags != null)
+        {
+            foreach (LifMagSetting setting in lifMags)
+            {
+                if (setting == null || setting.downCheckOrigin == null) continue;
+                Transform origin = setting.downCheckOrigin;
+                RaycastHit hit;
+                if (Physics.BoxCast(origin.position, downCheckHalfExtents, Vector3.down, out hit,
+                    origin.rotation, maxDistance, boardLayer, QueryTriggerInteraction.Ignore) &&
+                    hit.distance >= 0f && hit.distance < nearest) nearest = hit.distance;
+            }
+        }
+        if (float.IsInfinity(nearest)) return false;
+        distance = Mathf.Max(0f, nearest);
+        return true;
+    }
+
     public void SetJoystickStepSpeedMode(bool enabled)
     {
         useJoystickStepSpeed = enabled;

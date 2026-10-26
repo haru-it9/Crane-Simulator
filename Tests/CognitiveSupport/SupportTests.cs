@@ -39,6 +39,18 @@ public static class SupportTests
         Check(Guidance("LiftUp.LoadAcquisition",0,0).y==0,"Acquiring weight is not movement");
         Check(Guidance("Place.LoadRelease",0,0).y==0,"Release weight is not movement");
 
+        Check(TaskSwitchSupportGuidance.ChevronCount(.5f,.5f,3)==1,"Near distance: one chevron at boundary");
+        Check(TaskSwitchSupportGuidance.ChevronCount(.5001f,.5f,3)==2,"Middle distance: two chevrons");
+        Check(TaskSwitchSupportGuidance.ChevronCount(1f,.5f,3)==2,"Middle upper boundary");
+        Check(TaskSwitchSupportGuidance.ChevronCount(1.0001f,.5f,3)==3,"Far distance: three chevrons");
+        Check(TaskSwitchSupportGuidance.ChevronCount(float.MaxValue,.01f,3)==3,"Far distances cap without integer overflow");
+        Check(TaskSwitchSupportGuidance.ChevronCount(float.NaN,.5f,3)==1&&
+            TaskSwitchSupportGuidance.ChevronCount(-1,.5f,3)==1,"Unknown distances show direction only");
+        var remaining=TaskSwitchSupportGuidance.RemainingTravelDistance(Step("Move1.PickupCoarseMove"),Vector3.zero,true,2,-2);
+        Check(remaining.x==1.5f&&remaining.z==1.5f,"Travel distance measured to acceptable range");
+        remaining=TaskSwitchSupportGuidance.RemainingTravelDistance(Step("Move1.PickupCoarseMove"),Vector3.zero,true,.2f,0);
+        Check(remaining.x==0&&remaining.z==0,"Distances cannot become negative inside tolerance");
+
         var manager=new TaskSwitchExperimentManager();
         var tracker=new CraneWorkPhaseTracker { CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1,CurrentStepDefinition=Step("Move1.PickupCoarseMove"),GoalX=2,GoalZ=-2 };
         var cycle=new CraneWorkCycleController();
@@ -93,6 +105,48 @@ public static class SupportTests
         Check(!support.IsVisible&&!root.activeSelf,"Disable hides and unsubscribes");
         var mesh=new VertexHelper();typeof(TaskSwitchSupportArrow).GetMethod("OnPopulateMesh",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(la,new object[]{mesh});
         Check(mesh.Vertices==7&&mesh.Triangles==3,"Arrow mesh has valid shaft and head");
+        la.SetPresentation(TaskSwitchDirectionPresentation.DistanceChevrons,2,3);
+        typeof(TaskSwitchSupportArrow).GetMethod("OnPopulateMesh",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(la,new object[]{mesh});
+        Check(mesh.Vertices==12&&mesh.Triangles==8,"Two chevrons render independent valid glyphs");
+        float glyphHeight=mesh.Points[1].y-mesh.Points[0].y;
+        la.SetPresentation(TaskSwitchDirectionPresentation.DistanceChevrons,99,99);
+        typeof(TaskSwitchSupportArrow).GetMethod("OnPopulateMesh",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(la,new object[]{mesh});
+        Check(la.ChevronCount==3&&mesh.Vertices==18&&mesh.Triangles==12,"Rendering limited to three chevrons");
+        Check(mesh.BadWinding==0&&Math.Abs(glyphHeight-(mesh.Points[1].y-mesh.Points[0].y))<.0001f,
+            "Glyph size stays constant across counts and triangles face consistently");
+        Set(support,"directionPresentation",TaskSwitchDirectionPresentation.DistanceChevrons);
+        Set(support,"supportContent",TaskSwitchSupportContent.PhaseAndInputDirection);
+        Set(support,"positiveXPointsUp",true);
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1;tracker.CurrentStepDefinition=Step("Move1.PickupCoarseMove");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.Move1;manager.HasPreview=true;manager.GoalX=2;manager.GoalZ=-2;
+        Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(support.IsVisible&&phase.gameObject.activeSelf&&la.ChevronCount==3&&za.ChevronCount==1,
+            "New pattern available at switch with phase and per-axis distances");
+        manager.GoalX=1.2f;Call(support,"LateUpdate");Check(la.ChevronCount==2,"Chevron count decreases while approaching");
+        manager.GoalX=.8f;Call(support,"LateUpdate");Check(la.ChevronCount==1,"Near target keeps one glyph");
+        manager.GoalX=.5f;Call(support,"LateUpdate");Check(!left.gameObject.activeSelf,"Reached axis hides all chevrons");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.PickupLowering");
+        crane.CraneUnit.LocalY=-3;manager.Raise("TargetDisplaySwitched");
+        Check(ry.gameObject.activeSelf&&ya.ChevronCount==3,"Lowering distance drives three-stage count");
+        crane.CraneUnit.LoweringDistance=.7f;Call(support,"LateUpdate");Check(ya.ChevronCount==2,"Lowering middle distance");
+        crane.CraneUnit.LoweringDistance=.2f;Call(support,"LateUpdate");Check(ya.ChevronCount==1,"Lowering near surface");
+        crane.CraneUnit.DistanceKnown=false;Call(support,"LateUpdate");Check(ya.ChevronCount==1,"Unknown surface retains direction only");
+        crane.CraneUnit.DistanceKnown=true;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
+        Call(support,"LateUpdate");Check(!ry.gameObject.activeSelf,"Touchdown still hides the new pattern");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        tracker.CurrentStepDefinition=Step("LiftUp.LoadedRaising");manager.Raise("TargetOperationStarted");
+        Check(ry.gameObject.activeSelf&&ya.ChevronCount==3,"Raising uses actual step height");
+        crane.CraneUnit.LocalY=-2.4f;Call(support,"LateUpdate");Check(ya.ChevronCount==2,"Raising middle distance");
+        crane.CraneUnit.LocalY=-1.8f;Call(support,"LateUpdate");Check(ya.ChevronCount==1,"Raising near height");
+        Set(support,"supportContent",TaskSwitchSupportContent.PhaseOnly);Call(support,"LateUpdate");
+        Check(!ry.gameObject.activeSelf&&phase.gameObject.activeSelf,"Chevron style respects phase-only condition");
+        Check(manager.Recorded.Exists(s=>s.Contains("DirectionPresentation=DistanceChevrons")&&s.Contains("ChevronsY=2")),
+            "Style and displayed count changes logged");
+        la.SetPresentation(TaskSwitchDirectionPresentation.SingleArrow,1,3);
+        typeof(TaskSwitchSupportArrow).GetMethod("OnPopulateMesh",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(la,new object[]{mesh});
+        Check(mesh.Vertices==7&&mesh.Triangles==3,"Switching back preserves the original arrow");
+        Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
 }

@@ -189583,6 +189583,10 @@ MonoBehaviour:
   experimentManager: {fileID: 333508956}
   operationManager: {fileID: 1612894383}
   supportContent: 2
+  directionPresentation: 1
+  xDistancePerChevron: 0.5
+  yDistancePerChevron: 0.5
+  zDistancePerChevron: 2
   displaySeconds: 20
   supportRoot: {fileID: 9000010000}
   phaseText: {fileID: 9000010013}

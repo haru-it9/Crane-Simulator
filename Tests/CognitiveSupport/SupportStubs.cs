@@ -39,7 +39,15 @@ namespace UnityEngine
     }
     public struct Color { public float r,g,b,a; }
     public struct UIVertex { public Vector3 position;public Color color;public static UIVertex simpleVert=>new UIVertex(); }
-    public static class Mathf { public static float Max(float a,float b)=>Math.Max(a,b);public static float Abs(float v)=>Math.Abs(v); }
+    public static class Mathf
+    {
+        public static float Max(float a,float b)=>Math.Max(a,b);
+        public static int Max(int a,int b)=>Math.Max(a,b);
+        public static float Min(float a,float b)=>Math.Min(a,b);
+        public static int Clamp(int v,int a,int b)=>Math.Max(a,Math.Min(v,b));
+        public static int CeilToInt(float v)=>(int)Math.Ceiling(v);
+        public static float Abs(float v)=>Math.Abs(v);
+    }
     public static class Debug { public static void LogWarning(object message,object context=null) { } }
     public class SerializeField : Attribute { }
     public class Header : Attribute { public Header(string s) { } }
@@ -58,21 +66,35 @@ namespace UnityEngine.UI
     {
         public UnityEngine.RectTransform rectTransform = new UnityEngine.RectTransform();
         public UnityEngine.Color color;
+        public void SetVerticesDirty() { }
         protected virtual void OnPopulateMesh(VertexHelper v) { }
     }
     public class VertexHelper
     {
-        public int Vertices,Triangles;
-        public void Clear() { Vertices=Triangles=0; }
-        public void AddVert(UnityEngine.UIVertex v) { Vertices++; }
+        public int Vertices,Triangles,BadWinding;
+        public List<UnityEngine.Vector3> Points = new List<UnityEngine.Vector3>();
+        public void Clear() { Vertices=Triangles=BadWinding=0;Points.Clear(); }
+        public void AddVert(UnityEngine.UIVertex v) { Vertices++;Points.Add(v.position); }
         public void AddTriangle(int a,int b,int c)
-        { if(a>=Vertices||b>=Vertices||c>=Vertices)throw new Exception("Invalid triangle");Triangles++; }
+        {
+            if(a>=Vertices||b>=Vertices||c>=Vertices)throw new Exception("Invalid triangle");
+            var p=Points[a];var q=Points[b];var r=Points[c];
+            if((q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x)<=0)BadWinding++;
+            Triangles++;
+        }
     }
 }
 public class CraneStatusManager { public enum WorkPhase { Move1,LiftUp,Move2,Place,PlaceToTrack } public enum ErrorType { None } }
 public enum CraneWorkTargetXSelection { Random }
 public class CraneInstance : UnityEngine.Component { public UnityEngine.Transform InformationTarget; public CraneUnit CraneUnit; }
-public class CraneUnit { public bool IsDownwardMovementBlockedByTouchdown; public float LocalY; public bool TryGetMainLifMagLocalY(out float y) { y=LocalY;return true; } }
+public class CraneUnit
+{
+    public bool IsDownwardMovementBlockedByTouchdown;
+    public float LocalY, LoweringDistance=1.2f; public bool DistanceKnown=true;
+    public bool TryGetMainLifMagLocalY(out float y) { y=LocalY;return true; }
+    public bool TryGetSupportRaisingDistance(float target,out float d) { d=Math.Max(0,target-LocalY);return DistanceKnown; }
+    public bool TryGetSupportLoweringDistance(out float d) { d=LoweringDistance;return DistanceKnown; }
+}
 public class CraneWorkPhaseTracker
 {
     public CraneStatusManager.WorkPhase CurrentMajorPhase;
