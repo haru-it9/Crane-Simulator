@@ -48,7 +48,7 @@ public partial class TaskSwitchExperimentCsvLogger
             e.ExpectedSign == 0 ? null : (object)e.ExpectedSign, e.ResponseSign == 0 ? null : (object)e.ResponseSign,
             e.Outcome, e.Correct.HasValue ? (object)e.Correct.Value : null, e.ReactionSeconds, e.Presented, e.HeldAtOnset,
             e.RawPedal, settings.pedalAxisName, settings.invertPedalAxis, settings.pressThreshold, settings.releaseThreshold,
-            null, settings.minimumValidReactionSeconds, // Visual has no response timeout; preserve the column as blank.
+            TaskSwitchVisualSettings.ResponseTimeoutSeconds, settings.minimumValidReactionSeconds,
             settings.minimumIntervalSeconds, settings.maximumIntervalSeconds, settings.randomSeed,
             e.DspTime, associated ? (object)e.PlannedOnsetClock : null,
             associated && e.Presented ? (object)e.ScheduledDsp : null,
@@ -59,7 +59,7 @@ public partial class TaskSwitchExperimentCsvLogger
             onsetKnown ? visualOnsetState : "", onsetKnown ? visualOnsetPhase : "", onsetKnown ? visualOnsetStep : "",
             tracker != null ? tracker.CurrentMajorPhase.ToString() : "", tracker != null ? tracker.CurrentStepId : "",
             Application.isFocused, taskSwitchExperimentManager.VisualRunConfigurationJson, e.Detail,
-            e.PauseCount, e.PausedSeconds, e.WallReactionSeconds, "CorrectSidePress",
+            e.PauseCount, e.PausedSeconds, e.WallReactionSeconds, "CorrectSidePressOrTimeout",
             associated ? (object)e.ResponseCount : null, associated ? (object)e.IncorrectResponseCount : null,
             associated ? (object)e.TooEarlyResponseCount : null,
             e.FirstResponseSign == 0 ? null : (object)e.FirstResponseSign, e.FirstResponseOutcome,

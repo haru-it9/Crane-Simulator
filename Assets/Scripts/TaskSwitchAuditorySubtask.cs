@@ -76,6 +76,7 @@ public sealed class TaskSwitchAuditoryTrial
 {
     private readonly TaskSwitchAuditorySettings settings;
     private readonly bool finishOnCorrectSideOnly;
+    private readonly bool useResponseTimeout;
     private int sequence, trialIndex, expected;
     private string tone;
     private double onsetDsp, onsetReal, observedReal = double.NaN;
@@ -95,11 +96,12 @@ public sealed class TaskSwitchAuditoryTrial
     public int CurrentExpectedSign => pending && presented ? expected : 0;
     public event Action<TaskSwitchAuditoryEvent> EventOccurred;
 
-    public TaskSwitchAuditoryTrial(TaskSwitchAuditorySettings settings, int firstIndex = 0, bool finishOnCorrectSideOnly = false)
+    public TaskSwitchAuditoryTrial(TaskSwitchAuditorySettings settings, int firstIndex = 0, bool finishOnCorrectSideOnly = false, bool useResponseTimeout = false)
     {
         this.settings = settings;
         sequence = firstIndex;
         this.finishOnCorrectSideOnly = finishOnCorrectSideOnly;
+        this.useResponseTimeout = useResponseTimeout;
     }
     public void Schedule(bool high, double scheduledDsp, double estimatedReal, double dsp, double real, float raw)
     {
@@ -138,9 +140,18 @@ public sealed class TaskSwitchAuditoryTrial
         ObserveOnset(dsp, real, raw, effective);
         if (Math.Abs(effective) <= settings.releaseThreshold) armed = true;
         else if (sign != 0) armed = false;
-        // Visual trials keep the same red marker until the correct side is pressed, without a deadline.
-        bool expired = !finishOnCorrectSideOnly && pending && presented && dsp > onsetDsp + settings.responseTimeoutSeconds;
-        if (expired) Finish("Miss", dsp, real, raw);
+        // Visual deadlines use the actual UI onset and pause-free active clock.
+        // Keep the auditory deadline boundary unchanged.
+        bool expired = pending && presented &&
+            (useResponseTimeout
+                ? dsp >= onsetDsp + settings.responseTimeoutSeconds
+                : !finishOnCorrectSideOnly && dsp > onsetDsp + settings.responseTimeoutSeconds);
+        if (expired)
+        {
+            // Distinguish no answer from wrong-side attempts without a correct completion.
+            string timeoutOutcome = responseCount == 0 ? "Miss" : "NoCorrectResponse";
+            Finish(timeoutOutcome, dsp, real, raw, detail: useResponseTimeout ? "ResponseTimeout" : "");
+        }
         if (!edge) return;
         if (!pending || !presented)
         {

@@ -179,7 +179,7 @@ trials = visual_data['visual_trials']
 history = visual_data['visual_subtask']
 assert trials == [r for r in history if r['event_type'] == 'TrialFinished']
 assert [r['trial_index'] for r in trials] == list(map(str, range(1, 10)))
-assert [r['outcome'] for r in trials] == ['Correct', 'Correct', 'Correct', 'Correct', 'TooEarly', 'Correct', 'Correct', 'Interrupted', 'CancelledBeforeOnset']
+assert [r['outcome'] for r in trials] == ['Correct', 'Correct', 'Miss', 'Correct', 'TooEarly', 'Correct', 'Correct', 'Interrupted', 'CancelledBeforeOnset']
 assert all(r['random_seed'] == '12' and r['secondary_task_mode'] == 'Visual' for r in trials)
 correct = trials[0]
 assert correct['reaction_time_s'] == correct['wall_reaction_time_s'] == '0.240000'
@@ -193,8 +193,10 @@ assert resumed['reaction_time_s'] == '0.500000' and resumed['wall_reaction_time_
 assert resumed['pause_count'] == '1' and resumed['paused_duration_s'] == '10.000000'
 assert resumed['first_response_correct'] == '0' and resumed['response_count'] == '2'
 assert resumed['first_reaction_time_s'] == resumed['first_wall_reaction_time_s'] == '0.150000'
-assert trials[2]['reaction_time_s'] == '12.200000' and trials[2]['correct'] == '1'
-assert all(r['outcome'] != 'Miss' and r['response_timeout_s'] == '' and r['completion_policy'] == 'CorrectSidePress' for r in trials)
+assert trials[2]['outcome'] == 'Miss' and trials[2]['response_count'] == '0'
+assert trials[2]['reaction_time_s'] == trials[2]['correct'] == trials[2]['response_observed_real_s'] == ''
+assert trials[2]['detail'] == 'ResponseTimeout'
+assert all(r['response_timeout_s'] == '2.000000' and r['completion_policy'] == 'CorrectSidePressOrTimeout' for r in trials)
 assert trials[3]['correct'] == '1' and trials[3]['first_response_correct'] == '0'
 assert trials[3]['reaction_time_s'] == '0.700000' and trials[3]['first_reaction_time_s'] == '0.300000'
 assert trials[3]['response_count'] == '3' and trials[3]['incorrect_response_count'] == '2'
@@ -218,8 +220,9 @@ for event in (r for r in history if r['event_type'] == 'PedalPressed'):
 for event in (r for r in history if r['event_type'] == 'StimulusScheduled'):
     assert event['left_red'] == event['right_red'] == '0'
     assert abs(float(event['scheduled_onset_estimated_real_s']) - float(event['real_elapsed_s']) - 3) < .00001
-false_alarm, = [r for r in history if r['outcome'] == 'FalseAlarm']
-assert false_alarm['trial_index'] == false_alarm['stimulus_side'] == false_alarm['expected_sign'] == ''
+false_alarms = [r for r in history if r['outcome'] == 'FalseAlarm']
+assert len(false_alarms) == 2
+assert all(r['trial_index'] == r['stimulus_side'] == r['expected_sign'] == '' for r in false_alarms)
 assert all(r['left_red'] == r['right_red'] == '0' for r in trials), 'result row did not reflect return to blue'
 inputs = visual_data['input']
 assert all(r['secondary_task_mode'] == 'Visual' and r['auditory_subtask_enabled'] == '0' and r['visual_subtask_enabled'] == '1' for r in inputs)

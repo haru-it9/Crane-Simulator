@@ -29,6 +29,24 @@ static class VisualSubtaskTests
     }
     public static void Run(string output)
     {
+        // Deadline edge and incorrect attempts must remain distinguishable from omissions.
+        var timed=new TaskSwitchAuditoryTrial(new TaskSwitchVisualSettings().PedalSettings(),0,true,useResponseTimeout:true);
+        var timedEvents=new List<TaskSwitchAuditoryEvent>();timed.EventOccurred+=timedEvents.Add;
+        timed.ScheduleStimulus("Right",1,10,10,0,0,0,true);timed.Tick(9,9,0);timed.Present(10,10,0);
+        timed.Tick(10.3,10.3,-1);timed.Tick(10.4,10.4,0);timed.Tick(12,12,1);
+        var expired=timedEvents.FindLast(e=>e.EventType=="TrialFinished");
+        Require(expired.Outcome=="NoCorrectResponse" && expired.ResponseCount==1 &&
+            expired.FirstResponseOutcome=="Incorrect" && double.IsNaN(expired.ReactionSeconds),
+            "wrong-side attempts became a no-answer miss or were accepted at the deadline");
+        Require(timedEvents.FindLast(e=>e.EventType=="PedalPressed").Outcome=="LateResponse","deadline press was accepted");
+        timed.ScheduleStimulus("Right",1,20,20,13,13,0,true);timed.Tick(19,19,0);timed.Present(20,20,0);
+        timed.Pause(20.5,20.5,0);timed.Tick(30.5,30.5,1);
+        Require(timed.HasPendingTrial,"paused trial timed out");
+        timed.Resume(20.5,30.5,0);timed.Tick(21.999,31.999,0);
+        Require(timed.HasPendingTrial,"pause consumed response time");
+        timed.Tick(22,32,0);expired=timedEvents.FindLast(e=>e.EventType=="TrialFinished");
+        Require(expired.Outcome=="Miss" && expired.PauseCount==1 && expired.PausedSeconds==10 &&
+            double.IsNaN(expired.ReactionSeconds),"paused omission deadline or missing RT incorrect");
         Time.realtimeSinceStartupAsDouble=600000;Time.timeAsDouble=40000;PauseTestHarness.Set(false);
         // A visual task must not depend on an audio output device or an advancing DSP clock.
         AudioSettings.dspTime=0;AudioSettings.outputSampleRate=0;
@@ -78,12 +96,18 @@ static class VisualSubtaskTests
         double due=Due(manager);Advance(manager,logger,due-.1,0);Advance(manager,logger,due,0);
         sign=events.FindLast(e=>e.EventType=="StimulusOnsetObserved").ExpectedSign;
         finished=events.FindAll(e=>e.EventType=="TrialFinished").Count;
-        Advance(manager,logger,due+12,0);
-        Require(manager.VisualLeftRed!=manager.VisualRightRed && events.FindAll(e=>e.EventType=="TrialFinished").Count==finished &&
-            Math.Abs(Due(manager)-due)<.00001,"no response timed out or changed the pending stimulus");
-        Advance(manager,logger,due+12.2,sign);
-        Require(Math.Abs(events.FindLast(e=>e.EventType=="TrialFinished").ReactionSeconds-12.2)<.00001 &&
-            Math.Abs(Due(manager)-due-12.2-3)<.00001,"slow correct response did not start a full blue interval");
+        Advance(manager,logger,due+1.999,0);
+        Require(manager.VisualLeftRed!=manager.VisualRightRed && events.FindAll(e=>e.EventType=="TrialFinished").Count==finished,
+            "visual trial expired before two seconds");
+        Advance(manager,logger,due+2,0);
+        result=events.FindLast(e=>e.EventType=="TrialFinished");
+        Require(!manager.VisualLeftRed && !manager.VisualRightRed && result.Outcome=="Miss" &&
+            result.ResponseCount==0 && double.IsNaN(result.ReactionSeconds) && double.IsNaN(result.ResponseReal) &&
+            Math.Abs(Due(manager)-due-2-3)<.00001,"timeout did not record a blank-RT miss and restart the blue interval");
+        Advance(manager,logger,due+2.1,0);Advance(manager,logger,due+2.2,sign);
+        Require(events.FindAll(e=>e.EventType=="TrialFinished").Count==finished+1 &&
+            events.FindLast(e=>e.EventType=="PedalPressed").Outcome=="FalseAlarm",
+            "late input answered the expired trial or duplicated the miss");
         due=Due(manager);Advance(manager,logger,due-.1,0);Advance(manager,logger,due,0);
         sign=events.FindLast(e=>e.EventType=="StimulusOnsetObserved").ExpectedSign;finished=events.FindAll(e=>e.EventType=="TrialFinished").Count;
         Advance(manager,logger,due+.3,-sign);Advance(manager,logger,due+.4,0);Advance(manager,logger,due+.5,-sign);
@@ -143,9 +167,9 @@ static class VisualSubtaskTests
         Set(toggle,"secondaryTaskMode",TaskSwitchSecondaryTaskMode.None);Advance(toggle,null,Time.realtimeSinceStartupAsDouble+.2,0);
         Require(!toggle.SecondarySubtaskRunning,"None left secondary task running");Call(toggle,"DisposeSecondarySubtask");
 
-        // Default settings use a random 2-5 second gap after blue, independently choosing either side.
+        // Default settings use a random 5-10 second gap after blue, independently choosing either side.
         var defaults=new TaskSwitchVisualSettings { randomSeed=23 };
-        Require(defaults.Validate()==null && defaults.minimumIntervalSeconds==2 && defaults.maximumIntervalSeconds==5,"2-5 second defaults are invalid");
+        Require(defaults.Validate()==null && defaults.minimumIntervalSeconds==5 && defaults.maximumIntervalSeconds==10,"5-10 second defaults are invalid");
         Image l3,r3;var random=Create(out l3,out r3);Set(random,"visualSubtask",defaults);random.CurrentState=TaskSwitchExperimentState.OperatingSource;
         var randomEvents=new List<TaskSwitchAuditoryEvent>();random.VisualSubtaskEventOccurred+=randomEvents.Add;
         var gaps=new HashSet<int>();var sides=new HashSet<int>();bool repeatedSide=false;int previousSide=0;
@@ -154,11 +178,11 @@ static class VisualSubtaskTests
         {
             var scheduled=randomEvents.FindLast(e=>e.EventType=="StimulusScheduled");
             double gap=scheduled.PlannedOnsetClock-scheduled.DspTime;
-            Require(gap>=2 && gap<=5,"gap measured from blue is outside 2-5 seconds");gaps.Add((int)(gap*1000));
+            Require(gap>=5 && gap<=10,"gap measured from blue is outside 5-10 seconds");gaps.Add((int)(gap*1000));
             sign=scheduled.ExpectedSign;sides.Add(sign);repeatedSide|=previousSide==sign;previousSide=sign;
             due=Due(random);Advance(random,null,due-.1,0);Advance(random,null,due,0);Advance(random,null,due+.3,sign);
-            Require(!random.VisualLeftRed && !random.VisualRightRed && Due(random)-Time.realtimeSinceStartupAsDouble>=2 &&
-                Due(random)-Time.realtimeSinceStartupAsDouble<=5,"successful response did not begin the full random blue wait");
+            Require(!random.VisualLeftRed && !random.VisualRightRed && Due(random)-Time.realtimeSinceStartupAsDouble>=5 &&
+                Due(random)-Time.realtimeSinceStartupAsDouble<=10,"successful response did not begin the full random blue wait");
         }
         Require(gaps.Count>1 && sides.Count==2 && repeatedSide,"random sequence was fixed or strictly alternating");
         Call(random,"DisposeSecondarySubtask");
@@ -171,6 +195,6 @@ static class VisualSubtaskTests
         Call(invalid,"UpdateSecondarySubtask");Call(invalid,"UpdateSecondarySubtask");
         Require(!invalid.VisualSubtaskRunning && invalid.CurrentState==TaskSwitchExperimentState.OperatingTarget && Debug.Errors==errors+1,"missing UI repeatedly errored or changed main work");
         Call(invalid,"DisposeSecondarySubtask");
-        Console.WriteLine("PASS: visual red until correct side, no timeout, repeated errors and first-response preservation, early/held input, random 2-5 seconds from blue, random sides, actual-frame RT, DSP independence, main lock, pause before/after onset, recording stop and modality selection");
+        Console.WriteLine("PASS: visual correct side or two-second timeout, repeated errors and first-response preservation, early/held input, random 5-10 seconds from blue, random sides, actual-frame RT, DSP independence, main lock, pause before/after onset, recording stop and modality selection");
     }
 }

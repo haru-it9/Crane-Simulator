@@ -137,7 +137,7 @@ public partial class TaskSwitchExperimentManager
             if (visualRunSettings.randomSeed == 0) visualRunSettings.randomSeed = Guid.NewGuid().GetHashCode();
             visualRandom = new System.Random(visualRunSettings.randomSeed);
             ReadVisualPedal();
-            visualTrial = new TaskSwitchAuditoryTrial(visualRunSettings.PedalSettings(), visualLastTrialIndex, true);
+            visualTrial = new TaskSwitchAuditoryTrial(visualRunSettings.PedalSettings(), visualLastTrialIndex, true, useResponseTimeout: true);
             visualTrial.EventOccurred += HandleVisualTrialEvent;
             SetVisualColors(false, false);
             SetVisualVisibility(true);
@@ -157,7 +157,7 @@ public partial class TaskSwitchExperimentManager
         double clock = ExperimentPauseManager.ActiveRealtime, real = Time.realtimeSinceStartupAsDouble;
         double interval = visualRunSettings.minimumIntervalSeconds + visualRandom.NextDouble() *
             (visualRunSettings.maximumIntervalSeconds - visualRunSettings.minimumIntervalSeconds);
-        // Called on activation or the frame that a correct response returns the marker to blue.
+        // Called on activation or the frame that a correct response / timeout returns the marker to blue.
         visualScheduledClock = clock + interval;
         visualScheduledReal = real + visualScheduledClock - clock;
         visualScheduledRight = visualRandom.Next(2) == 1;
