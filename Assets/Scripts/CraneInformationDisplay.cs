@@ -47,13 +47,6 @@ public class CraneInformationDisplay : MonoBehaviour
     [Min(0f)]
     private float weightToleranceKg = 100f;
 
-    [Tooltip(
-        "Moveで成立した座標色を保持するMainLifMagのLocal Y境界です。" +
-        "この値以下まで下降すると通常色へ戻します。"
-    )]
-    [SerializeField]
-    private float coordinateHighlightReleaseLocalY = -1.66f;
-
     [Header("板密度 [kg/m^3]")]
     [SerializeField] private float boardDensity = 7850f;
 
@@ -82,13 +75,6 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private readonly Dictionary<Text, Color> defaultValueColors =
         new Dictionary<Text, Color>();
-
-    private CraneUnit craneUnit;
-    private bool hasObservedMajorPhase;
-    private CraneStatusManager.WorkPhase lastObservedMajorPhase;
-    private bool retainedXHighlight;
-    private bool retainedZHighlight;
-    private bool verticalPhaseHighlightReleased;
 
     public float FineAlignTolerance => fineAlignTolerance;
     public bool CurrentXHighlighted { get; private set; }
@@ -140,7 +126,6 @@ public class CraneInformationDisplay : MonoBehaviour
         targetTransform = newTargetTransform;
         lifMagSystem = newLifMagSystem;
         ResolveWorkReferences(newLifMagSystem);
-        ResetCoordinateHighlightState();
 
         bool isHolding = lifMagSystem != null && lifMagSystem.HasAttachedBoard;
 
@@ -308,20 +293,14 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private void UpdateAchievementColors()
     {
-        bool isMonitoring =
-            workPhaseTracker != null &&
-            workPhaseTracker.IsMonitoring;
-
         UpdateCoordinateAchievementState(
-            isMonitoring,
             out bool xWithinTarget,
             out bool zWithinTarget
         );
 
         bool weightWithinTarget = false;
 
-        if (isMonitoring &&
-            TryGetCurrentWeightTargetKg(out float targetWeightKg))
+        if (TryGetCurrentWeightTargetKg(out float targetWeightKg))
         {
             float displayedWeightKg =
                 CurrentDisplayWeightTon * 1000f;
@@ -352,7 +331,6 @@ public class CraneInformationDisplay : MonoBehaviour
     }
 
     private void UpdateCoordinateAchievementState(
-        bool isMonitoring,
         out bool xWithinTarget,
         out bool zWithinTarget
     )
@@ -360,131 +338,21 @@ public class CraneInformationDisplay : MonoBehaviour
         xWithinTarget = false;
         zWithinTarget = false;
 
-        if (!isMonitoring || workPhaseTracker == null ||
+        if (workPhaseTracker == null ||
             targetTransform == null ||
             !workPhaseTracker.TryGetTargetPosition(
                 out float targetX,
                 out float targetZ
             ))
         {
-            ResetCoordinateHighlightState();
             return;
         }
 
-        // 表示と同じTransformの最新位置で判定します。
-        // Trackerの保存済み誤差は、条件評価されないステップでは更新されません。
+        // フェーズや下降高さ、監視状態にかかわらず、現在位置を毎フレーム判定します。
         Vector3 currentPosition = targetTransform.position;
-        float currentErrorX = Mathf.Abs(currentPosition.x - targetX);
-        float currentErrorZ = Mathf.Abs(currentPosition.z - targetZ);
-
-        CraneStatusManager.WorkPhase phase =
-            workPhaseTracker.CurrentMajorPhase;
-
-        bool phaseChanged =
-            !hasObservedMajorPhase ||
-            phase != lastObservedMajorPhase;
-
-        if (phaseChanged)
-        {
-            hasObservedMajorPhase = true;
-            lastObservedMajorPhase = phase;
-            verticalPhaseHighlightReleased = false;
-
-            if (IsVerticalWorkPhase(phase))
-            {
-                float tolerance = Mathf.Max(
-                    0f,
-                    fineAlignTolerance
-                );
-
-                retainedXHighlight =
-                    currentErrorX <= tolerance;
-                retainedZHighlight =
-                    currentErrorZ <= tolerance;
-
-                if (!TryGetMainLifMagLocalY(out float localY) ||
-                    localY <= coordinateHighlightReleaseLocalY)
-                {
-                    verticalPhaseHighlightReleased = true;
-                    retainedXHighlight = false;
-                    retainedZHighlight = false;
-                }
-            }
-            else
-            {
-                retainedXHighlight = false;
-                retainedZHighlight = false;
-            }
-        }
-
-        bool isMovePhase =
-            phase == CraneStatusManager.WorkPhase.Move1 ||
-            phase == CraneStatusManager.WorkPhase.Move2;
-
-        if (isMovePhase)
-        {
-            float tolerance = Mathf.Max(0f, fineAlignTolerance);
-
-            xWithinTarget =
-                currentErrorX <= tolerance;
-            zWithinTarget =
-                currentErrorZ <= tolerance;
-
-            retainedXHighlight = xWithinTarget;
-            retainedZHighlight = zWithinTarget;
-            verticalPhaseHighlightReleased = false;
-            return;
-        }
-
-        if (!IsVerticalWorkPhase(phase) ||
-            verticalPhaseHighlightReleased)
-        {
-            return;
-        }
-
-        if (!TryGetMainLifMagLocalY(out float currentLocalY) ||
-            currentLocalY <= coordinateHighlightReleaseLocalY)
-        {
-            verticalPhaseHighlightReleased = true;
-            retainedXHighlight = false;
-            retainedZHighlight = false;
-            return;
-        }
-
-        // 縦作業へ移った後に位置を合わせ直した場合も、各軸の成立を反映します。
-        // 成立した色は、既存の下降高さ条件で解除されるまで保持します。
-        float retainedTolerance = Mathf.Max(0f, fineAlignTolerance);
-        retainedXHighlight |= currentErrorX <= retainedTolerance;
-        retainedZHighlight |= currentErrorZ <= retainedTolerance;
-
-        xWithinTarget = retainedXHighlight;
-        zWithinTarget = retainedZHighlight;
-    }
-
-    private static bool IsVerticalWorkPhase(
-        CraneStatusManager.WorkPhase phase
-    )
-    {
-        return
-            phase == CraneStatusManager.WorkPhase.LiftUp ||
-            phase == CraneStatusManager.WorkPhase.Place ||
-            phase == CraneStatusManager.WorkPhase.PlaceToTrack;
-    }
-
-    private bool TryGetMainLifMagLocalY(out float localY)
-    {
-        localY = 0f;
-
-        return craneUnit != null &&
-               craneUnit.TryGetMainLifMagLocalY(out localY);
-    }
-
-    private void ResetCoordinateHighlightState()
-    {
-        hasObservedMajorPhase = false;
-        retainedXHighlight = false;
-        retainedZHighlight = false;
-        verticalPhaseHighlightReleased = false;
+        float tolerance = Mathf.Max(0f, fineAlignTolerance);
+        xWithinTarget = Mathf.Abs(currentPosition.x - targetX) <= tolerance;
+        zWithinTarget = Mathf.Abs(currentPosition.z - targetZ) <= tolerance;
     }
 
     private bool TryGetCurrentWeightTargetKg(
@@ -498,22 +366,16 @@ public class CraneInformationDisplay : MonoBehaviour
             return false;
         }
 
-        switch (workPhaseTracker.CurrentMajorPhase)
-        {
-            case CraneStatusManager.WorkPhase.LiftUp:
-                return loadPlanManager.TryGetPickupTargetWeightKg(
-                    out targetWeightKg
-                );
+        float currentAttachedWeightKg = lifMagSystem != null
+            ? lifMagSystem.GetAttachedTotalWeightKgForDisplay()
+            : 0f;
 
-            case CraneStatusManager.WorkPhase.Place:
-            case CraneStatusManager.WorkPhase.PlaceToTrack:
-                return loadPlanManager.TryGetTargetRemainingWeightKg(
-                    out targetWeightKg
-                );
-
-            default:
-                return false;
-        }
+        // 目標重量の画面表示と同じ取得処理を使い、移動中も一致を判定します。
+        return loadPlanManager.TryGetDisplayTargetWeightKg(
+            workPhaseTracker.CurrentMajorPhase,
+            currentAttachedWeightKg,
+            out targetWeightKg
+        );
     }
 
     private void SetAchievementColor(Text text, bool achieved)
@@ -571,7 +433,6 @@ public class CraneInformationDisplay : MonoBehaviour
     {
         workPhaseTracker = null;
         loadPlanManager = null;
-        craneUnit = null;
 
         if (sourceLifMag == null)
         {
@@ -606,15 +467,6 @@ public class CraneInformationDisplay : MonoBehaviour
                 craneInstance.GetComponentInChildren<
                     CraneWorkLoadPlanManager
                 >(true);
-        }
-
-        craneUnit = craneInstance.CraneUnit;
-
-        if (craneUnit == null)
-        {
-            craneUnit = craneInstance.GetComponentInChildren<
-                CraneUnit
-            >(true);
         }
     }
 
