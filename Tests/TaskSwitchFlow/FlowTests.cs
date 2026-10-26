@@ -110,8 +110,31 @@ static class FlowTests
         Require(rig.Manager.CurrentState==TaskSwitchExperimentState.WaitingForOperatorSwitch,"common schedule not restored");
         Console.WriteLine("PASS: four method CSV pairs, automatic schedule despite common toggle, restart selection, active-run snapshots, file provenance, missing/invalid pair rejection and common CSV compatibility");
     }
+    static void CheckCognitiveSupportGoalPreview()
+    {
+        var r=new Rig(TaskSwitchMethod.ConfirmAfterDisplaySwitch);
+        r.Manager.StartExperiment();
+        float beforeX=r.Target(0).targetX,beforeZ=r.Target(0).targetZ,x,z;
+        Require(r.Manager.TryGetCognitiveSupportTargetPosition(0,CraneStatusManager.WorkPhase.Move2,out x,out z) && x==4 && z==11,
+            "Source pending placement preview must use its active CSV cycle");
+        Require(r.Target(0).targetX==beforeX && r.Target(0).targetZ==beforeZ,
+            "Support preview changed the current Source goal before confirmation");
+        Require(r.Manager.TryGetCognitiveSupportTargetPosition(1,CraneStatusManager.WorkPhase.Move1,out x,out z) && x==16 && z==2,
+            "Target pickup preview must use this switch condition");
+        Require(r.Manager.TryGetCognitiveSupportTargetPosition(1,CraneStatusManager.WorkPhase.Place,out x,out z) && x==24 && z==8,
+            "Target placement preview must use this switch condition");
+        Require(!r.Manager.TryGetCognitiveSupportTargetPosition(10,CraneStatusManager.WorkPhase.Move1,out x,out z),
+            "Unknown crane must not receive an arbitrary preview goal");
+        var state=r.Manager.CurrentState;
+        r.Manager.RecordCognitiveSupportEvent("Shown","Content=PhaseOnly;DurationSeconds=8");
+        Require(r.Events.Contains("CognitiveSupportShown") && r.Manager.CurrentState==state,
+            "Support event must be recorded without changing experiment state");
+        r.Manager.ExitExperimentMode();
+        Console.WriteLine("PASS: cognitive support CSV goal preview without goal mutation, active condition selection, and event recording");
+    }
     public static void Main()
     {
+        CheckCognitiveSupportGoalPreview();
         CultureInfo.CurrentCulture=CultureInfo.GetCultureInfo("fr-FR");
         var schedule=TaskSwitchConditionCsv.ParseSchedule(Schedule,TaskSwitchTargetTaskPattern.Move1ToLiftUp,5);
         Require(schedule[0].targetTaskPattern==TaskSwitchTargetTaskPattern.Move1ToLiftUp && schedule[1].targetTaskPattern==TaskSwitchTargetTaskPattern.Move2ToPlace,"pattern parsing");

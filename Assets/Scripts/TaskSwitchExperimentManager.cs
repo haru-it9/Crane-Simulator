@@ -237,6 +237,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     public event Action<TaskSwitchEventData> ExperimentEventOccurred;
 
+    /// <summary>Store support presentation changes in the existing events.csv stream.</summary>
+    public void RecordCognitiveSupportEvent(string action, string detail)
+    {
+        EmitEvent("CognitiveSupport" + action, detail);
+    }
+
     private void Awake()
     {
         InitializeSecondaryTaskUi();

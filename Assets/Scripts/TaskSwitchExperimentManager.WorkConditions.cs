@@ -40,6 +40,30 @@ public partial class TaskSwitchExperimentManager
     public string ActiveTargetWorkConditionJson => activeTargetWorkCondition != null ? JsonUtility.ToJson(activeTargetWorkCondition) : "";
     public TaskSwitchTargetTaskPattern ActiveTargetTaskPattern => activeTargetTaskPattern;
 
+    /// <summary>
+    /// Preview the selected run's CSV goal without applying it to the crane/display.
+    /// This also handles a Source return at a pending phase boundary before confirmation.
+    /// </summary>
+    public bool TryGetCognitiveSupportTargetPosition(
+        int craneIndex, CraneStatusManager.WorkPhase phase,
+        out float targetX, out float targetZ)
+    {
+        TaskSwitchWorkCondition condition = null;
+        if (targetCondition != null && craneIndex == targetCondition.craneIndex)
+            condition = activeTargetWorkCondition;
+        else if (sourceCondition != null && craneIndex == sourceCondition.craneIndex)
+            condition = SourceWorkCondition(sourceCycleController != null
+                ? sourceCycleController.CurrentCycleNumber : 1);
+
+        targetX = targetZ = 0f;
+        if (condition == null) return false;
+        bool pickup = phase == CraneStatusManager.WorkPhase.Move1 ||
+            phase == CraneStatusManager.WorkPhase.LiftUp;
+        targetX = pickup ? condition.pickupX : condition.placementX;
+        targetZ = pickup ? condition.pickupZ : condition.placementZ;
+        return true;
+    }
+
     private TaskSwitchMethodCsvPair SelectedMethodCsvPair
     {
         get

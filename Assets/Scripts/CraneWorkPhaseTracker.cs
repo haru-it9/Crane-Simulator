@@ -216,6 +216,21 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     public bool PositionConditionLatched => positionConditionLatched;
     public float PositionExitHysteresis => positionExitHysteresis;
     public string CurrentStepConfigurationJson => CurrentStep != null ? JsonUtility.ToJson(CurrentStep) : "";
+    /// <summary>Read-only guidance source; this does not advance the work tracker.</summary>
+    public CraneWorkStepDefinition CurrentStepDefinition => CurrentStep;
+
+    public CraneWorkStepDefinition GetFirstStepDefinition(
+        CraneStatusManager.WorkPhase phase)
+    {
+        if (phaseProfile != null && phaseProfile.StepDefinitions != null)
+        {
+            foreach (CraneWorkStepDefinition step in phaseProfile.StepDefinitions)
+                if (step != null && step.majorPhase == phase) return step;
+        }
+        foreach (CraneWorkStepDefinition step in CraneWorkPhaseProfile.CreateBuiltInDefaults())
+            if (step.majorPhase == phase) return step;
+        return null;
+    }
     public float CurrentTargetErrorX { get; private set; }
     public float CurrentTargetErrorZ { get; private set; }
     public bool IsHoldingBoard { get; private set; }
