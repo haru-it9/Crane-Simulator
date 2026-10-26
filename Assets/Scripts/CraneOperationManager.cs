@@ -1530,27 +1530,32 @@ public class CraneOperationManager : MonoBehaviour
         float mainZInput = GetMainCraneZInput();
 
         // 入力取得・生ログは変更せず、機体へ渡す操作値だけを制限します。
-        // ReadMovementCommand()は制限前、LastAcceptedMovementは制限後の値です。
-        CraneWorkPhaseTracker phaseTracker =
-            FindComponentForCrane<CraneWorkPhaseTracker>(CurrentCraneInstance);
+        // 通常速度モードでは操作値が±1になるため、比較にはデッドゾーンを
+        // 通過した軸の変換前の倒し量を使用します。
+        float xMagnitude = Mathf.Abs(
+            inputMode == InputMode.Joystick && mainXInput != 0f
+                ? Input.GetAxis(JoyStick3VerticalAxis)
+                : mainXInput);
+        float yMagnitude = Mathf.Abs(
+            inputMode == InputMode.Joystick && mainYInput != 0f
+                ? Input.GetAxis(JoyStick2VerticalAxis)
+                : mainYInput);
+        float zMagnitude = Mathf.Abs(
+            inputMode == InputMode.Joystick && mainZInput != 0f
+                ? Input.GetAxis(JoyStick2HorizontalAxis)
+                : mainZInput);
 
-        if (phaseTracker != null &&
-            !string.IsNullOrEmpty(phaseTracker.CurrentStepId))
+        // 昇降と水平移動は同時に行わず、絶対値の大きい側だけを採用します。
+        // 水平移動はX・Zの最大値で比較し、X・Z同時操作は維持します。
+        // 同値の場合は昇降を優先します。
+        if (yMagnitude >= Mathf.Max(xMagnitude, zMagnitude))
         {
-            switch (phaseTracker.CurrentMajorPhase)
-            {
-                case CraneStatusManager.WorkPhase.Move1:
-                case CraneStatusManager.WorkPhase.Move2:
-                    mainYInput = 0f;
-                    break;
-
-                case CraneStatusManager.WorkPhase.LiftUp:
-                case CraneStatusManager.WorkPhase.Place:
-                case CraneStatusManager.WorkPhase.PlaceToTrack:
-                    mainXInput = 0f;
-                    mainZInput = 0f;
-                    break;
-            }
+            mainXInput = 0f;
+            mainZInput = 0f;
+        }
+        else
+        {
+            mainYInput = 0f;
         }
 
         CurrentCrane.MoveMainLifMagX(mainXInput);
