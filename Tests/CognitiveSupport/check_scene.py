@@ -12,6 +12,7 @@ assert 'supportContent: 2' in component
 assert float(re.search(r'^  displaySeconds: (.+)$',component,re.M)[1])>0
 assert int(re.search(r'^  directionPresentation: (.+)$',component,re.M)[1]) in [0,1]
 assert 'fadeOutSeconds: 0.75' in component
+assert 'currentHighlightDisplaySeconds: 5' in component
 assert 'rightYLabel: {fileID: 9000010049}' in component
 for id in ['1470163867','263746697','1055664397','1973951998','1132206959']:
     assert f'  - {{fileID: {id}}}' in component and id in docs

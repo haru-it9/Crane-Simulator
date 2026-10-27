@@ -262,6 +262,53 @@ public static class SupportTests
         ExperimentPauseManager.ActiveRealtime=700.1;Call(support,"LateUpdate");Check(Math.Abs(Alpha(left)-.5f)<.001f,"Short windows clamp fade duration instead of extending display time");
         ExperimentPauseManager.ActiveRealtime=700+(double)support.DisplaySeconds;Call(support,"LateUpdate");Check(!support.IsVisible,"Short window still finishes exactly on time");
         Call(support,"OnDisable");
+
+        Set(support,"displaySeconds",2f);Set(support,"currentHighlightDisplaySeconds",5f);
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.LoadAcquisition");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;crane.CraneUnit.LocalY=-3;
+        crane.InformationTarget.position=Vector3.zero;manager.GoalX=manager.GoalZ=0;
+        load.Weight=1000;manager.PickupWeight=1000;magnet.CurrentLiftCapacityKg=500;
+        ExperimentPauseManager.ActiveRealtime=800;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentText.color,phase.color),"Independent current window begins at the switch");
+        ExperimentPauseManager.ActiveRealtime=802;Call(support,"LateUpdate");
+        Check(!support.IsVisible&&!root.activeSelf&&SameColor(currentText.color,phase.color),"Current highlighting survives the arrow/phase deadline");
+        manager.Raise("TargetOperationStarted");magnet.CurrentLiftCapacityKg=1000;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&!root.activeSelf&&!ry.gameObject.activeSelf,
+            "Current becoming ready after arrow expiry restores color without resurrecting arrows");
+        magnet.CurrentLiftCapacityKg=500;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Current conditions continue updating inside their own window");
+        ExperimentPauseManager.ActiveRealtime=804.625;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,Color.Lerp(new Color(0,1,0),phase.color,.5f)),"Current fade uses its own final 0.75 seconds");
+        ExperimentPauseManager.IsPaused=true;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,Color.Lerp(new Color(0,1,0),phase.color,.5f)),"Pause freezes the independent current fade");
+        ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.ActiveRealtime=805;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Current color fully restores at its own deadline");
+        ExperimentPauseManager.ActiveRealtime=806;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Unmet current cannot re-highlight after the current deadline");
+        Check(manager.Recorded.Exists(s=>s.StartsWith("CurrentHighlightEnded:")&&s.Contains("Reason=Timeout")),"Independent current expiration is logged");
+        Check(manager.Recorded.Exists(s=>s.StartsWith("Shown:")&&s.Contains("CurrentHighlightDurationSeconds=5.000")),"Independent current duration is logged");
+
+        Set(support,"currentHighlightDisplaySeconds",1f);ExperimentPauseManager.ActiveRealtime=900;manager.Raise("TargetDisplaySwitched");
+        ExperimentPauseManager.ActiveRealtime=901;Call(support,"LateUpdate");
+        Check(support.IsVisible&&root.activeSelf&&SameColor(currentText.color,new Color(0,1,0)),"A shorter current window does not end the arrow window");
+        magnet.CurrentLiftCapacityKg=1000;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&ry.gameObject.activeSelf,"Arrows still update after an earlier current deadline");
+
+        Set(support,"currentHighlightDisplaySeconds",5f);magnet.CurrentLiftCapacityKg=500;
+        ExperimentPauseManager.ActiveRealtime=1000;manager.Raise("TargetDisplaySwitched");
+        ExperimentPauseManager.ActiveRealtime=1001;manager.Raise("SourceDisplayRestored");
+        ExperimentPauseManager.ActiveRealtime=1003.2;Call(support,"LateUpdate");
+        Check(!root.activeSelf&&SameColor(currentText.color,phase.color),"Source return restarts both windows independently");
+        ExperimentPauseManager.ActiveRealtime=1006;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Source current deadline is measured from return");
+        ExperimentPauseManager.ActiveRealtime=1100;manager.Raise("TargetDisplaySwitched");
+        ExperimentPauseManager.ActiveRealtime=1102;Call(support,"LateUpdate");
+        operation.CurrentCraneInstance=new CraneInstance();Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Changing cranes after arrow expiry clears the remaining current highlight");
+        operation.CurrentCraneInstance=crane;ExperimentPauseManager.ActiveRealtime=1200;manager.Raise("TargetDisplaySwitched");
+        ExperimentPauseManager.ActiveRealtime=1202;Call(support,"LateUpdate");Call(support,"OnDisable");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Disable clears a current-only active window");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
 }
