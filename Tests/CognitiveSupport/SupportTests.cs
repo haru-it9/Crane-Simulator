@@ -44,6 +44,17 @@ public static class SupportTests
         Check(Guidance("LiftUp.LoadAcquisition",0,0).y==0,"Acquiring weight is not movement");
         Check(Guidance("Place.LoadRelease",0,0).y==0,"Release weight is not movement");
 
+        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,49.99f)=="IncreaseCurrent","5 t requires at least 50 A");
+        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,50)=="ReadyToRaise","Lower current boundary is inclusive");
+        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,55)=="ReadyToRaise","Current inside the range is accepted");
+        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,60)=="ReadyToRaise","Upper current boundary is inclusive");
+        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,60.01f)=="DecreaseCurrent","Excess current must not enable raising");
+        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(1250,12.5f)=="ReadyToRaise","Fractional tonnes are not rounded");
+        foreach(float invalid in new[]{0f,-1f,float.NaN,float.PositiveInfinity})
+            Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(invalid,10)=="CurrentTargetUnavailable","Invalid pickup target cannot enable raising");
+        foreach(float invalid in new[]{-1f,float.NaN,float.PositiveInfinity})
+            Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(1000,invalid)=="CurrentTargetUnavailable","Invalid current cannot enable raising");
+
         Check(TaskSwitchSupportGuidance.ChevronCount(.5f,.5f,3)==1,"Near distance: one chevron at boundary");
         Check(TaskSwitchSupportGuidance.ChevronCount(.5001f,.5f,3)==2,"Middle distance: two chevrons");
         Check(TaskSwitchSupportGuidance.ChevronCount(1f,.5f,3)==2,"Middle upper boundary");
@@ -163,6 +174,10 @@ public static class SupportTests
         crane.CraneUnit.DistanceKnown=true;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
         Call(support,"LateUpdate");Check(!Requested(support,"rightYFade"),"Touchdown starts disappearing without current-system support");
         crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        crane.LifMagSystem=new LifMagSystem {CurrentElectricCurrentA=10};
+        var distanceLoad=new CraneWorkLoadPlanManager {Weight=1000};
+        crane.gameObject.Components[typeof(CraneWorkLoadPlanManager)]=distanceLoad;
+        Set(support,"loadPlan",distanceLoad);
         tracker.CurrentStepDefinition=Step("LiftUp.LoadedRaising");manager.Raise("TargetOperationStarted");
         Check(ry.gameObject.activeSelf&&ya.ChevronCount==3,"Changing to raising does not replace the initial count");
         crane.CraneUnit.LocalY=-2.4f;Call(support,"LateUpdate");Check(ya.ChevronCount==3,"Raising progress does not replace the snapshot");
@@ -203,28 +218,49 @@ public static class SupportTests
         Set(support,"supportContent",TaskSwitchSupportContent.PhaseAndInputDirection);
         ExperimentPauseManager.ActiveRealtime=400;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
         Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Touchdown with insufficient current highlights the current text in the phase color");
-        magnet.CurrentLiftCapacityKg=999;Call(support,"LateUpdate");
-        Check(!Requested(support,"rightYFade"),"Pickup capacity must meet the complete target weight");
+        magnet.CurrentLiftCapacityKg=99999;magnet.AttachedWeight=1000;magnet.CurrentElectricCurrentA=9.99f;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade"),"Matching held weight and high capacity cannot bypass insufficient actual current");
         manager.HasPickupWeightPreview=false;cycle.HasPendingNextPhase=true;cycle.PendingNextPhase=CraneStatusManager.WorkPhase.LiftUp;
         manager.Raise("SourceDisplayRestored");
         Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Unknown pending pickup weight cannot use a stale load plan");
         manager.HasPickupWeightPreview=true;cycle.HasPendingNextPhase=false;manager.Raise("TargetDisplaySwitched");
-        magnet.CurrentLiftCapacityKg=1000;Call(support,"LateUpdate");
+        magnet.CurrentLiftCapacityKg=0;magnet.CurrentElectricCurrentA=10;Call(support,"LateUpdate");
         Check(Requested(support,"rightYFade")&&ya.rectTransform.localEulerAngles.z==180&&verticalLabel.text=="上昇",
             "CSV-preview target weight enables raising with a downward lever arrow and raising label");
         Check(SameColor(currentText.color,phase.color),"Ready current stays highlighted until actual correct-weight raising");
+        magnet.CurrentElectricCurrentA=20;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade"),"Upper +10 A boundary also enables the pickup arrow");
+        magnet.CurrentElectricCurrentA=20.01f;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Excess current suppresses the arrow and retains highlighting");
+        Check(manager.Recorded.Exists(s=>s.Contains("CurrentGuidance=DecreaseCurrent")),"Excess-current correction is logged distinctly");
+        magnet.CurrentElectricCurrentA=10;Call(support,"LateUpdate");
         load.Weight=1000;manager.PickupWeight=9000;manager.Raise("SourceDisplayRestored");
         Check(Requested(support,"rightYFade"),"Ordinary Source return uses its active load-plan weight even after pickup boards moved");
         manager.PickupWeight=1000;load.Weight=9999;manager.Raise("TargetDisplaySwitched");
         Set(support,"positiveYPointsUp",true);Call(support,"LateUpdate");
         Check(ya.rectTransform.localEulerAngles.z==0&&verticalLabel.text=="下降","Upward display always has the requested lowering label");
         Set(support,"positiveYPointsUp",false);
-        magnet.CurrentLiftCapacityKg=500;Call(support,"LateUpdate");
+        magnet.CurrentElectricCurrentA=5;Call(support,"LateUpdate");
         Check(!Requested(support,"rightYFade")&&ry.gameObject.activeSelf&&Alpha(ry)==1,"Current becoming insufficient begins a smooth arrow disappearance");
         ExperimentPauseManager.ActiveRealtime=400.375;Call(support,"LateUpdate");
         Check(Math.Abs(Alpha(ry)-.5f)<.0001f&&SameColor(currentText.color,phase.color),"Current highlight persists throughout the arrow fade");
         ExperimentPauseManager.ActiveRealtime=400.75;Call(support,"LateUpdate");
         Check(!ry.gameObject.activeSelf,"Unneeded arrow fully disappears after 0.75 seconds");
+        // Regression: tracker progression used to bypass current readiness entirely.
+        load.Weight=1000;tracker.CurrentStepDefinition=Step("LiftUp.LoadedRaising");
+        manager.Raise("TargetOperationStarted");
+        Check(!Requested(support,"rightYFade"),"A raising step cannot bypass low current after confirmation");
+        magnet.CurrentElectricCurrentA=25;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade"),"A raising step cannot bypass excess current");
+        magnet.CurrentElectricCurrentA=15;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade"),"A raising step resumes its cue when actual current enters the range");
+        magnet.CurrentElectricCurrentA=5;manager.Raise("SourceDisplayRestored");
+        Check(!Requested(support,"rightYFade")&&!ry.gameObject.activeSelf,"Source return on a raising step starts without an incorrect arrow");
+        magnet.CurrentElectricCurrentA=15;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade"),"Source return uses the active pickup target and current");
+        load.HasWeight=false;manager.HasPickupWeightPreview=false;manager.Raise("SourceDisplayRestored");
+        Check(!Requested(support,"rightYFade"),"Unknown target suppresses an existing raising step");
+        load.HasWeight=true;manager.HasPickupWeightPreview=true;
         manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.Place;
         tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Place;tracker.CurrentStepDefinition=Step("Place.LoadRelease");
         magnet.CurrentElectricCurrentA=.02f;manager.Raise("TargetDisplaySwitched");
@@ -286,12 +322,12 @@ public static class SupportTests
         tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.LoadAcquisition");
         crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;crane.CraneUnit.LocalY=-3;
         crane.InformationTarget.position=Vector3.zero;manager.GoalX=manager.GoalZ=0;
-        manager.PickupWeight=1000;magnet.CurrentLiftCapacityKg=500;
+        manager.PickupWeight=1000;magnet.CurrentElectricCurrentA=5;
         ExperimentPauseManager.ActiveRealtime=800;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
         Check(SameColor(currentText.color,phase.color),"Current highlighting latches at the current-adjustment stage");
         ExperimentPauseManager.ActiveRealtime=810;Call(support,"LateUpdate");
         Check(support.IsVisible&&root.activeSelf&&SameColor(currentText.color,phase.color),"Neither current highlighting nor confirmation-wait arrows expire by elapsed switch time");
-        manager.Raise("TargetOperationStarted");magnet.CurrentLiftCapacityKg=1000;Call(support,"LateUpdate");
+        manager.Raise("TargetOperationStarted");magnet.CurrentElectricCurrentA=10;Call(support,"LateUpdate");
         ExperimentPauseManager.ActiveRealtime=812;Call(support,"LateUpdate");
         Check(support.IsVisible&&Alpha(ry)==1&&SameColor(currentText.color,phase.color),"Confirmation and sufficient current alone do not start the timer or complete highlighting");
         manager.Raise("SourceInputUnlocked");Call(support,"LateUpdate");

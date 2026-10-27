@@ -3,6 +3,18 @@ using UnityEngine;
 /// <summary>Side-effect-free desired movement calculation, in CraneUnit command axes.</summary>
 public static class TaskSwitchSupportGuidance
 {
+    /// <summary>Pickup cue only: 10 A per target tonne, with an inclusive +10 A allowance.</summary>
+    public static string PickupCurrentGuidance(float targetWeightKg, float currentAmpere)
+    {
+        if (!IsFinite(targetWeightKg) || targetWeightKg <= 0f ||
+            !IsFinite(currentAmpere) || currentAmpere < 0f)
+            return "CurrentTargetUnavailable";
+        float minimumAmpere = targetWeightKg / 1000f * 10f;
+        if (currentAmpere < minimumAmpere) return "IncreaseCurrent";
+        if (currentAmpere > minimumAmpere + 10f) return "DecreaseCurrent";
+        return "ReadyToRaise";
+    }
+
     /// <summary>One glyph per distance interval, capped; unknown distance shows direction only.</summary>
     public static int ChevronCount(float remainingDistance, float distancePerChevron, int maximum)
     {

@@ -71,9 +71,13 @@ Hierarchy の
 
 対象になった場合、吊り上げ・配置で必要な移動矢印がなく、着床済み、または重量吸着・解放ステップなら電流条件を確認します。
 
-- 吊り上げ: 表示電流から既存システムが算出した吊り上げ能力（CurrentLiftCapacityKg）が目標重量以上なら、上昇を示します。
+- 吊り上げ: **目標重量(t) × 10 A ≤ 現在の表示電流(A) ≤ 目標重量(t) × 10 A + 10 A** の範囲内（上下限を含む）なら上昇を示します。
+  例: 目標5tなら50〜60Aです。内部の目標重量kgを1000で割ってtに換算し、端数を丸めずに比較します。
+  実際の保持重量や算出された吊り上げ能力（CurrentLiftCapacityKg）では、上昇矢印を許可しません。
   確認前のTarget・Sourceの次フェーズではCSVの目標重量を読み取り専用で参照します。通常のSource復帰や操作開始後は現行LoadPlanを使います。
 - 配置: 表示電流が0（既存の電流解除誤差detachCurrentEpsilonAmpere以内、既定0.01A）なら、上昇を示します。
+- この電流確認は着床後の補助案内だけでなく、Trackerが既に上昇ステップへ進んだ場合にも適用します。
+  吊り上げ電流の不足・超過、目標重量や電流の不明・非数値では上昇矢印を出しません。既に出ていた矢印は既存設定どおりフェードします。
 - 電流操作の段階に入ったら、TaskSwitch UIにある5個の電流値TextをSupportPhaseTextと同じ色にして保持します。
   電流が十分になっただけ、または電流が0になっただけでは元の色に戻しません。
 - 目標重量が不明なら上昇を推測せず電流値を強調します。上昇目標高さは同じクレーンのPhaseProfileを読み取り、既にその高さへ到達していれば上昇を再提示しません。
@@ -153,6 +157,8 @@ CurrentHighlightEligibleAtSwitchで、切替・復帰時の着床状態による
 CognitiveSupportArrowTimerStartedで実際の解禁起点を記録します。
 電流強調の開始はCognitiveSupportCurrentHighlightStarted、終了はCognitiveSupportCurrentHighlightEndedで、正しい重量での上昇時はReason=CorrectWeightRaisedです。
 CurrentHighlightVisibleで強調の有無、CognitiveSupportHiddenで矢印・フェーズの終了を記録します。
+PickupCurrentRule=TargetTonnesTimes10ToPlus10AInclusiveで吊り上げ電流の判定方式を記録します。
+CurrentGuidanceは不足時IncreaseCurrent、超過時DecreaseCurrent、判定不能時CurrentTargetUnavailable、適正範囲内ではReadyToRaiseです。
 他の実験イベント、入力ログ、操作判定を置き換えません。
 
 ## 確認

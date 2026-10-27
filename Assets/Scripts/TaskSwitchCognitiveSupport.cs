@@ -189,6 +189,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";Content=" + supportContent + ";DurationSeconds=" +
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
+            ";PickupCurrentRule=TargetTonnesTimes10ToPlus10AInclusive" +
             ";CurrentHighlightEligibleAtSwitch=" + touchdownAtSwitch +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
@@ -256,30 +257,34 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         CraneWorkStepDefinition raisingStep = null;
         bool noMovement = movement.x == 0f && movement.y == 0f && movement.z == 0f;
         float ignoredHeight;
-        if (noMovement && step != null && unit != null && tracker != null &&
+        bool currentAdjustmentStage = noMovement && step != null && unit != null && tracker != null &&
             !TaskSwitchSupportGuidance.TryGetRaisingTarget(step, out ignoredHeight) &&
-            IsCurrentAdjustmentStage(step, unit))
+            IsCurrentAdjustmentStage(step, unit);
+        // The tracker may already be on a raising step based on held weight. That must not
+        // bypass the displayed-current check, including on a mid-raising Source return.
+        if (currentAdjustmentStage || movement.y > 0f)
         {
             LifMagSystem magnet = selectedCrane.LifMagSystem;
             bool lifting = phase == CraneStatusManager.WorkPhase.LiftUp;
             bool placing = phase == CraneStatusManager.WorkPhase.Place || phase == CraneStatusManager.WorkPhase.PlaceToTrack;
-            if ((lifting || placing) && magnet != null && magnet.IsInputValueLiftMode)
+            if (lifting || placing)
             {
-                ArmCurrentHighlight(phase, unit);
-                bool currentReady;
-                if (lifting)
+                if (currentAdjustmentStage) ArmCurrentHighlight(phase, unit);
+                currentGuidance = "CurrentTargetUnavailable";
+                if (magnet != null && magnet.IsInputValueLiftMode && lifting)
                 {
                     float targetWeight = 0f;
                     bool hasWeight = awaitingConfirmation && (targetSide || pendingPhase) && experimentManager.TryGetCognitiveSupportPickupTargetWeightKg(
                         operationManager.CurrentCraneIndex, out targetWeight);
                     if (!hasWeight && !pendingPhase && loadPlan != null)
                         hasWeight = loadPlan.TryGetPickupTargetWeightKg(out targetWeight);
-                    currentReady = hasWeight && targetWeight > 0f &&
-                        !float.IsNaN(targetWeight) && !float.IsInfinity(targetWeight) &&
-                        magnet.CurrentLiftCapacityKg >= targetWeight;
+                    if (hasWeight)
+                        currentGuidance = TaskSwitchSupportGuidance.PickupCurrentGuidance(
+                            targetWeight, magnet.CurrentElectricCurrentA);
                 }
-                else currentReady = magnet.IsDisplayedCurrentZeroForSupport;
-                if (currentReady)
+                else if (magnet != null && magnet.IsInputValueLiftMode && placing)
+                    currentGuidance = magnet.IsDisplayedCurrentZeroForSupport ? "ReadyToRaise" : "SetCurrentToZero";
+                if (currentGuidance == "ReadyToRaise" && currentAdjustmentStage)
                 {
                     raisingStep = tracker.GetRaisingStepDefinition(phase);
                     movement = TaskSwitchSupportGuidance.RequiredMovement(raisingStep,
@@ -287,9 +292,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
                         unit.IsDownwardMovementBlockedByTouchdown, hasY, localY);
                     currentGuidance = "ReadyToRaise";
                 }
-                else
+                else if (currentGuidance != "ReadyToRaise")
                 {
-                    currentGuidance = lifting ? "IncreaseCurrent" : "SetCurrentToZero";
+                    movement.y = 0f;
+                    ArmCurrentHighlight(phase, unit);
                 }
             }
         }
