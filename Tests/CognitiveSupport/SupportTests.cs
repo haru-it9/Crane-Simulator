@@ -349,6 +349,27 @@ public static class SupportTests
         operation.CurrentCraneInstance=crane;ExperimentPauseManager.ActiveRealtime=1300;manager.Raise("TargetDisplaySwitched");
         Call(support,"OnDisable");
         Check(SameColor(currentText.color,new Color(0,1,0)),"Disable clears a latched highlight while waiting for input unlock");
+
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;crane.CraneUnit.LocalY=-3;
+        ExperimentPauseManager.ActiveRealtime=1400;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"A non-touchdown Target switch is ineligible for current highlighting");
+        manager.Raise("TargetOperationStarted");manager.Raise("TargetInputUnlocked");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;ExperimentPauseManager.ActiveRealtime=1400.1;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Touchdown after the switch cannot activate current highlighting even before arrow expiry");
+        ExperimentPauseManager.ActiveRealtime=1420;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Late touchdown cannot activate current highlighting after arrow expiry");
+        manager.Raise("SourceDisplayRestored");
+        Check(SameColor(currentText.color,phase.color),"A new Source return at touchdown captures fresh eligibility");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        ExperimentPauseManager.ActiveRealtime=1421;manager.Raise("SourceDisplayRestored");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"A subsequent non-touchdown return clears the previous current cue");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;manager.Raise("SourceOperationResumed");manager.Raise("SourceInputUnlocked");Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Source eligibility is not re-evaluated on confirmation or input unlock");
+        manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentText.color,phase.color),"A new Target switch at touchdown remains eligible");
+        Check(manager.Recorded.Exists(s=>s.StartsWith("Shown:")&&s.Contains("CurrentHighlightEligibleAtSwitch=False"))&&
+            manager.Recorded.Exists(s=>s.StartsWith("Shown:")&&s.Contains("CurrentHighlightEligibleAtSwitch=True")),"Touchdown eligibility snapshot is logged");
+        Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
 }

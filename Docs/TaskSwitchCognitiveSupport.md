@@ -64,7 +64,12 @@ Hierarchy の
 
 ### 着床後の電流操作支援
 
-吊り上げ・配置で必要な移動矢印がなく、着床済み、または重量吸着・解放ステップの場合は、電流条件を確認します。
+電流値の色による支援は、画面切替・復帰の瞬間に、対象クレーンの確定着床フラグ
+（IsDownwardMovementBlockedByTouchdown）がONだった場合だけ有効です。
+この対象判定は切替・復帰時に一度だけ保存し、その後の下降で着床しても強調を開始しません。
+確認押下や操作解禁でも対象判定をやり直さず、次の切替・復帰で新しく判定します。
+
+対象になった場合、吊り上げ・配置で必要な移動矢印がなく、着床済み、または重量吸着・解放ステップなら電流条件を確認します。
 
 - 吊り上げ: 表示電流から既存システムが算出した吊り上げ能力（CurrentLiftCapacityKg）が目標重量以上なら、上昇を示します。
   確認前のTarget・Sourceの次フェーズではCSVの目標重量を読み取り専用で参照します。通常のSource復帰や操作開始後は現行LoadPlanを使います。
@@ -74,7 +79,7 @@ Hierarchy の
 - 目標重量が不明なら上昇を推測せず電流値を強調します。上昇目標高さは同じクレーンのPhaseProfileを読み取り、既にその高さへ到達していれば上昇を再提示しません。
 - フェーズのみ条件では入力方向・電流操作の支援を表示しません。
 
-電流支援に時間制限はありません。Current Highlight Display Secondsの設定は廃止しました。
+対象になった電流支援に時間制限はありません。Current Highlight Display Secondsの設定は廃止しました。
 操作解禁後、実際の保持重量・板枚数がPhaseProfileの上昇ステップの条件を満たした状態で、実際に上昇した時点で元の色に戻します。
 吊り上げは吸着目標重量、配置は配置計画の目標残存重量（通常0t）を使い、許容誤差も既存ステップと同じです。
 上昇判定では、強調開始後の最下位置からMainLifMagのlocal Yが0.01以上増加し、そのフレームでも上昇していることを確認します。
@@ -144,6 +149,7 @@ ChevronCountAnchor=DisplaySwitch / ChevronCountsFixed=Trueで、切替・復帰�
 必要なXYZ指令・非表示理由を記録します。XYZは表示向きではなくCraneUnitの指令符号です。
 FadeOutSecondsでフェード時間、CurrentGuidanceで電流不足・ゼロ待ち・上昇可能の提示状態を記録します。
 DurationAnchor=InputUnlockedで時間の起点、CurrentHighlightEnd=CorrectWeightRaisedで電流支援の終了条件を記録します。
+CurrentHighlightEligibleAtSwitchで、切替・復帰時の着床状態による対象判定を記録します。
 CognitiveSupportArrowTimerStartedで実際の解禁起点を記録します。
 電流強調の開始はCognitiveSupportCurrentHighlightStarted、終了はCognitiveSupportCurrentHighlightEndedで、正しい重量での上昇時はReason=CorrectWeightRaisedです。
 CurrentHighlightVisibleで強調の有無、CognitiveSupportHiddenで矢印・フェーズの終了を記録します。

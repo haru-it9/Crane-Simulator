@@ -177,7 +177,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         lastPresentation = string.Empty;
         hideAt = double.PositiveInfinity;
         arrowTimerStarted = false;
-        currentHighlightWindowActive = true;
+        // Eligibility is a snapshot of confirmed touchdown at the actual display switch/return.
+        // A touchdown reached later in this episode must not start current highlighting.
+        bool touchdownAtSwitch = selectedCrane.CraneUnit != null &&
+            selectedCrane.CraneUnit.IsDownwardMovementBlockedByTouchdown;
+        currentHighlightWindowActive = touchdownAtSwitch;
         currentHighlightLatched = hasCurrentLiftSample = false;
         visible = true;
         supportRoot.SetActive(true);
@@ -185,6 +189,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";Content=" + supportContent + ";DurationSeconds=" +
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
+            ";CurrentHighlightEligibleAtSwitch=" + touchdownAtSwitch +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
             ";FadeOutSeconds=" + EffectiveFadeSeconds.ToString(CultureInfo.InvariantCulture) +
