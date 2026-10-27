@@ -129,7 +129,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!visible && !currentHighlightWindowActive && !currentFeedbackActive) return;
+        if (!visible && !currentHighlightWindowActive && !currentFeedbackActive && !useCurrentRangeColoring) return;
         if (operationManager == null || !operationManager.IsTaskSwitchExperimentMode ||
             experimentManager == null || !experimentManager.isActiveAndEnabled ||
             experimentManager.CurrentState == TaskSwitchExperimentState.Idle ||
@@ -139,9 +139,44 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             return;
         }
         if (ExperimentPauseManager.IsPaused) return;
+        EnsureNormalCurrentFeedback();
         if (visible && ExperimentPauseManager.ActiveRealtime >= hideAt)
             HideArrows("Timeout");
         if (visible || currentHighlightWindowActive || currentFeedbackActive) RefreshPresentation();
+    }
+
+    private void EnsureNormalCurrentFeedback()
+    {
+        if (!useCurrentRangeColoring || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
+        if (currentFeedbackActive && selectedCrane == operationManager.CurrentCraneInstance) return;
+        TaskSwitchExperimentState state = experimentManager.CurrentState;
+        // Confirmation/return transitions still use Show's CSV preview and event anchors.
+        bool normalWork = state == TaskSwitchExperimentState.OperatingSource ||
+            state == TaskSwitchExperimentState.OperatingReturnedSource ||
+            state == TaskSwitchExperimentState.OperatingTarget ||
+            state == TaskSwitchExperimentState.CountingDown ||
+            state == TaskSwitchExperimentState.WaitingForPhaseBoundary ||
+            state == TaskSwitchExperimentState.WaitingForOperatorSwitch;
+        if (!normalWork) return;
+        Hide("NormalCurrentFeedback");
+        BindSelectedCrane();
+        if (selectedCrane == null) return;
+        targetSide = state == TaskSwitchExperimentState.OperatingTarget;
+        awaitingConfirmation = false;
+        previewStep = null;
+        lastPresentation = string.Empty;
+        // Normal work only updates current status. No arrows, timer or switch snapshot.
+        chevronCountsCaptured = true;
+        currentFeedbackActive = true;
+    }
+
+    private void BindSelectedCrane()
+    {
+        selectedCrane = operationManager.CurrentCraneInstance;
+        tracker = selectedCrane != null ? selectedCrane.GetComponentInChildren<CraneWorkPhaseTracker>(true) : null;
+        cycle = selectedCrane != null ? selectedCrane.GetComponentInChildren<CraneWorkCycleController>(true) : null;
+        target = selectedCrane != null ? selectedCrane.GetComponentInChildren<CraneWorkTargetManager>(true) : null;
+        loadPlan = selectedCrane != null ? selectedCrane.GetComponentInChildren<CraneWorkLoadPlanManager>(true) : null;
     }
 
     private void HandleExperimentEvent(TaskSwitchEventData data)
@@ -175,12 +210,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         Hide("Replaced");
         if (supportRoot == null || experimentManager == null || operationManager == null)
             return;
-        selectedCrane = operationManager.CurrentCraneInstance;
+        BindSelectedCrane();
         if (selectedCrane == null) return;
-        tracker = selectedCrane.GetComponentInChildren<CraneWorkPhaseTracker>(true);
-        cycle = selectedCrane.GetComponentInChildren<CraneWorkCycleController>(true);
-        target = selectedCrane.GetComponentInChildren<CraneWorkTargetManager>(true);
-        loadPlan = selectedCrane.GetComponentInChildren<CraneWorkLoadPlanManager>(true);
         targetSide = isTarget;
         awaitingConfirmation = true;
         previewStep = null;
