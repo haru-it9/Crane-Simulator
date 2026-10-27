@@ -51,6 +51,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private Text rightYLabel;
     [SerializeField] private LifMagAccumValueText[] currentValueDisplays = new LifMagAccumValueText[0];
 
+    [Header("電流の適正範囲")]
+    [SerializeField] private Color appropriateCurrentColor = new Color(0f, 1f, 0f, 1f);
+    [Tooltip("保持板の下面から板山・台までの距離がこの値以上なら、電流上限をMAXまで許容します。ワールド座標単位。")]
+    [SerializeField, Min(0.01f)] private float currentRangeClearance = 0.1f;
+
     [Header("正の移動指令に対応するレバー方向")]
     [Tooltip("既定のJoystick3Verticalは符号反転されてX指令になります。実機に合わせて反転可能です。")]
     [SerializeField] private bool positiveXPointsUp = true;
@@ -63,6 +68,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private double hideAt;
     private bool arrowTimerStarted;
     private bool currentHighlightWindowActive;
+    private bool currentFeedbackActive;
     private bool currentHighlightLatched, hasCurrentLiftSample;
     private float currentLiftBaselineLocalY, previousCurrentLiftLocalY;
     private CraneStatusManager.WorkPhase currentHighlightPhase;
@@ -118,7 +124,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!visible && !currentHighlightWindowActive) return;
+        if (!visible && !currentHighlightWindowActive && !currentFeedbackActive) return;
         if (operationManager == null || !operationManager.IsTaskSwitchExperimentMode ||
             experimentManager == null || !experimentManager.isActiveAndEnabled ||
             experimentManager.CurrentState == TaskSwitchExperimentState.Idle ||
@@ -130,7 +136,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (ExperimentPauseManager.IsPaused) return;
         if (visible && ExperimentPauseManager.ActiveRealtime >= hideAt)
             HideArrows("Timeout");
-        if (visible || currentHighlightWindowActive) RefreshPresentation();
+        if (visible || currentHighlightWindowActive || currentFeedbackActive) RefreshPresentation();
     }
 
     private void HandleExperimentEvent(TaskSwitchEventData data)
@@ -142,7 +148,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             case "TargetOperationStarted":
             case "SourceOperationResumed":
                 awaitingConfirmation = false;
-                if (visible || currentHighlightWindowActive) RefreshPresentation();
+                if (visible || currentHighlightWindowActive || currentFeedbackActive) RefreshPresentation();
                 break;
             case "TargetInputUnlocked":
                 if (targetSide) StartArrowTimer();
@@ -182,6 +188,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         bool touchdownAtSwitch = selectedCrane.CraneUnit != null &&
             selectedCrane.CraneUnit.IsDownwardMovementBlockedByTouchdown;
         currentHighlightWindowActive = touchdownAtSwitch;
+        currentFeedbackActive = true;
         currentHighlightLatched = hasCurrentLiftSample = false;
         visible = true;
         supportRoot.SetActive(true);
@@ -189,7 +196,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";Content=" + supportContent + ";DurationSeconds=" +
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
-            ";PickupCurrentRule=TargetTonnesTimes10ToPlus10AInclusive" +
+            ";CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMax" +
+            ";CurrentRangeClearance=" + currentRangeClearance.ToString(CultureInfo.InvariantCulture) +
             ";CurrentHighlightEligibleAtSwitch=" + touchdownAtSwitch +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
@@ -253,7 +261,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
                 hasGoal, goalX, goalZ, unit == null || unit.IsDownwardMovementBlockedByTouchdown,
                 hasY, localY) : Vector3.zero;
 
-        string currentGuidance = "None";
+        bool currentRangeExpanded;
+        string currentGuidance = EvaluateCurrentGuidance(phase, pendingPhase, out currentRangeExpanded);
         CraneWorkStepDefinition raisingStep = null;
         bool noMovement = movement.x == 0f && movement.y == 0f && movement.z == 0f;
         float ignoredHeight;
@@ -264,26 +273,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         // bypass the displayed-current check, including on a mid-raising Source return.
         if (currentAdjustmentStage || movement.y > 0f)
         {
-            LifMagSystem magnet = selectedCrane.LifMagSystem;
             bool lifting = phase == CraneStatusManager.WorkPhase.LiftUp;
             bool placing = phase == CraneStatusManager.WorkPhase.Place || phase == CraneStatusManager.WorkPhase.PlaceToTrack;
             if (lifting || placing)
             {
                 if (currentAdjustmentStage) ArmCurrentHighlight(phase, unit);
-                currentGuidance = "CurrentTargetUnavailable";
-                if (magnet != null && magnet.IsInputValueLiftMode && lifting)
-                {
-                    float targetWeight = 0f;
-                    bool hasWeight = awaitingConfirmation && (targetSide || pendingPhase) && experimentManager.TryGetCognitiveSupportPickupTargetWeightKg(
-                        operationManager.CurrentCraneIndex, out targetWeight);
-                    if (!hasWeight && !pendingPhase && loadPlan != null)
-                        hasWeight = loadPlan.TryGetPickupTargetWeightKg(out targetWeight);
-                    if (hasWeight)
-                        currentGuidance = TaskSwitchSupportGuidance.PickupCurrentGuidance(
-                            targetWeight, magnet.CurrentElectricCurrentA);
-                }
-                else if (magnet != null && magnet.IsInputValueLiftMode && placing)
-                    currentGuidance = magnet.IsDisplayedCurrentZeroForSupport ? "ReadyToRaise" : "SetCurrentToZero";
                 if (currentGuidance == "ReadyToRaise" && currentAdjustmentStage)
                 {
                     raisingStep = tracker.GetRaisingStepDefinition(phase);
@@ -314,7 +308,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
         CheckCurrentLiftConfirmation(unit);
         bool showCurrentHighlight = directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
-        SetCurrentHighlight(showCurrentHighlight ? 1f : 0f);
+        bool showAppropriateCurrent = directionEnabled && currentFeedbackActive && currentGuidance == "ReadyToRaise";
+        SetCurrentHighlight(showCurrentHighlight || showAppropriateCurrent ? 1f : 0f, showAppropriateCurrent);
         if (!showDirection)
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
@@ -340,13 +335,49 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
             ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
             ";CurrentGuidance=" + currentGuidance +
-            ";CurrentHighlightVisible=" + showCurrentHighlight +
+            ";CurrentRangeExpanded=" + currentRangeExpanded +
+            ";CurrentAppropriateVisible=" + showAppropriateCurrent +
+            ";CurrentHighlightVisible=" + (showCurrentHighlight && !showAppropriateCurrent) +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True";
         if (presentation != lastPresentation)
         {
             lastPresentation = presentation;
             Record("Updated", presentation);
         }
+    }
+
+    private string EvaluateCurrentGuidance(CraneStatusManager.WorkPhase phase, bool pendingPhase,
+        out bool rangeExpanded)
+    {
+        rangeExpanded = false;
+        LifMagSystem magnet = selectedCrane.LifMagSystem;
+        if (magnet == null || !magnet.IsInputValueLiftMode) return "CurrentTargetUnavailable";
+        float targetWeight = 0f;
+        bool hasWeight = false;
+        bool pickup = phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.LiftUp;
+        if (pickup)
+        {
+            hasWeight = awaitingConfirmation && (targetSide || pendingPhase) &&
+                experimentManager.TryGetCognitiveSupportPickupTargetWeightKg(operationManager.CurrentCraneIndex, out targetWeight);
+            if (!hasWeight && !pendingPhase && loadPlan != null)
+                hasWeight = loadPlan.TryGetPickupTargetWeightKg(out targetWeight);
+        }
+        else if (!pendingPhase && loadPlan != null)
+            hasWeight = loadPlan.TryGetDisplayTargetWeightKg(phase, magnet.GetAttachedTotalWeightKgForDisplay(), out targetWeight);
+        if (!hasWeight) return "CurrentTargetUnavailable";
+
+        // Query the current physical gap, not time since switching or a fixed world height.
+        // Unknown gaps stay strict; lowering back toward the stack restores the +10 A limit.
+        CraneUnit unit = selectedCrane.CraneUnit;
+        float distance;
+        if (targetWeight > 0f && magnet.HasAttachedBoard && unit != null &&
+            !unit.IsDownwardMovementBlockedByTouchdown &&
+            unit.TryGetSupportLoweringDistance(out distance) &&
+            !float.IsNaN(distance) && !float.IsInfinity(distance) &&
+            distance >= Mathf.Max(0.01f, currentRangeClearance))
+            rangeExpanded = true;
+        return TaskSwitchSupportGuidance.CurrentGuidance(targetWeight, magnet.CurrentElectricCurrentA,
+            magnet.MaximumCurrentAmpere, rangeExpanded);
     }
 
     private void CaptureChevronCounts(CraneWorkStepDefinition step, Transform position,
@@ -464,6 +495,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void Hide(string reason)
     {
+        currentFeedbackActive = false;
         HideArrows(reason);
         EndCurrentHighlight(reason);
     }
@@ -502,10 +534,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         return false;
     }
 
-    private void SetCurrentHighlight(float strength)
+    private void SetCurrentHighlight(float strength, bool appropriate = false)
     {
         if (currentValueDisplays == null) return;
-        Color highlightColor = phaseText != null ? phaseText.color : Color.white;
+        Color highlightColor = appropriate ? appropriateCurrentColor : phaseText != null ? phaseText.color : Color.white;
         foreach (LifMagAccumValueText display in currentValueDisplays)
             if (display != null) display.SetCognitiveSupportHighlight(strength, highlightColor);
     }

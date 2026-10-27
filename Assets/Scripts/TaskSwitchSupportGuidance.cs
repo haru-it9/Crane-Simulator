@@ -3,15 +3,21 @@ using UnityEngine;
 /// <summary>Side-effect-free desired movement calculation, in CraneUnit command axes.</summary>
 public static class TaskSwitchSupportGuidance
 {
-    /// <summary>Pickup cue only: 10 A per target tonne, with an inclusive +10 A allowance.</summary>
-    public static string PickupCurrentGuidance(float targetWeightKg, float currentAmpere)
+    /// <summary>Shared current status for text and ascent cues; a zero target requires zero A.</summary>
+    public static string CurrentGuidance(float targetWeightKg, float currentAmpere,
+        float maximumAmpere, bool loadClearOfStack)
     {
-        if (!IsFinite(targetWeightKg) || targetWeightKg <= 0f ||
-            !IsFinite(currentAmpere) || currentAmpere < 0f)
+        if (!IsFinite(targetWeightKg) || targetWeightKg < 0f ||
+            !IsFinite(currentAmpere) || currentAmpere < 0f ||
+            !IsFinite(maximumAmpere) || maximumAmpere <= 0f)
             return "CurrentTargetUnavailable";
+        // Zero never receives the +10 A allowance or the elevated-load relaxation.
+        if (targetWeightKg == 0f) return currentAmpere == 0f ? "ReadyToRaise" : "SetCurrentToZero";
         float minimumAmpere = targetWeightKg / 1000f * 10f;
+        float maximumAllowed = loadClearOfStack ? maximumAmpere : Mathf.Min(minimumAmpere + 10f, maximumAmpere);
+        if (minimumAmpere > maximumAllowed) return "CurrentTargetUnavailable";
         if (currentAmpere < minimumAmpere) return "IncreaseCurrent";
-        if (currentAmpere > minimumAmpere + 10f) return "DecreaseCurrent";
+        if (currentAmpere > maximumAllowed) return "DecreaseCurrent";
         return "ReadyToRaise";
     }
 

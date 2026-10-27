@@ -100,8 +100,10 @@ public class CraneInstance : UnityEngine.Component { public UnityEngine.Transfor
 public class LifMagSystem
 {
     public bool IsInputValueLiftMode=true;public float CurrentLiftCapacityKg,CurrentElectricCurrentA;
+    public float MaximumCurrentAmpere=75f;
     public float AttachedWeight;
     public List<UnityEngine.GameObject> AttachedBoards=new List<UnityEngine.GameObject>();
+    public bool HasAttachedBoard=>AttachedBoards.Count>0;
     public float GetAttachedTotalWeightKgForDisplay()=>AttachedWeight;
     public bool IsDisplayedCurrentZeroForSupport=>IsInputValueLiftMode&&Math.Abs(CurrentElectricCurrentA)<=.01f;
     public bool IsLifMagCurrentOn(int i)=>true;
@@ -113,6 +115,9 @@ public class CraneWorkLoadPlanManager
     public int PickupCount=-1,RemainingCount=-1;
     public bool TryGetPickupTargetWeightKg(out float w) {w=Weight;return HasWeight;}
     public bool TryGetTargetRemainingWeightKg(out float w) {w=RemainingWeight;return HasRemainingWeight;}
+    public bool TryGetDisplayTargetWeightKg(CraneStatusManager.WorkPhase phase,float held,out float w)
+    {return phase==CraneStatusManager.WorkPhase.Move1||phase==CraneStatusManager.WorkPhase.LiftUp
+        ? TryGetPickupTargetWeightKg(out w) : TryGetTargetRemainingWeightKg(out w);}
     public bool IsPickupBoardCountSatisfied(int count)=>PickupCount<0||count==PickupCount;
     public bool IsPlacementBoardCountSatisfied(int count)=>RemainingCount<0||count==RemainingCount;
 }

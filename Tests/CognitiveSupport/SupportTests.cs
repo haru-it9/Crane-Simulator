@@ -11,6 +11,7 @@ public static class SupportTests
     static void Call(object o,string name) { o.GetType().GetMethod(name,BindingFlags.NonPublic|BindingFlags.Instance).Invoke(o,null); }
     static bool Requested(TaskSwitchCognitiveSupport s,string field)
     {var f=s.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).GetValue(s);return (bool)f.GetType().GetField("requested").GetValue(f);}
+    static bool Flag(object o,string name)=>(bool)o.GetType().GetField(name,BindingFlags.NonPublic|BindingFlags.Instance).GetValue(o);
     static bool SameColor(Color a,Color b)=>Math.Abs(a.r-b.r)<.0001f&&Math.Abs(a.g-b.g)<.0001f&&Math.Abs(a.b-b.b)<.0001f&&Math.Abs(a.a-b.a)<.0001f;
     static float Alpha(RectTransform group)=>group.GetComponent<CanvasGroup>().alpha;
     static CraneWorkStepDefinition Step(string id) { return CraneWorkPhaseProfile.CreateBuiltInDefaults().Find(s=>s.stepId==id); }
@@ -44,16 +45,24 @@ public static class SupportTests
         Check(Guidance("LiftUp.LoadAcquisition",0,0).y==0,"Acquiring weight is not movement");
         Check(Guidance("Place.LoadRelease",0,0).y==0,"Release weight is not movement");
 
-        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,49.99f)=="IncreaseCurrent","5 t requires at least 50 A");
-        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,50)=="ReadyToRaise","Lower current boundary is inclusive");
-        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,55)=="ReadyToRaise","Current inside the range is accepted");
-        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,60)=="ReadyToRaise","Upper current boundary is inclusive");
-        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(5000,60.01f)=="DecreaseCurrent","Excess current must not enable raising");
-        Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(1250,12.5f)=="ReadyToRaise","Fractional tonnes are not rounded");
-        foreach(float invalid in new[]{0f,-1f,float.NaN,float.PositiveInfinity})
-            Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(invalid,10)=="CurrentTargetUnavailable","Invalid pickup target cannot enable raising");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,49.99f,75,false)=="IncreaseCurrent","5 t requires at least 50 A");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,50,75,false)=="ReadyToRaise","Lower current boundary is inclusive");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,55,75,false)=="ReadyToRaise","Current inside the range is accepted");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,60,75,false)=="ReadyToRaise","Upper current boundary is inclusive");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,60.01f,75,false)=="DecreaseCurrent","Excess current must not enable raising");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(1250,12.5f,75,false)=="ReadyToRaise","Fractional tonnes are not rounded");
         foreach(float invalid in new[]{-1f,float.NaN,float.PositiveInfinity})
-            Check(TaskSwitchSupportGuidance.PickupCurrentGuidance(1000,invalid)=="CurrentTargetUnavailable","Invalid current cannot enable raising");
+            Check(TaskSwitchSupportGuidance.CurrentGuidance(invalid,10,75,false)=="CurrentTargetUnavailable","Invalid pickup target cannot enable raising");
+        foreach(float invalid in new[]{-1f,float.NaN,float.PositiveInfinity})
+            Check(TaskSwitchSupportGuidance.CurrentGuidance(1000,invalid,75,false)=="CurrentTargetUnavailable","Invalid current cannot enable raising");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(0,0,75,false)=="ReadyToRaise","Zero target accepts exactly zero A");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(0,.001f,75,true)=="SetCurrentToZero","Zero target never gets a tolerance band or raised-load relaxation");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,75,75,true)=="ReadyToRaise","Clear held load accepts configured MAX");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,75.01f,75,true)=="DecreaseCurrent","Even clear loads cannot exceed MAX");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,49.99f,75,true)=="IncreaseCurrent","Clearance never relaxes the minimum current");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(7000,75,75,false)=="ReadyToRaise","Strict range is capped at physical MAX");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(8000,75,75,true)=="CurrentTargetUnavailable","Unachievable target cannot be green");
+        Check(TaskSwitchSupportGuidance.CurrentGuidance(5000,50,float.NaN,true)=="CurrentTargetUnavailable","Unknown MAX cannot be green");
 
         Check(TaskSwitchSupportGuidance.ChevronCount(.5f,.5f,3)==1,"Near distance: one chevron at boundary");
         Check(TaskSwitchSupportGuidance.ChevronCount(.5001f,.5f,3)==2,"Middle distance: two chevrons");
@@ -227,7 +236,7 @@ public static class SupportTests
         magnet.CurrentLiftCapacityKg=0;magnet.CurrentElectricCurrentA=10;Call(support,"LateUpdate");
         Check(Requested(support,"rightYFade")&&ya.rectTransform.localEulerAngles.z==180&&verticalLabel.text=="上昇",
             "CSV-preview target weight enables raising with a downward lever arrow and raising label");
-        Check(SameColor(currentText.color,phase.color),"Ready current stays highlighted until actual correct-weight raising");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Appropriate current turns green before any actual raising");
         magnet.CurrentElectricCurrentA=20;Call(support,"LateUpdate");
         Check(Requested(support,"rightYFade"),"Upper +10 A boundary also enables the pickup arrow");
         magnet.CurrentElectricCurrentA=20.01f;Call(support,"LateUpdate");
@@ -266,7 +275,7 @@ public static class SupportTests
         magnet.CurrentElectricCurrentA=.02f;manager.Raise("TargetDisplaySwitched");
         Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Placement touchdown requires zero current");
         magnet.CurrentElectricCurrentA=0;Call(support,"LateUpdate");
-        Check(Requested(support,"rightYFade")&&verticalLabel.text=="上昇"&&SameColor(currentText.color,phase.color),"Zero current enables raising but keeps highlighting until actual empty raising");
+        Check(Requested(support,"rightYFade")&&verticalLabel.text=="上昇"&&SameColor(currentText.color,new Color(0,1,0)),"Zero current enables raising and turns the text green before empty raising");
         tracker.CurrentStepDefinition=Step("Place.PostPlacementRaising");crane.CraneUnit.LocalY=-1;
         manager.Raise("TargetOperationStarted");
         Check(!Requested(support,"rightYFade"),"Reached raising height is never replayed by the touchdown fallback");
@@ -329,7 +338,7 @@ public static class SupportTests
         Check(support.IsVisible&&root.activeSelf&&SameColor(currentText.color,phase.color),"Neither current highlighting nor confirmation-wait arrows expire by elapsed switch time");
         manager.Raise("TargetOperationStarted");magnet.CurrentElectricCurrentA=10;Call(support,"LateUpdate");
         ExperimentPauseManager.ActiveRealtime=812;Call(support,"LateUpdate");
-        Check(support.IsVisible&&Alpha(ry)==1&&SameColor(currentText.color,phase.color),"Confirmation and sufficient current alone do not start the timer or complete highlighting");
+        Check(support.IsVisible&&Alpha(ry)==1&&SameColor(currentText.color,new Color(0,1,0))&&Flag(support,"currentHighlightWindowActive"),"Appropriate current turns green without starting the timer or completing the lift");
         manager.Raise("SourceInputUnlocked");Call(support,"LateUpdate");
         Check(Alpha(ry)==1,"The other role's input-unlock event cannot start the timer");
         manager.Raise("TargetInputUnlocked");
@@ -337,14 +346,14 @@ public static class SupportTests
         ExperimentPauseManager.ActiveRealtime=813.625;Call(support,"LateUpdate");
         Check(Math.Abs(Alpha(ry)-.5f)<.0001f,"Arrow fades relative to the first actual unlock without restarting on duplicates");
         ExperimentPauseManager.ActiveRealtime=814;Call(support,"LateUpdate");
-        Check(!support.IsVisible&&!root.activeSelf&&SameColor(currentText.color,phase.color),"Arrow deadline does not end latched current highlighting");
+        Check(!support.IsVisible&&!root.activeSelf&&SameColor(currentText.color,new Color(0,1,0))&&Flag(support,"currentHighlightWindowActive"),"Arrow deadline does not end current feedback or the pending lift");
         ExperimentPauseManager.ActiveRealtime=814.1;crane.CraneUnit.LocalY=-2.98f;Call(support,"LateUpdate");
-        Check(SameColor(currentText.color,phase.color),"Raising the wrong actual weight cannot clear current highlighting");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&Flag(support,"currentHighlightWindowActive"),"Green current does not confirm a wrong-weight lift");
         magnet.AttachedWeight=1000;ExperimentPauseManager.ActiveRealtime=814.2;Call(support,"LateUpdate");
-        Check(SameColor(currentText.color,phase.color),"Correcting weight while stationary cannot count as a correct-weight lift");
+        Check(Flag(support,"currentHighlightWindowActive"),"Correcting weight while stationary cannot count as a correct-weight lift");
         ExperimentPauseManager.ActiveRealtime=814.3;crane.CraneUnit.LocalY=-2.96f;Call(support,"LateUpdate");
         Check(SameColor(currentText.color,new Color(0,1,0))&&!root.activeSelf,"Actual correct-weight raising restores current color without resurrecting arrows");
-        magnet.CurrentLiftCapacityKg=500;magnet.AttachedWeight=1500;crane.CraneUnit.LocalY=-3;Call(support,"LateUpdate");
+        magnet.CurrentElectricCurrentA=5;magnet.AttachedWeight=1500;crane.CraneUnit.LocalY=-3;Call(support,"LateUpdate");
         Check(SameColor(currentText.color,new Color(0,1,0)),"A confirmed lift prevents re-highlighting within the same switch episode");
         Check(manager.Recorded.Exists(s=>s.StartsWith("CurrentHighlightEnded:")&&s.Contains("Reason=CorrectWeightRaised")),"Correct-weight lift completion is logged");
         Check(manager.Recorded.Exists(s=>s.StartsWith("ArrowTimerStarted:")&&s.Contains("Anchor=InputUnlocked")),"Actual timer start is logged separately from display switch");
@@ -363,9 +372,9 @@ public static class SupportTests
         magnet.AttachedWeight=1000;crane.CraneUnit.LocalY=-3;
         ExperimentPauseManager.ActiveRealtime=1000;manager.Raise("TargetDisplaySwitched");manager.Raise("TargetOperationStarted");manager.Raise("TargetInputUnlocked");
         crane.CraneUnit.LocalY=-2.98f;Call(support,"LateUpdate");
-        Check(SameColor(currentText.color,phase.color),"Zero current alone cannot complete placement while the board is still held");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&Flag(support,"currentHighlightWindowActive"),"Zero current is green but does not confirm placement while the board is held");
         magnet.AttachedBoards.Clear();magnet.AttachedWeight=0;Call(support,"LateUpdate");
-        Check(SameColor(currentText.color,phase.color),"Empty weight without a new rise cannot complete placement highlighting");
+        Check(Flag(support,"currentHighlightWindowActive"),"Empty weight without a new rise cannot complete placement highlighting");
         crane.CraneUnit.LocalY=-2.96f;Call(support,"LateUpdate");
         Check(SameColor(currentText.color,new Color(0,1,0)),"Placement clears only after rising with the planned remaining weight and count");
 
@@ -405,6 +414,102 @@ public static class SupportTests
         Check(SameColor(currentText.color,phase.color),"A new Target switch at touchdown remains eligible");
         Check(manager.Recorded.Exists(s=>s.StartsWith("Shown:")&&s.Contains("CurrentHighlightEligibleAtSwitch=False"))&&
             manager.Recorded.Exists(s=>s.StartsWith("Shown:")&&s.Contains("CurrentHighlightEligibleAtSwitch=True")),"Touchdown eligibility snapshot is logged");
+        Call(support,"OnDisable");
+        // Use a white baseline to distinguish real green feedback from color restoration.
+        currentDisplay=new LifMagAccumValueText();currentText=new Text {color=Color.white};
+        Set(currentDisplay,"valueText",currentText);Set(support,"currentValueDisplays",new[]{currentDisplay});
+        Set(support,"supportContent",TaskSwitchSupportContent.PhaseAndInputDirection);
+        manager.CurrentState=TaskSwitchExperimentState.WaitingForConfirmation;
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.LoadAcquisition");
+        cycle.HasPendingNextPhase=false;manager.PickupWeight=load.Weight=5000;
+        manager.HasPickupWeightPreview=load.HasWeight=true;
+        magnet.AttachedBoards.Clear();magnet.AttachedBoards.Add(new GameObject());
+        magnet.AttachedWeight=4000;magnet.CurrentElectricCurrentA=49.99f;magnet.MaximumCurrentAmpere=75;
+        crane.CraneUnit.LocalY=-3;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
+        crane.CraneUnit.DistanceKnown=true;crane.CraneUnit.LoweringDistance=.1f;
+        ExperimentPauseManager.ActiveRealtime=1500;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentText.color,phase.color)&&!Requested(support,"rightYFade"),"Insufficient current at touchdown gets the phase color");
+        manager.Raise("TargetOperationStarted");
+        magnet.CurrentElectricCurrentA=50;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&Requested(support,"rightYFade"),"Current becomes green immediately at the lower bound, without weight matching or movement");
+        magnet.CurrentElectricCurrentA=60;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Strict upper bound is green");
+        magnet.CurrentElectricCurrentA=60.01f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color)&&!Requested(support,"rightYFade"),"Going outside the strict band restores the pending-operation cue");
+        magnet.CurrentElectricCurrentA=75;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        crane.CraneUnit.LoweringDistance=.099f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Attached load below the clearance threshold still uses +10 A");
+        crane.CraneUnit.LoweringDistance=.1f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&Requested(support,"rightYFade"),"At clearance threshold, MAX becomes valid for both color and arrow");
+        magnet.CurrentElectricCurrentA=75.01f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color)&&!Requested(support,"rightYFade"),"MAX is an actual upper bound");
+        magnet.CurrentElectricCurrentA=49.99f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Raised load still requires the target-derived minimum");
+        magnet.MaximumCurrentAmpere=65;magnet.CurrentElectricCurrentA=65;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"MAX is read from the selected crane, not hard-coded to 75 A");
+        magnet.CurrentElectricCurrentA=65.01f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Selected-crane MAX is enforced");
+        magnet.MaximumCurrentAmpere=75;magnet.CurrentElectricCurrentA=75;
+        Set(support,"currentRangeClearance",.2f);Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Inspector clearance setting controls relaxation");
+        Set(support,"currentRangeClearance",.1f);crane.CraneUnit.DistanceKnown=false;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Unknown surface distance cannot relax the range");
+        crane.CraneUnit.DistanceKnown=true;magnet.AttachedBoards.Clear();Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Distance alone cannot relax current without an attached plate");
+        magnet.AttachedBoards.Add(new GameObject());Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"A held plate and sufficient clearance restore MAX allowance");
+        crane.CraneUnit.LoweringDistance=.05f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Approaching the stack restores the strict upper bound");
+        crane.CraneUnit.LoweringDistance=.1f;manager.Raise("TargetOperationStarted");manager.Raise("TargetInputUnlocked");
+        ExperimentPauseManager.ActiveRealtime=1502;Call(support,"LateUpdate");
+        Check(!root.activeSelf&&SameColor(currentText.color,new Color(0,1,0)),"Current green persists after the arrow deadline");
+        crane.CraneUnit.LoweringDistance=.05f;Call(support,"LateUpdate");
+        Check(!root.activeSelf&&SameColor(currentText.color,phase.color),"Range and color continue updating after arrows expire");
+
+        // Placement reads the target remaining weight; zero is a separate exact-zero rule.
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Place;tracker.CurrentStepDefinition=Step("Place.LoadRelease");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.Place;
+        load.RemainingWeight=0;load.HasRemainingWeight=true;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
+        magnet.CurrentElectricCurrentA=0;ExperimentPauseManager.ActiveRealtime=1600;manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&Requested(support,"rightYFade"),"Placement target zero is green at zero A");
+        manager.Raise("TargetOperationStarted");
+        magnet.CurrentElectricCurrentA=.001f;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color)&&!Requested(support,"rightYFade"),"A nonzero current cannot qualify for a zero-weight target");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;crane.CraneUnit.LoweringDistance=1;magnet.CurrentElectricCurrentA=75;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color),"Zero target remains zero even with an elevated held load");
+        load.RemainingWeight=2000;magnet.CurrentElectricCurrentA=20;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&Requested(support,"rightYFade"),"Nonzero placement target uses its remaining-weight current band");
+        load.HasRemainingWeight=false;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,phase.color)&&!Requested(support,"rightYFade"),"Unknown target cannot show green or upward guidance");
+        load.HasRemainingWeight=true;
+
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.LoadAcquisition");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        magnet.AttachedWeight=5000;load.PickupCount=1;magnet.CurrentElectricCurrentA=50;
+        crane.CraneUnit.LocalY=-3;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
+        ExperimentPauseManager.ActiveRealtime=1700;manager.Raise("TargetDisplaySwitched");manager.Raise("TargetOperationStarted");manager.Raise("TargetInputUnlocked");
+        ExperimentPauseManager.ActiveRealtime=1702;Call(support,"LateUpdate");
+        crane.CraneUnit.LocalY=-2.98f;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;Call(support,"LateUpdate");
+        Check(!Flag(support,"currentHighlightWindowActive")&&SameColor(currentText.color,new Color(0,1,0)),"Correct-weight raising ends the reminder but retains green feedback");
+        magnet.CurrentElectricCurrentA=75;Call(support,"LateUpdate");
+        Check(!root.activeSelf&&SameColor(currentText.color,new Color(0,1,0)),"MAX feedback still updates after both reminder and arrows have ended");
+        magnet.CurrentElectricCurrentA=49;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,Color.white),"Out-of-range current after lift completion restores normal color without rearming the reminder");
+        magnet.CurrentElectricCurrentA=75;Call(support,"LateUpdate");
+        ExperimentPauseManager.IsPaused=true;magnet.CurrentElectricCurrentA=49;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Pause preserves current feedback");
+        ExperimentPauseManager.IsPaused=false;Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,Color.white),"Feedback refreshes on resume");
+        magnet.CurrentElectricCurrentA=75;manager.Raise("SourceDisplayRestored");
+        Check(SameColor(currentText.color,new Color(0,1,0))&&!Flag(support,"currentHighlightWindowActive"),"Elevated Source return has green status without a touchdown reminder");
+        Set(support,"supportContent",TaskSwitchSupportContent.PhaseOnly);Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,Color.white),"Phase-only condition does not leak current feedback");
+        Set(support,"supportContent",TaskSwitchSupportContent.InputDirectionOnly);Call(support,"LateUpdate");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Direction support restores valid-current feedback");
+        manager.Raise("ExperimentCompleted");
+        Check(SameColor(currentText.color,Color.white)&&!Flag(support,"currentFeedbackActive"),"Experiment completion restores normal color and ends monitoring");
+        Check(manager.Recorded.Exists(s=>s.Contains("CurrentRangeExpanded=True"))&&manager.Recorded.Exists(s=>s.Contains("CurrentAppropriateVisible=True")),"Range relaxation and green feedback are logged");
         Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
