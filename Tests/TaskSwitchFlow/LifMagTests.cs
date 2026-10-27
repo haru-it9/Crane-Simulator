@@ -84,6 +84,7 @@ static class LifMagTests
         Tick(m,15);Require(m.AttachedBoards.Count==1 && m.AttachedBoards[0]==first && m.CurrentAttachedWeightKg==1000,"current reduction did not release bottom plate during raised Move2");
         Require(second.transform.parent==null && !second.GetComponent<Rigidbody>().isKinematic && second.GetComponent<Rigidbody>().useGravity,"released plate stayed physically attached");
         Attached(first,crane);tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Place;Tick(m,0);
+        Require(m.IsDisplayedCurrentZeroForSupport,"Zero display current must satisfy the support release check");
         Require(!m.HasAttachedBoard && m.CurrentAttachedWeightKg==0 && first.transform.parent==null && first.GetComponent<Rigidbody>().useGravity,"zero current did not release remaining plate before touchdown");
         var drops=attachmentEvents.FindAll(e=>e.StartsWith("BoardDetachedInsufficientCurrent:"));
         Require(drops.Count==2 && drops[0].EndsWith(":second") && drops[1].EndsWith(":first"),"current release events or order missing");

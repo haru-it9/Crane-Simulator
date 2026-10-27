@@ -125,6 +125,15 @@ static class FlowTests
             "Target placement preview must use this switch condition");
         Require(!r.Manager.TryGetCognitiveSupportTargetPosition(10,CraneStatusManager.WorkPhase.Move1,out x,out z),
             "Unknown crane must not receive an arbitrary preview goal");
+        float pickupWeight;
+        var load=r.Registry.cranes[1].GetComponent<CraneWorkLoadPlanManager>();
+        float oldPickupWeight=load.PickupTargetWeightKg;
+        Require(r.Manager.TryGetCognitiveSupportPickupTargetWeightKg(1,out pickupWeight)&&pickupWeight==300,
+            "Target pickup weight preview must sum the selected CSV board count");
+        Require(load.PickupTargetWeightKg==oldPickupWeight&&r.Target(0).targetX==beforeX&&r.Target(0).targetZ==beforeZ,
+            "Weight preview changed a load plan or live goal");
+        Require(!r.Manager.TryGetCognitiveSupportPickupTargetWeightKg(10,out pickupWeight),
+            "Unknown crane cannot receive an arbitrary pickup weight");
         var state=r.Manager.CurrentState;
         r.Manager.RecordCognitiveSupportEvent("Shown","Content=PhaseOnly;DurationSeconds=8");
         Require(r.Events.Contains("CognitiveSupportShown") && r.Manager.CurrentState==state,

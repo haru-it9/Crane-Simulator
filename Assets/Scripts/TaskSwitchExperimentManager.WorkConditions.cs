@@ -64,6 +64,23 @@ public partial class TaskSwitchExperimentManager
         return true;
     }
 
+    /// <summary>Read the selected CSV pickup weight without applying targets or changing the load plan.</summary>
+    public bool TryGetCognitiveSupportPickupTargetWeightKg(int craneIndex, out float targetWeightKg)
+    {
+        targetWeightKg = 0f;
+        TaskSwitchWorkCondition condition = null;
+        if (targetCondition != null && craneIndex == targetCondition.craneIndex) condition = activeTargetWorkCondition;
+        else if (sourceCondition != null && craneIndex == sourceCondition.craneIndex)
+            condition = SourceWorkCondition(sourceCycleController != null ? sourceCycleController.CurrentCycleNumber : 1);
+        CraneInstance crane = craneRegistry != null ? craneRegistry.GetCraneByRuntimeIndex(craneIndex) : null;
+        BoardGenerator generator = crane != null ? crane.BoardGenerator : null;
+        if (generator == null && crane != null) generator = crane.GetComponentInChildren<BoardGenerator>(true);
+        if (condition == null || generator == null) return false;
+        int count, spawn;
+        return generator.TryGetPickupTargetWeightKg(condition.pickupX, condition.pickupZ, condition.pickupCount,
+            out targetWeightKg, out count, out spawn);
+    }
+
     private TaskSwitchMethodCsvPair SelectedMethodCsvPair
     {
         get

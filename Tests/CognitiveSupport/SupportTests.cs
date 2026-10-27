@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 public static class SupportTests
@@ -8,6 +9,10 @@ public static class SupportTests
     static void Check(bool ok,string message) { checks++;if(!ok)throw new Exception(message); }
     static void Set(object o,string name,object value) { o.GetType().GetField(name,BindingFlags.NonPublic|BindingFlags.Instance).SetValue(o,value); }
     static void Call(object o,string name) { o.GetType().GetMethod(name,BindingFlags.NonPublic|BindingFlags.Instance).Invoke(o,null); }
+    static bool Requested(TaskSwitchCognitiveSupport s,string field)
+    {var f=s.GetType().GetField(field,BindingFlags.NonPublic|BindingFlags.Instance).GetValue(s);return (bool)f.GetType().GetField("requested").GetValue(f);}
+    static bool SameColor(Color a,Color b)=>Math.Abs(a.r-b.r)<.0001f&&Math.Abs(a.g-b.g)<.0001f&&Math.Abs(a.b-b.b)<.0001f&&Math.Abs(a.a-b.a)<.0001f;
+    static float Alpha(RectTransform group)=>group.GetComponent<CanvasGroup>().alpha;
     static CraneWorkStepDefinition Step(string id) { return CraneWorkPhaseProfile.CreateBuiltInDefaults().Find(s=>s.stepId==id); }
     static Vector3 Guidance(string id,float x,float z,bool contact=false,float y=-3,bool goal=true)
     { return TaskSwitchSupportGuidance.RequiredMovement(Step(id),Vector3.zero,goal,x,z,contact,true,y); }
@@ -53,6 +58,14 @@ public static class SupportTests
 
         var manager=new TaskSwitchExperimentManager();
         var tracker=new CraneWorkPhaseTracker { CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1,CurrentStepDefinition=Step("Move1.PickupCoarseMove"),GoalX=2,GoalZ=-2 };
+        Check(tracker.GetRaisingStepDefinition(CraneStatusManager.WorkPhase.LiftUp).stepId=="LiftUp.LoadedRaising","Raising fallback uses the production profile lookup");
+        var customProfile=new CraneWorkPhaseProfile();var customRaise=Step("LiftUp.LoadedRaising");
+        Set(customProfile,"stepDefinitions",new List<CraneWorkStepDefinition>{customRaise});Set(tracker,"phaseProfile",customProfile);
+        Check(object.ReferenceEquals(tracker.GetRaisingStepDefinition(CraneStatusManager.WorkPhase.LiftUp),customRaise),"Custom raising step is preserved");
+        Set(customProfile,"stepDefinitions",new List<CraneWorkStepDefinition>{Step("LiftUp.LoadAcquisition")});
+        Check(tracker.GetRaisingStepDefinition(CraneStatusManager.WorkPhase.LiftUp)==null,"Custom phase without raising cannot invent a built-in height goal");
+        Check(tracker.CurrentMajorPhase==CraneStatusManager.WorkPhase.Move1&&tracker.CurrentStepDefinition.stepId=="Move1.PickupCoarseMove","Reading raising goals cannot advance the tracker");
+        Set(tracker,"phaseProfile",null);
         var cycle=new CraneWorkCycleController();
         var crane=new CraneInstance { InformationTarget=new Transform(),CraneUnit=new CraneUnit() };
         crane.gameObject.Components[typeof(CraneWorkPhaseTracker)]=tracker;
@@ -82,7 +95,7 @@ public static class SupportTests
         ExperimentPauseManager.ActiveRealtime=104;manager.CurrentState=TaskSwitchExperimentState.OperatingTarget;manager.Raise("TargetOperationStarted");
         tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=null;
         Call(support,"LateUpdate");
-        Check(!left.gameObject.activeSelf&&!ry.gameObject.activeSelf&&!rz.gameObject.activeSelf,
+        Check(!Requested(support,"leftFade")&&!Requested(support,"rightYFade")&&!Requested(support,"rightZFade"),
             "Completed phase must not replay its first lowering step while advancing");
         tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1;tracker.CurrentStepDefinition=Step("Move1.PickupCoarseMove");
         ExperimentPauseManager.ActiveRealtime=108;Call(support,"LateUpdate");
@@ -94,7 +107,7 @@ public static class SupportTests
         Check(support.IsVisible,"Return restarts support window");
         Check(phase.text=="移動"&&la.rectTransform.localEulerAngles.z==0,"CSV preview uses pending Source phase goal, not stale displayed goal");
         manager.HasPreview=false;Call(support,"LateUpdate");
-        Check(!left.gameObject.activeSelf&&!rz.gameObject.activeSelf,"Unknown future random target cannot use stale current target");
+        Check(!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),"Unknown future random target cannot use stale current target");
         ExperimentPauseManager.IsPaused=true;ExperimentPauseManager.ActiveRealtime=207;Call(support,"LateUpdate");
         Check(support.IsVisible,"Pause keeps presentation visible");
         ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.ActiveRealtime=208;Call(support,"LateUpdate");
@@ -127,7 +140,7 @@ public static class SupportTests
         crane.InformationTarget.position=new Vector3(1.2f,0,0);Call(support,"LateUpdate");
         Check(la.ChevronCount==3,"Near target does not reduce the captured count");
         crane.InformationTarget.position=new Vector3(1.5f,0,0);Call(support,"LateUpdate");
-        Check(!left.gameObject.activeSelf,"Reached axis still hides all chevrons");
+        Check(!Requested(support,"leftFade"),"Reached axis starts disappearing");
         crane.InformationTarget.position=Vector3.zero;manager.GoalX=1.2f;manager.GoalZ=6;
         manager.Raise("SourceDisplayRestored");
         Check(la.ChevronCount==2&&za.ChevronCount==3,"Return captures a fresh per-axis count");
@@ -145,7 +158,7 @@ public static class SupportTests
         crane.CraneUnit.DistanceKnown=false;Call(support,"LateUpdate");Check(ya.ChevronCount==3,"Later sensor changes cannot replace the snapshot");
         Check(crane.CraneUnit.LoweringQueries==loweringQueries,"Distance probe runs only at switch/return");
         crane.CraneUnit.DistanceKnown=true;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
-        Call(support,"LateUpdate");Check(!ry.gameObject.activeSelf,"Touchdown still hides the new pattern");
+        Call(support,"LateUpdate");Check(!Requested(support,"rightYFade"),"Touchdown starts disappearing without current-system support");
         crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
         tracker.CurrentStepDefinition=Step("LiftUp.LoadedRaising");manager.Raise("TargetOperationStarted");
         Check(ry.gameObject.activeSelf&&ya.ChevronCount==3,"Changing to raising does not replace the initial count");
@@ -169,6 +182,85 @@ public static class SupportTests
         la.SetPresentation(TaskSwitchDirectionPresentation.SingleArrow,1,3);
         typeof(TaskSwitchSupportArrow).GetMethod("OnPopulateMesh",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(la,new object[]{mesh});
         Check(mesh.Vertices==7&&mesh.Triangles==3,"Switching back preserves the original arrow");
+        Call(support,"OnDisable");
+        var verticalLabel=new Text();Set(support,"rightYLabel",verticalLabel);
+        var currentDisplay=new LifMagAccumValueText();var currentText=new Text {color=new Color(0,1,0)};
+        Set(currentDisplay,"valueText",currentText);
+        Set(support,"currentValueDisplays",new[]{currentDisplay});
+        phase.color=new Color(.99f,.64f,.64f);
+        var magnet=new LifMagSystem { CurrentElectricCurrentA=5,CurrentLiftCapacityKg=500 };
+        crane.LifMagSystem=magnet;
+        var load=new CraneWorkLoadPlanManager {Weight=9999};
+        crane.gameObject.Components[typeof(CraneWorkLoadPlanManager)]=load;
+        manager.PickupWeight=1000;manager.HasPickupWeightPreview=true;
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.PickupLowering");
+        crane.CraneUnit.LocalY=-3;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;
+        manager.GoalX=manager.GoalZ=0;cycle.HasPendingNextPhase=false;
+        Set(support,"supportContent",TaskSwitchSupportContent.PhaseAndInputDirection);
+        ExperimentPauseManager.ActiveRealtime=400;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Touchdown with insufficient current highlights the current text in the phase color");
+        magnet.CurrentLiftCapacityKg=999;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade"),"Pickup capacity must meet the complete target weight");
+        manager.HasPickupWeightPreview=false;cycle.HasPendingNextPhase=true;cycle.PendingNextPhase=CraneStatusManager.WorkPhase.LiftUp;
+        manager.Raise("SourceDisplayRestored");
+        Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Unknown pending pickup weight cannot use a stale load plan");
+        manager.HasPickupWeightPreview=true;cycle.HasPendingNextPhase=false;manager.Raise("TargetDisplaySwitched");
+        magnet.CurrentLiftCapacityKg=1000;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&ya.rectTransform.localEulerAngles.z==180&&verticalLabel.text=="上昇",
+            "CSV-preview target weight enables raising with a downward lever arrow and raising label");
+        Check(SameColor(currentText.color,new Color(0,1,0)),"Ready current restores the original text color");
+        load.Weight=1000;manager.PickupWeight=9000;manager.Raise("SourceDisplayRestored");
+        Check(Requested(support,"rightYFade"),"Ordinary Source return uses its active load-plan weight even after pickup boards moved");
+        manager.PickupWeight=1000;load.Weight=9999;manager.Raise("TargetDisplaySwitched");
+        Set(support,"positiveYPointsUp",true);Call(support,"LateUpdate");
+        Check(ya.rectTransform.localEulerAngles.z==0&&verticalLabel.text=="下降","Upward display always has the requested lowering label");
+        Set(support,"positiveYPointsUp",false);
+        magnet.CurrentLiftCapacityKg=500;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade")&&ry.gameObject.activeSelf&&Alpha(ry)==1,"Current becoming insufficient begins a smooth arrow disappearance");
+        ExperimentPauseManager.ActiveRealtime=400.375;Call(support,"LateUpdate");
+        Check(Math.Abs(Alpha(ry)-.5f)<.0001f&&SameColor(currentText.color,phase.color),"Current highlight accompanies the arrow's half-opacity fade");
+        ExperimentPauseManager.ActiveRealtime=400.75;Call(support,"LateUpdate");
+        Check(!ry.gameObject.activeSelf,"Unneeded arrow fully disappears after 0.75 seconds");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.Place;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Place;tracker.CurrentStepDefinition=Step("Place.LoadRelease");
+        magnet.CurrentElectricCurrentA=.02f;manager.Raise("TargetDisplaySwitched");
+        Check(!Requested(support,"rightYFade")&&SameColor(currentText.color,phase.color),"Placement touchdown requires zero current");
+        magnet.CurrentElectricCurrentA=0;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&verticalLabel.text=="上昇"&&SameColor(currentText.color,new Color(0,1,0)),"Zero current enables raising after placement");
+        tracker.CurrentStepDefinition=Step("Place.PostPlacementRaising");crane.CraneUnit.LocalY=-1;
+        manager.Raise("TargetOperationStarted");
+        Check(!Requested(support,"rightYFade"),"Reached raising height is never replayed by the touchdown fallback");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.PickupLowering");
+        crane.CraneUnit.LocalY=-3;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        manager.Raise("TargetDisplaySwitched");
+        Check(Requested(support,"rightYFade")&&ya.rectTransform.localEulerAngles.z==0&&verticalLabel.text=="下降"&&SameColor(currentText.color,new Color(0,1,0)),"Before touchdown, lowering keeps priority over current highlighting");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;magnet.CurrentLiftCapacityKg=500;
+        manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentText.color,phase.color),"Source for cleanup test is highlighted");
+        Call(support,"OnDisable");Check(SameColor(currentText.color,new Color(0,1,0)),"Disabling support restores current text color");
+
+        Set(support,"displaySeconds",2f);Set(support,"fadeOutSeconds",.75f);
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.Move1;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1;tracker.CurrentStepDefinition=Step("Move1.PickupCoarseMove");
+        manager.GoalX=2;manager.GoalZ=-2;crane.InformationTarget.position=Vector3.zero;
+        ExperimentPauseManager.ActiveRealtime=500;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(Alpha(left)==1&&!left.GetComponent<CanvasGroup>().blocksRaycasts,"Arrows start fully visible without blocking input");
+        ExperimentPauseManager.ActiveRealtime=501.25;Call(support,"LateUpdate");Check(Alpha(left)==1,"Fade starts 0.75 seconds before the deadline");
+        ExperimentPauseManager.ActiveRealtime=501.625;Call(support,"LateUpdate");Check(Math.Abs(Alpha(left)-.5f)<.0001f,"Final fade is half complete at its midpoint");
+        ExperimentPauseManager.IsPaused=true;Call(support,"LateUpdate");Check(Math.Abs(Alpha(left)-.5f)<.0001f,"Pause freezes fade opacity");
+        ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.ActiveRealtime=502;Call(support,"LateUpdate");
+        Check(!support.IsVisible&&!root.activeSelf&&Alpha(left)==0,"Complete disappearance is the configured display deadline");
+        ExperimentPauseManager.ActiveRealtime=600;manager.Raise("TargetDisplaySwitched");
+        ExperimentPauseManager.ActiveRealtime=600.1;crane.InformationTarget.position=new Vector3(1.5f,0,0);Call(support,"LateUpdate");
+        Check(!Requested(support,"leftFade")&&Alpha(left)==1,"Arrival starts fading from its current direction");
+        ExperimentPauseManager.ActiveRealtime=600.475;Call(support,"LateUpdate");Check(Math.Abs(Alpha(left)-.5f)<.0001f,"Arrival fade has the same duration");
+        ExperimentPauseManager.ActiveRealtime=600.85;Call(support,"LateUpdate");Check(!left.gameObject.activeSelf,"Arrival fade ends before the overall deadline");
+        crane.InformationTarget.position=Vector3.zero;Call(support,"LateUpdate");Check(Alpha(left)==1,"A newly needed direction reappears fully");
+        Set(support,"displaySeconds",.2f);ExperimentPauseManager.ActiveRealtime=700;manager.Raise("TargetDisplaySwitched");
+        ExperimentPauseManager.ActiveRealtime=700.1;Call(support,"LateUpdate");Check(Math.Abs(Alpha(left)-.5f)<.001f,"Short windows clamp fade duration instead of extending display time");
+        ExperimentPauseManager.ActiveRealtime=700+(double)support.DisplaySeconds;Call(support,"LateUpdate");Check(!support.IsVisible,"Short window still finishes exactly on time");
         Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }

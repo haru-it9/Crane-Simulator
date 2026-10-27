@@ -103,6 +103,8 @@ public class LifMagSystem : MonoBehaviour
     public float CurrentSliderInput01 { get; private set; }
     public float CurrentElectricCurrentA { get; private set; }
     public float CurrentLiftCapacityKg { get; private set; }
+    public bool IsDisplayedCurrentZeroForSupport => IsInputValueLiftMode &&
+        Mathf.Abs(CurrentElectricCurrentA) <= Mathf.Max(0f, detachCurrentEpsilonAmpere);
     public float CurrentAttachedWeightKg { get; private set; }
 
     public float CurrentRequiredCurrentA { get; private set; }

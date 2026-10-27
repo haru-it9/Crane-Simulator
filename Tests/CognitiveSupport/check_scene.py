@@ -10,10 +10,17 @@ for key,id in {'experimentManager':'333508956','operationManager':'1612894383','
     assert f'{key}: {{fileID: {id}}}' in component and id in docs,key
 assert 'supportContent: 2' in component
 assert float(re.search(r'^  displaySeconds: (.+)$',component,re.M)[1])>0
-assert 'directionPresentation: 1' in component
+assert int(re.search(r'^  directionPresentation: (.+)$',component,re.M)[1]) in [0,1]
+assert 'fadeOutSeconds: 0.75' in component
+assert 'rightYLabel: {fileID: 9000010049}' in component
+for id in ['1470163867','263746697','1055664397','1973951998','1132206959']:
+    assert f'  - {{fileID: {id}}}' in component and id in docs
+for id in ['9000010026','9000010066']:
+    assert 'm_IsActive: 0' in docs[id][1]
 for field,value in [('xDistancePerChevron','0.5'),('yDistancePerChevron','0.5'),('zDistancePerChevron','2')]:
     assert f'{field}: {value}' in component
-assert 'm_IsActive: 0' in docs['9000010000'][1]
+# OnEnable owns initial visibility; preserve the scene author's editor-preview state.
+assert re.search(r'^  m_IsActive: [01]$',docs['9000010000'][1],re.M)
 assert '  - {fileID: 9000010001}' in docs['1796973733'][1]
 for base in [9000010020,9000010040,9000010060]:
     assert 'm_RaycastTarget: 0' in docs[str(base+5)][1]

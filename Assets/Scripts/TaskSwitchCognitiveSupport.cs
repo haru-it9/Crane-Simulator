@@ -36,6 +36,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [Header("表示時間")]
     [Tooltip("画面切替・復帰からの表示秒数。一時停止時間を除く固定時間です。")]
     [SerializeField, Min(0.1f)] private float displaySeconds = 8f;
+    [Tooltip("完全に消える時刻はDisplay Secondsのまま、最後のこの秒数でフェードします。")]
+    [SerializeField, Range(0.5f, 1f)] private float fadeOutSeconds = 0.75f;
 
     [Header("配置・表示（RectTransformで位置や大きさを編集できます）")]
     [SerializeField] private GameObject supportRoot;
@@ -46,6 +48,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private TaskSwitchSupportArrow rightYArrow;
     [SerializeField] private RectTransform rightZGroup;
     [SerializeField] private TaskSwitchSupportArrow rightZArrow;
+    [SerializeField] private Text rightYLabel;
+    [SerializeField] private LifMagAccumValueText[] currentValueDisplays = new LifMagAccumValueText[0];
 
     [Header("正の移動指令に対応するレバー方向")]
     [Tooltip("既定のJoystick3Verticalは符号反転されてX指令になります。実機に合わせて反転可能です。")]
@@ -66,6 +70,16 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private string lastPresentation = string.Empty;
     private bool chevronCountsCaptured, capturedVerticalDistanceKnown;
     private int capturedXCount = 1, capturedYCount = 1, capturedZCount = 1;
+    private CraneWorkLoadPlanManager loadPlan;
+    private ArrowFade leftFade, rightYFade, rightZFade;
+
+    private sealed class ArrowFade
+    {
+        public RectTransform group;
+        public CanvasGroup canvas;
+        public bool requested;
+        public double fadeStarted;
+    }
 
     public TaskSwitchSupportContent SupportContent => supportContent;
     public float DisplaySeconds => displaySeconds;
@@ -82,6 +96,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             experimentManager.ExperimentEventOccurred += HandleExperimentEvent;
             subscribed = true;
         }
+        leftFade = CreateFade(leftXGroup);
+        rightYFade = CreateFade(rightYGroup);
+        rightZFade = CreateFade(rightZGroup);
         Hide("Enabled");
     }
 
@@ -143,6 +160,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         tracker = selectedCrane.GetComponentInChildren<CraneWorkPhaseTracker>(true);
         cycle = selectedCrane.GetComponentInChildren<CraneWorkCycleController>(true);
         target = selectedCrane.GetComponentInChildren<CraneWorkTargetManager>(true);
+        loadPlan = selectedCrane.GetComponentInChildren<CraneWorkLoadPlanManager>(true);
         targetSide = isTarget;
         awaitingConfirmation = true;
         previewStep = null;
@@ -156,6 +174,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
+            ";FadeOutSeconds=" + EffectiveFadeSeconds.ToString(CultureInfo.InvariantCulture) +
             ";DistancePerChevron=" + xDistancePerChevron.ToString(CultureInfo.InvariantCulture) + "," +
             yDistancePerChevron.ToString(CultureInfo.InvariantCulture) + "," +
             zDistancePerChevron.ToString(CultureInfo.InvariantCulture) +
@@ -215,10 +234,53 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
                 hasGoal, goalX, goalZ, unit == null || unit.IsDownwardMovementBlockedByTouchdown,
                 hasY, localY) : Vector3.zero;
 
+        bool highlightCurrent = false;
+        string currentGuidance = "None";
+        CraneWorkStepDefinition raisingStep = null;
+        bool noMovement = movement.x == 0f && movement.y == 0f && movement.z == 0f;
+        float ignoredHeight;
+        if (noMovement && step != null && unit != null && tracker != null &&
+            !TaskSwitchSupportGuidance.TryGetRaisingTarget(step, out ignoredHeight) &&
+            IsCurrentAdjustmentStage(step, unit))
+        {
+            LifMagSystem magnet = selectedCrane.LifMagSystem;
+            bool lifting = phase == CraneStatusManager.WorkPhase.LiftUp;
+            bool placing = phase == CraneStatusManager.WorkPhase.Place || phase == CraneStatusManager.WorkPhase.PlaceToTrack;
+            if ((lifting || placing) && magnet != null && magnet.IsInputValueLiftMode)
+            {
+                bool currentReady;
+                if (lifting)
+                {
+                    float targetWeight = 0f;
+                    bool hasWeight = awaitingConfirmation && (targetSide || pendingPhase) && experimentManager.TryGetCognitiveSupportPickupTargetWeightKg(
+                        operationManager.CurrentCraneIndex, out targetWeight);
+                    if (!hasWeight && !pendingPhase && loadPlan != null)
+                        hasWeight = loadPlan.TryGetPickupTargetWeightKg(out targetWeight);
+                    currentReady = hasWeight && targetWeight > 0f &&
+                        !float.IsNaN(targetWeight) && !float.IsInfinity(targetWeight) &&
+                        magnet.CurrentLiftCapacityKg >= targetWeight;
+                }
+                else currentReady = magnet.IsDisplayedCurrentZeroForSupport;
+                if (currentReady)
+                {
+                    raisingStep = tracker.GetRaisingStepDefinition(phase);
+                    movement = TaskSwitchSupportGuidance.RequiredMovement(raisingStep,
+                        position != null ? position.position : Vector3.zero, hasGoal, goalX, goalZ,
+                        unit.IsDownwardMovementBlockedByTouchdown, hasY, localY);
+                    currentGuidance = "ReadyToRaise";
+                }
+                else
+                {
+                    highlightCurrent = true;
+                    currentGuidance = lifting ? "IncreaseCurrent" : "SetCurrentToZero";
+                }
+            }
+        }
+
         bool showPhase = supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool showDirection = supportContent != TaskSwitchSupportContent.PhaseOnly;
         if (!chevronCountsCaptured)
-            CaptureChevronCounts(step, position, unit, movement, hasGoal, goalX, goalZ);
+            CaptureChevronCounts(raisingStep ?? step, position, unit, movement, hasGoal, goalX, goalZ);
         int xCount = capturedXCount, yCount = capturedYCount, zCount = capturedZCount;
         string label = TaskSwitchSupportGuidance.PhaseLabel(phase);
         if (phaseText != null)
@@ -226,12 +288,23 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             phaseText.gameObject.SetActive(showPhase);
             phaseText.text = label;
         }
-        SetArrow(leftXGroup, leftXArrow, showDirection ? movement.x : 0f,
+        float opacity = WindowOpacity;
+        SetCurrentHighlight(showDirection && highlightCurrent ? opacity : 0f);
+        if (!showDirection)
+        {
+            ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
+        }
+        SetArrow(leftFade, leftXArrow, showDirection ? movement.x : 0f,
             positiveXPointsUp, true, xCount);
-        SetArrow(rightYGroup, rightYArrow, showDirection ? movement.y : 0f,
+        SetArrow(rightYFade, rightYArrow, showDirection ? movement.y : 0f,
             positiveYPointsUp, true, yCount);
-        SetArrow(rightZGroup, rightZArrow, showDirection ? movement.z : 0f,
+        SetArrow(rightZFade, rightZArrow, showDirection ? movement.z : 0f,
             positiveZPointsRight, false, zCount);
+        if (rightYLabel != null && movement.y != 0f && showDirection)
+        {
+            bool pointsUp = (movement.y > 0f) == positiveYPointsUp;
+            rightYLabel.text = pointsUp ? "下降" : "上昇";
+        }
 
         string presentation = "Phase=" + phase + ";Step=" + (step != null ? step.stepId : "") +
             ";X=" + movement.x + ";Y=" + movement.y + ";Z=" + movement.z +
@@ -241,6 +314,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";ChevronsY=" + DisplayedCount(showDirection, movement.y, yCount) +
             ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
             ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
+            ";CurrentGuidance=" + currentGuidance +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True";
         if (presentation != lastPresentation)
         {
@@ -279,11 +353,43 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         return directionPresentation == TaskSwitchDirectionPresentation.DistanceChevrons ? count : 1;
     }
 
-    private void SetArrow(RectTransform group, TaskSwitchSupportArrow arrow,
+    private float EffectiveFadeSeconds => Mathf.Min(Mathf.Max(0.1f, displaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
+    private float WindowOpacity => Mathf.Clamp01((float)(hideAt - ExperimentPauseManager.ActiveRealtime) / EffectiveFadeSeconds);
+
+    private static ArrowFade CreateFade(RectTransform group)
+    {
+        if (group == null) return null;
+        CanvasGroup canvas = group.GetComponent<CanvasGroup>();
+        if (canvas == null) canvas = group.gameObject.AddComponent<CanvasGroup>();
+        canvas.interactable = false;
+        canvas.blocksRaycasts = false;
+        return new ArrowFade { group = group, canvas = canvas };
+    }
+
+    private static void ResetFade(ArrowFade fade)
+    {
+        if (fade == null) return;
+        fade.requested = false;
+        fade.canvas.alpha = 0f;
+        fade.group.gameObject.SetActive(false);
+    }
+
+    private void SetArrow(ArrowFade fade, TaskSwitchSupportArrow arrow,
         float command, bool positiveDirection, bool vertical, int count)
     {
-        if (group != null) group.gameObject.SetActive(command != 0f);
-        if (arrow == null) return;
+        if (fade != null)
+        {
+            bool requested = command != 0f;
+            double now = ExperimentPauseManager.ActiveRealtime;
+            if (!requested && fade.requested) fade.fadeStarted = now;
+            float localOpacity = requested ? 1f : fade.group.gameObject.activeSelf
+                ? Mathf.Clamp01(1f - (float)(now - fade.fadeStarted) / EffectiveFadeSeconds) : 0f;
+            fade.requested = requested;
+            fade.canvas.alpha = localOpacity * WindowOpacity;
+            fade.group.gameObject.SetActive(fade.canvas.alpha > 0f);
+        }
+        // Keep the previous direction and label throughout its disappearance.
+        if (arrow == null || command == 0f) return;
         arrow.SetPresentation(directionPresentation, count, maximumChevrons);
         bool positive = (command > 0f) == positiveDirection;
         float angle = vertical ? (positive ? 0f : 180f) : (positive ? -90f : 90f);
@@ -295,6 +401,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         bool wasVisible = visible;
         visible = false;
         if (supportRoot != null) supportRoot.SetActive(false);
+        ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
+        SetCurrentHighlight(0f);
         if (wasVisible) Record("Hidden", "Reason=" + reason);
     }
 
@@ -302,5 +410,23 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         if (experimentManager != null)
             experimentManager.RecordCognitiveSupportEvent(action, detail);
+    }
+
+    private static bool IsCurrentAdjustmentStage(CraneWorkStepDefinition step, CraneUnit unit)
+    {
+        if (unit.IsDownwardMovementBlockedByTouchdown) return true;
+        if (step.completionConditions == null) return false;
+        foreach (CraneWorkConditionDefinition condition in step.completionConditions)
+            if (condition != null && (condition.conditionType == CraneWorkConditionType.AttachedWeightWithinTarget ||
+                condition.conditionType == CraneWorkConditionType.PlacementRemainingWeightWithinTarget)) return true;
+        return false;
+    }
+
+    private void SetCurrentHighlight(float strength)
+    {
+        if (currentValueDisplays == null) return;
+        Color highlightColor = phaseText != null ? phaseText.color : Color.white;
+        foreach (LifMagAccumValueText display in currentValueDisplays)
+            if (display != null) display.SetCognitiveSupportHighlight(strength, highlightColor);
     }
 }

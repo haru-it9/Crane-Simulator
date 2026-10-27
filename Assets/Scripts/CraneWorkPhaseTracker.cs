@@ -232,6 +232,32 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         return null;
     }
     public float CurrentTargetErrorX { get; private set; }
+    /// <summary>Read-only raising goal, including a custom profile's height condition.</summary>
+    public CraneWorkStepDefinition GetRaisingStepDefinition(CraneStatusManager.WorkPhase phase)
+    {
+        bool hasCustomPhase = false;
+        if (phaseProfile != null && phaseProfile.StepDefinitions != null)
+            foreach (CraneWorkStepDefinition candidate in phaseProfile.StepDefinitions)
+            {
+                if (candidate == null || candidate.majorPhase != phase) continue;
+                hasCustomPhase = true;
+                if (HasRaisingHeightCondition(candidate)) return candidate;
+            }
+        if (hasCustomPhase) return null;
+        foreach (CraneWorkStepDefinition candidate in CraneWorkPhaseProfile.CreateBuiltInDefaults())
+        {
+            if (candidate.majorPhase == phase && HasRaisingHeightCondition(candidate)) return candidate;
+        }
+        return null;
+    }
+    private static bool HasRaisingHeightCondition(CraneWorkStepDefinition step)
+    {
+        if (step == null || step.completionConditions == null) return false;
+        foreach (CraneWorkConditionDefinition condition in step.completionConditions)
+            if (condition != null && condition.conditionType == CraneWorkConditionType.MainLifMagLocalYAtLeast &&
+                !float.IsNaN(condition.threshold) && !float.IsInfinity(condition.threshold)) return true;
+        return false;
+    }
     public float CurrentTargetErrorZ { get; private set; }
     public bool IsHoldingBoard { get; private set; }
     public float CurrentHorizontalSpeed { get; private set; }

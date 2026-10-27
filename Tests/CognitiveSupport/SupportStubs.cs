@@ -21,7 +21,9 @@ namespace UnityEngine
         public Dictionary<Type,object> Components = new Dictionary<Type,object>();
         public void SetActive(bool value) { activeSelf=value; }
         public T GetComponent<T>() where T:class { object v;return Components.TryGetValue(typeof(T),out v) ? v as T : null; }
+        public T AddComponent<T>() where T:Component,new() { var c=new T();c.gameObject=this;Components[typeof(T)]=c;return c; }
     }
+    public class CanvasGroup : Component { public float alpha=1f;public bool interactable,blocksRaycasts; }
     public class Transform : Component { public Vector3 position,localEulerAngles; }
     public class RectTransform : Transform { public Rect rect = new Rect(-50,-80,100,160); }
     public struct Vector2 { public float x,y; public Vector2(float x,float y) { this.x=x;this.y=y; } }
@@ -37,7 +39,13 @@ namespace UnityEngine
         public float xMax=>xMin+width; public float yMax=>yMin+height;
         public Vector2 center=>new Vector2(xMin+width/2,yMin+height/2);
     }
-    public struct Color { public float r,g,b,a; }
+    public struct Color
+    {
+        public float r,g,b,a;
+        public Color(float r,float g,float b,float a=1) {this.r=r;this.g=g;this.b=b;this.a=a;}
+        public static Color white => new Color(1,1,1,1);
+        public static Color Lerp(Color a,Color b,float t) {t=Mathf.Clamp01(t);return new Color(a.r+(b.r-a.r)*t,a.g+(b.g-a.g)*t,a.b+(b.b-a.b)*t,a.a+(b.a-a.a)*t);}
+    }
     public struct UIVertex { public Vector3 position;public Color color;public static UIVertex simpleVert=>new UIVertex(); }
     public static class Mathf
     {
@@ -45,6 +53,8 @@ namespace UnityEngine
         public static int Max(int a,int b)=>Math.Max(a,b);
         public static float Min(float a,float b)=>Math.Min(a,b);
         public static int Clamp(int v,int a,int b)=>Math.Max(a,Math.Min(v,b));
+        public static float Clamp(float v,float a,float b)=>Math.Max(a,Math.Min(v,b));
+        public static float Clamp01(float v)=>Clamp(v,0,1);
         public static int CeilToInt(float v)=>(int)Math.Ceiling(v);
         public static float Abs(float v)=>Math.Abs(v);
     }
@@ -61,7 +71,7 @@ namespace UnityEngine
 }
 namespace UnityEngine.UI
 {
-    public class Text : UnityEngine.Component { public string text; }
+    public class Text : UnityEngine.Component { public string text; public UnityEngine.Color color=UnityEngine.Color.white; }
     public class MaskableGraphic : UnityEngine.MonoBehaviour
     {
         public UnityEngine.RectTransform rectTransform = new UnityEngine.RectTransform();
@@ -86,7 +96,19 @@ namespace UnityEngine.UI
 }
 public class CraneStatusManager { public enum WorkPhase { Move1,LiftUp,Move2,Place,PlaceToTrack } public enum ErrorType { None } }
 public enum CraneWorkTargetXSelection { Random }
-public class CraneInstance : UnityEngine.Component { public UnityEngine.Transform InformationTarget; public CraneUnit CraneUnit; }
+public class CraneInstance : UnityEngine.Component { public UnityEngine.Transform InformationTarget; public CraneUnit CraneUnit; public LifMagSystem LifMagSystem; }
+public class LifMagSystem
+{
+    public bool IsInputValueLiftMode=true;public float CurrentLiftCapacityKg,CurrentElectricCurrentA;
+    public bool IsDisplayedCurrentZeroForSupport=>IsInputValueLiftMode&&Math.Abs(CurrentElectricCurrentA)<=.01f;
+    public bool IsLifMagCurrentOn(int i)=>true;
+    public float GetLifMagDisplayAccumValue(int i)=>0;
+}
+public class CraneWorkLoadPlanManager
+{
+    public bool HasWeight=true;public float Weight=1000;
+    public bool TryGetPickupTargetWeightKg(out float w) {w=Weight;return HasWeight;}
+}
 public class CraneUnit
 {
     public bool IsDownwardMovementBlockedByTouchdown;
@@ -96,7 +118,7 @@ public class CraneUnit
     public bool TryGetSupportRaisingDistance(float target,out float d) { RaisingQueries++;d=Math.Max(0,target-LocalY);return DistanceKnown; }
     public bool TryGetSupportLoweringDistance(out float d) { LoweringQueries++;d=LoweringDistance;return DistanceKnown; }
 }
-public class CraneWorkPhaseTracker
+public partial class CraneWorkPhaseTracker
 {
     public CraneStatusManager.WorkPhase CurrentMajorPhase;
     public CraneWorkStepDefinition CurrentStepDefinition;
@@ -111,6 +133,7 @@ public class CraneOperationManager
 {
     public bool IsTaskSwitchExperimentMode=true;public int CurrentCraneIndex;
     public CraneInstance CurrentCraneInstance;
+    public CraneInstance CurrentCrane=>CurrentCraneInstance;
 }
 public static class ExperimentPauseManager { public static bool IsPaused;public static double ActiveRealtime; }
 public class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
@@ -118,6 +141,8 @@ public class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
     public TaskSwitchExperimentState CurrentState=TaskSwitchExperimentState.WaitingForConfirmation;
     public TaskSwitchCraneCondition TargetCondition=new TaskSwitchCraneCondition(),SourceCondition=new TaskSwitchCraneCondition();
     public bool HasPreview=true;public float GoalX=2,GoalZ=-2;
+    public bool HasPickupWeightPreview=true;public float PickupWeight=1000;
+    public bool TryGetCognitiveSupportPickupTargetWeightKg(int index,out float weight) { weight=PickupWeight;return HasPickupWeightPreview; }
     public event Action<TaskSwitchEventData> ExperimentEventOccurred;
     public List<string> Recorded=new List<string>();
     public bool TryGetCognitiveSupportTargetPosition(int index,CraneStatusManager.WorkPhase p,out float x,out float z)

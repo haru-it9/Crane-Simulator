@@ -189137,7 +189137,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &9000010027
 RectTransform:
   m_ObjectHideFlags: 0
@@ -189505,7 +189505,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &9000010067
 RectTransform:
   m_ObjectHideFlags: 0
@@ -189588,6 +189588,7 @@ MonoBehaviour:
   yDistancePerChevron: 0.5
   zDistancePerChevron: 2
   displaySeconds: 2
+  fadeOutSeconds: 0.75
   supportRoot: {fileID: 9000010000}
   phaseText: {fileID: 9000010013}
   leftXGroup: {fileID: 9000010021}
@@ -189596,6 +189597,13 @@ MonoBehaviour:
   rightYArrow: {fileID: 9000010045}
   rightZGroup: {fileID: 9000010061}
   rightZArrow: {fileID: 9000010065}
+  rightYLabel: {fileID: 9000010049}
+  currentValueDisplays:
+  - {fileID: 1470163867}
+  - {fileID: 263746697}
+  - {fileID: 1055664397}
+  - {fileID: 1973951998}
+  - {fileID: 1132206959}
   positiveXPointsUp: 1
   positiveYPointsUp: 0
   positiveZPointsRight: 0

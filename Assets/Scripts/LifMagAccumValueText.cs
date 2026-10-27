@@ -20,6 +20,20 @@ public class LifMagAccumValueText : MonoBehaviour
     [SerializeField] private string currentUnit = " A";
 
     public float CurrentValue { get; private set; }
+    private bool hasDefaultTextColor;
+    private Color defaultTextColor;
+
+    public void SetCognitiveSupportHighlight(float strength, Color highlightColor)
+    {
+        if (valueText == null) valueText = GetComponent<Text>();
+        if (valueText == null) return;
+        if (!hasDefaultTextColor)
+        {
+            defaultTextColor = valueText.color;
+            hasDefaultTextColor = true;
+        }
+        valueText.color = Color.Lerp(defaultTextColor, highlightColor, Mathf.Clamp01(strength));
+    }
 
     private void Start()
     {
