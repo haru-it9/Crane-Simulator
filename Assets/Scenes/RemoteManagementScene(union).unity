@@ -189587,7 +189587,7 @@ MonoBehaviour:
   xDistancePerChevron: 0.5
   yDistancePerChevron: 0.5
   zDistancePerChevron: 2
-  displaySeconds: 20
+  displaySeconds: 2
   supportRoot: {fileID: 9000010000}
   phaseText: {fileID: 9000010013}
   leftXGroup: {fileID: 9000010021}
