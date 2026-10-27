@@ -77,6 +77,7 @@ public class CraneInformationDisplay : MonoBehaviour
         new Dictionary<Text, Color>();
 
     public float FineAlignTolerance => fineAlignTolerance;
+    public Color AchievedValueColor => achievedValueColor;
     public bool CurrentXHighlighted { get; private set; }
     public bool CurrentZHighlighted { get; private set; }
     public bool CurrentWeightHighlighted { get; private set; }

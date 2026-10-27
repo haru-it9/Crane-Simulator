@@ -95,6 +95,8 @@ namespace UnityEngine.UI
     }
 }
 public class CraneStatusManager { public enum WorkPhase { Move1,LiftUp,Move2,Place,PlaceToTrack } public enum ErrorType { None } }
+public class CraneInformationDisplay : UnityEngine.MonoBehaviour
+{ public UnityEngine.Color AchievedValueColor=new UnityEngine.Color(.65f,1f,.1f); }
 public enum CraneWorkTargetXSelection { Random }
 public class CraneInstance : UnityEngine.Component { public UnityEngine.Transform InformationTarget; public CraneUnit CraneUnit; public LifMagSystem LifMagSystem; }
 public class LifMagSystem

@@ -52,7 +52,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private LifMagAccumValueText[] currentValueDisplays = new LifMagAccumValueText[0];
 
     [Header("電流の適正範囲")]
-    [SerializeField] private Color appropriateCurrentColor = new Color(0f, 1f, 0f, 1f);
+    [Tooltip("ON: 適正電流のみ座標と同じ緑色にし、切替時のフェーズ色による強調は行いません。OFF: 従来の着床開始時の強調。")]
+    [SerializeField] private bool useCurrentRangeColoring = true;
+    [Tooltip("座標の目標範囲内の緑色を共有します。未指定ならシーン内のCraneInformationDisplayを自動取得します。")]
+    [SerializeField] private CraneInformationDisplay coordinateColorSource;
     [Tooltip("保持板の下面から板山・台までの距離がこの値以上なら、電流上限をMAXまで許容します。ワールド座標単位。")]
     [SerializeField, Min(0.01f)] private float currentRangeClearance = 0.1f;
 
@@ -103,6 +106,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             experimentManager = GetComponent<TaskSwitchExperimentManager>();
         if (operationManager == null)
             operationManager = FindObjectOfType<CraneOperationManager>();
+        if (coordinateColorSource == null)
+            coordinateColorSource = FindObjectOfType<CraneInformationDisplay>();
         if (experimentManager != null)
         {
             experimentManager.ExperimentEventOccurred += HandleExperimentEvent;
@@ -197,6 +202,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
             ";CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMax" +
+            ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeClearance=" + currentRangeClearance.ToString(CultureInfo.InvariantCulture) +
             ";CurrentHighlightEligibleAtSwitch=" + touchdownAtSwitch +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
@@ -307,8 +313,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             phaseText.text = label;
         }
         CheckCurrentLiftConfirmation(unit);
-        bool showCurrentHighlight = directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
-        bool showAppropriateCurrent = directionEnabled && currentFeedbackActive && currentGuidance == "ReadyToRaise";
+        bool showCurrentHighlight = !useCurrentRangeColoring && directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
+        bool showAppropriateCurrent = useCurrentRangeColoring && directionEnabled && currentFeedbackActive && currentGuidance == "ReadyToRaise";
         SetCurrentHighlight(showCurrentHighlight || showAppropriateCurrent ? 1f : 0f, showAppropriateCurrent);
         if (!showDirection)
         {
@@ -335,6 +341,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
             ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
             ";CurrentGuidance=" + currentGuidance +
+            ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeExpanded=" + currentRangeExpanded +
             ";CurrentAppropriateVisible=" + showAppropriateCurrent +
             ";CurrentHighlightVisible=" + (showCurrentHighlight && !showAppropriateCurrent) +
@@ -426,7 +433,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void ArmCurrentHighlight(CraneStatusManager.WorkPhase phase, CraneUnit unit)
     {
-        if (!currentHighlightWindowActive || currentHighlightLatched || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
+        if (useCurrentRangeColoring || !currentHighlightWindowActive || currentHighlightLatched || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
         currentHighlightLatched = true;
         currentHighlightPhase = phase;
         hasCurrentLiftSample = unit != null && unit.TryGetMainLifMagLocalY(out currentLiftBaselineLocalY);
@@ -436,7 +443,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void CheckCurrentLiftConfirmation(CraneUnit unit)
     {
-        if (!currentHighlightWindowActive || !currentHighlightLatched || unit == null) return;
+        if (useCurrentRangeColoring || !currentHighlightWindowActive || !currentHighlightLatched || unit == null) return;
         float localY;
         if (!unit.TryGetMainLifMagLocalY(out localY) || float.IsNaN(localY) || float.IsInfinity(localY)) return;
         if (!hasCurrentLiftSample)
@@ -537,7 +544,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private void SetCurrentHighlight(float strength, bool appropriate = false)
     {
         if (currentValueDisplays == null) return;
-        Color highlightColor = appropriate ? appropriateCurrentColor : phaseText != null ? phaseText.color : Color.white;
+        Color appropriateColor = coordinateColorSource != null
+            ? coordinateColorSource.AchievedValueColor : new Color(0.65f, 1f, 0.10f, 1f);
+        Color highlightColor = appropriate ? appropriateColor : phaseText != null ? phaseText.color : Color.white;
         foreach (LifMagAccumValueText display in currentValueDisplays)
             if (display != null) display.SetCognitiveSupportHighlight(strength, highlightColor);
     }
