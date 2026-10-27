@@ -189588,7 +189588,6 @@ MonoBehaviour:
   yDistancePerChevron: 0.5
   zDistancePerChevron: 2
   displaySeconds: 1.5
-  currentHighlightDisplaySeconds: 5
   fadeOutSeconds: 0.5
   supportRoot: {fileID: 9000010000}
   phaseText: {fileID: 9000010013}

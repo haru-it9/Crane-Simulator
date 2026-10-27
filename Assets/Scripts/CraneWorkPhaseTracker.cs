@@ -258,6 +258,31 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 !float.IsNaN(condition.threshold) && !float.IsInfinity(condition.threshold)) return true;
         return false;
     }
+    /// <summary>Read actual held weight/count against the configured raising-step goal without updating tracker state.</summary>
+    public bool IsSupportWeightWithinTarget(CraneStatusManager.WorkPhase phase)
+    {
+        bool pickup = phase == CraneStatusManager.WorkPhase.LiftUp;
+        if (!pickup && phase != CraneStatusManager.WorkPhase.Place && phase != CraneStatusManager.WorkPhase.PlaceToTrack) return false;
+        if (loadPlanManager == null || craneInstance == null || craneInstance.LifMagSystem == null) return false;
+        LifMagSystem magnet = craneInstance.LifMagSystem;
+        float targetWeight;
+        bool hasTarget = pickup ? loadPlanManager.TryGetPickupTargetWeightKg(out targetWeight)
+            : loadPlanManager.TryGetTargetRemainingWeightKg(out targetWeight);
+        if (!hasTarget || float.IsNaN(targetWeight) || float.IsInfinity(targetWeight) || (pickup && targetWeight <= 0f)) return false;
+        if (pickup ? !loadPlanManager.IsPickupBoardCountSatisfied(magnet.AttachedBoards.Count)
+            : !loadPlanManager.IsPlacementBoardCountSatisfied(magnet.AttachedBoards.Count)) return false;
+        CraneWorkStepDefinition raisingStep = GetRaisingStepDefinition(phase);
+        if (raisingStep == null || raisingStep.completionConditions == null) return false;
+        float weight = magnet.GetAttachedTotalWeightKgForDisplay();
+        if (float.IsNaN(weight) || float.IsInfinity(weight)) return false;
+        CraneWorkConditionType weightCondition = pickup ? CraneWorkConditionType.AttachedWeightWithinTarget
+            : CraneWorkConditionType.PlacementRemainingWeightWithinTarget;
+        foreach (CraneWorkConditionDefinition condition in raisingStep.completionConditions)
+            if (condition != null && condition.conditionType == weightCondition)
+                return weight >= targetWeight - Mathf.Max(0f, condition.threshold) &&
+                    weight <= targetWeight + Mathf.Max(0f, condition.secondaryThreshold);
+        return false;
+    }
     public float CurrentTargetErrorZ { get; private set; }
     public bool IsHoldingBoard { get; private set; }
     public float CurrentHorizontalSpeed { get; private set; }

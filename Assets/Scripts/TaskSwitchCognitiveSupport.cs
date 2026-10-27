@@ -34,10 +34,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField, Min(0.01f)] private float zDistancePerChevron = 2f;
 
     [Header("表示時間")]
-    [Tooltip("画面切替・復帰からの表示秒数。一時停止時間を除く固定時間です。")]
+    [Tooltip("操作入力が解禁されてから完全に消えるまでの秒数。確認待ち・一時停止時間は含みません。")]
     [SerializeField, Min(0.1f)] private float displaySeconds = 8f;
-    [Tooltip("電流値の強調が完全に元の色へ戻るまでの秒数。切替・復帰から計測し、矢印とは独立します。")]
-    [SerializeField, Min(0.1f)] private float currentHighlightDisplaySeconds = 5f;
     [Tooltip("完全に消える時刻はDisplay Secondsのまま、最後のこの秒数でフェードします。")]
     [SerializeField, Range(0.5f, 1f)] private float fadeOutSeconds = 0.75f;
 
@@ -62,8 +60,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private bool positiveZPointsRight = false;
 
     private bool subscribed, visible, targetSide, awaitingConfirmation;
-    private double hideAt, currentHighlightHideAt;
+    private double hideAt;
+    private bool arrowTimerStarted;
     private bool currentHighlightWindowActive;
+    private bool currentHighlightLatched, hasCurrentLiftSample;
+    private float currentLiftBaselineLocalY, previousCurrentLiftLocalY;
+    private CraneStatusManager.WorkPhase currentHighlightPhase;
+    private const float MinimumConfirmedRiseLocalY = 0.01f;
     private CraneInstance selectedCrane;
     private CraneWorkPhaseTracker tracker;
     private CraneWorkCycleController cycle;
@@ -127,8 +130,6 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (ExperimentPauseManager.IsPaused) return;
         if (visible && ExperimentPauseManager.ActiveRealtime >= hideAt)
             HideArrows("Timeout");
-        if (currentHighlightWindowActive && ExperimentPauseManager.ActiveRealtime >= currentHighlightHideAt)
-            EndCurrentHighlight("Timeout");
         if (visible || currentHighlightWindowActive) RefreshPresentation();
     }
 
@@ -141,7 +142,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             case "TargetOperationStarted":
             case "SourceOperationResumed":
                 awaitingConfirmation = false;
-                if (visible || currentHighlightWindowActive) RefreshPresentation(); // Preserve both switch-time deadlines.
+                if (visible || currentHighlightWindowActive) RefreshPresentation();
+                break;
+            case "TargetInputUnlocked":
+                if (targetSide) StartArrowTimer();
+                break;
+            case "SourceInputUnlocked":
+                if (!targetSide) StartArrowTimer();
                 break;
             case "ExperimentPreparing":
             case "ExperimentCompleted":
@@ -168,16 +175,16 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         previewStep = null;
         chevronCountsCaptured = false;
         lastPresentation = string.Empty;
-        hideAt = ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, displaySeconds);
-        currentHighlightHideAt = ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, currentHighlightDisplaySeconds);
+        hideAt = double.PositiveInfinity;
+        arrowTimerStarted = false;
         currentHighlightWindowActive = true;
+        currentHighlightLatched = hasCurrentLiftSample = false;
         visible = true;
         supportRoot.SetActive(true);
         Record("Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
             ";Content=" + supportContent + ";DurationSeconds=" +
             displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
-            ";CurrentHighlightDurationSeconds=" + currentHighlightDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
-            ";CurrentHighlightFadeOutSeconds=" + EffectiveCurrentHighlightFadeSeconds.ToString(CultureInfo.InvariantCulture) +
+            ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
             ";FadeOutSeconds=" + EffectiveFadeSeconds.ToString(CultureInfo.InvariantCulture) +
@@ -240,7 +247,6 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
                 hasGoal, goalX, goalZ, unit == null || unit.IsDownwardMovementBlockedByTouchdown,
                 hasY, localY) : Vector3.zero;
 
-        bool highlightCurrent = false;
         string currentGuidance = "None";
         CraneWorkStepDefinition raisingStep = null;
         bool noMovement = movement.x == 0f && movement.y == 0f && movement.z == 0f;
@@ -254,6 +260,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             bool placing = phase == CraneStatusManager.WorkPhase.Place || phase == CraneStatusManager.WorkPhase.PlaceToTrack;
             if ((lifting || placing) && magnet != null && magnet.IsInputValueLiftMode)
             {
+                ArmCurrentHighlight(phase, unit);
                 bool currentReady;
                 if (lifting)
                 {
@@ -277,7 +284,6 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
                 }
                 else
                 {
-                    highlightCurrent = true;
                     currentGuidance = lifting ? "IncreaseCurrent" : "SetCurrentToZero";
                 }
             }
@@ -295,8 +301,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             phaseText.gameObject.SetActive(visible && showPhase);
             phaseText.text = label;
         }
-        bool showCurrentHighlight = directionEnabled && highlightCurrent && currentHighlightWindowActive;
-        SetCurrentHighlight(showCurrentHighlight ? CurrentHighlightOpacity : 0f);
+        CheckCurrentLiftConfirmation(unit);
+        bool showCurrentHighlight = directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
+        SetCurrentHighlight(showCurrentHighlight ? 1f : 0f);
         if (!showDirection)
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
@@ -363,8 +370,46 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private float EffectiveFadeSeconds => Mathf.Min(Mathf.Max(0.1f, displaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
     private float WindowOpacity => Mathf.Clamp01((float)(hideAt - ExperimentPauseManager.ActiveRealtime) / EffectiveFadeSeconds);
-    private float EffectiveCurrentHighlightFadeSeconds => Mathf.Min(Mathf.Max(0.1f, currentHighlightDisplaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
-    private float CurrentHighlightOpacity => Mathf.Clamp01((float)(currentHighlightHideAt - ExperimentPauseManager.ActiveRealtime) / EffectiveCurrentHighlightFadeSeconds);
+
+    private void StartArrowTimer()
+    {
+        if (!visible || arrowTimerStarted || awaitingConfirmation || operationManager == null ||
+            operationManager.CurrentCraneInstance != selectedCrane) return;
+        arrowTimerStarted = true;
+        hideAt = ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, displaySeconds);
+        Record("ArrowTimerStarted", "Anchor=InputUnlocked;Role=" + (targetSide ? "Target" : "Source") +
+            ";DurationSeconds=" + displaySeconds.ToString("F3", CultureInfo.InvariantCulture));
+        RefreshPresentation();
+    }
+
+    private void ArmCurrentHighlight(CraneStatusManager.WorkPhase phase, CraneUnit unit)
+    {
+        if (!currentHighlightWindowActive || currentHighlightLatched || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
+        currentHighlightLatched = true;
+        currentHighlightPhase = phase;
+        hasCurrentLiftSample = unit != null && unit.TryGetMainLifMagLocalY(out currentLiftBaselineLocalY);
+        previousCurrentLiftLocalY = currentLiftBaselineLocalY;
+        Record("CurrentHighlightStarted", "Phase=" + phase + ";End=CorrectWeightRaised");
+    }
+
+    private void CheckCurrentLiftConfirmation(CraneUnit unit)
+    {
+        if (!currentHighlightWindowActive || !currentHighlightLatched || unit == null) return;
+        float localY;
+        if (!unit.TryGetMainLifMagLocalY(out localY) || float.IsNaN(localY) || float.IsInfinity(localY)) return;
+        if (!hasCurrentLiftSample)
+        {
+            currentLiftBaselineLocalY = previousCurrentLiftLocalY = localY;
+            hasCurrentLiftSample = true;
+            return;
+        }
+        currentLiftBaselineLocalY = Mathf.Min(currentLiftBaselineLocalY, localY);
+        bool risingNow = localY > previousCurrentLiftLocalY + 0.000001f;
+        previousCurrentLiftLocalY = localY;
+        if (arrowTimerStarted && risingNow && localY - currentLiftBaselineLocalY >= MinimumConfirmedRiseLocalY &&
+            tracker != null && tracker.IsSupportWeightWithinTarget(currentHighlightPhase))
+            EndCurrentHighlight("CorrectWeightRaised");
+    }
 
     private static ArrowFade CreateFade(RectTransform group)
     {
@@ -425,6 +470,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         bool wasActive = currentHighlightWindowActive;
         currentHighlightWindowActive = false;
+        currentHighlightLatched = hasCurrentLiftSample = false;
         SetCurrentHighlight(0f);
         if (wasActive) Record("CurrentHighlightEnded", "Reason=" + reason);
     }

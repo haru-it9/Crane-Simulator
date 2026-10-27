@@ -100,14 +100,21 @@ public class CraneInstance : UnityEngine.Component { public UnityEngine.Transfor
 public class LifMagSystem
 {
     public bool IsInputValueLiftMode=true;public float CurrentLiftCapacityKg,CurrentElectricCurrentA;
+    public float AttachedWeight;
+    public List<UnityEngine.GameObject> AttachedBoards=new List<UnityEngine.GameObject>();
+    public float GetAttachedTotalWeightKgForDisplay()=>AttachedWeight;
     public bool IsDisplayedCurrentZeroForSupport=>IsInputValueLiftMode&&Math.Abs(CurrentElectricCurrentA)<=.01f;
     public bool IsLifMagCurrentOn(int i)=>true;
     public float GetLifMagDisplayAccumValue(int i)=>0;
 }
 public class CraneWorkLoadPlanManager
 {
-    public bool HasWeight=true;public float Weight=1000;
+    public bool HasWeight=true,HasRemainingWeight=true;public float Weight=1000,RemainingWeight;
+    public int PickupCount=-1,RemainingCount=-1;
     public bool TryGetPickupTargetWeightKg(out float w) {w=Weight;return HasWeight;}
+    public bool TryGetTargetRemainingWeightKg(out float w) {w=RemainingWeight;return HasRemainingWeight;}
+    public bool IsPickupBoardCountSatisfied(int count)=>PickupCount<0||count==PickupCount;
+    public bool IsPlacementBoardCountSatisfied(int count)=>RemainingCount<0||count==RemainingCount;
 }
 public class CraneUnit
 {
