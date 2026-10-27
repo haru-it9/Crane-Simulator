@@ -4,7 +4,8 @@
 `TaskSwitchCognitiveSupport` を追加済みです。支援内容の初期値は **両方** です。
 矢印・フェーズは切替・復帰時に提示し、操作入力の解禁から設定時間を数えます。
 コード既定値8秒、現在のシーン設定は1.5秒です。電流値は適正範囲に入ると緑色になります。
-電流色モードがONの場合、適正範囲外は通常色で表示し、切替時のフェーズ色による強調は行いません。
+電流色モードがONの場合、適正範囲外の数値は通常色で表示し、数値をフェーズ色にはしません。
+切替・復帰時に電流調整が必要なら「リフマグ電流」の見出しをフェーズ色にし、入力受付開始から白へフェードします。
 
 ## 条件の選択
 
@@ -98,7 +99,24 @@ ONでは、入力方向を含む支援条件で、実験開始後の通常作業
 配置では表示用の目標残存重量を参照し、0tなら0A、部分配置など0t以外なら上記の重量に応じた電流範囲を使います。
 未確定の次フェーズに対して古い配置目標を流用しません。
 
-### 従来の着床開始時の強調（電流色モードOFFの場合のみ）
+### 切替・復帰時の「リフマグ電流」見出し
+
+TaskSwitch UIの既存Text（`TextandButton/LifMagCurrent`）を **Current Input Label** に登録しています。
+切替・復帰の瞬間に、吊り上げ・配置の電流調整または上昇段階で、電流不足・超過・0Aへの調整が必要な場合だけ、
+この見出しをフェーズ文字と同じ色にします。既に適正な場合、目標不明の場合、まず位置合わせ・下降が必要な場合は白のままです。
+判定は切替・復帰ごとに一度だけ行います。通常作業中に電流が範囲外へ出たり、切替後に着床しただけでは新たに強調しません。
+
+対象クレーンの `ElectricCurrentInputAccepted`（実際の電流入力受付）を受け取ると、見出しを白へフェードします。
+確認前・操作入力解禁前・電流再入力ロック中・一時停止中の入力は開始扱いにしません。
+電流が適正になるまで待つのではなく、最初の受付時点から開始します。以後の入力でタイマーを延長しません。
+**Current Input Label Fade Seconds** は既定0.75秒、Inspectorで0.5〜1秒に調整できます。
+文字を透明にするのではなく、色を白（不透明）へ戻します。一時停止時間はフェードの経過に含めません。
+
+矢印の表示時間が終わっても、入力開始までは見出しの強調を保持し、その後フェードします。
+一度白へ戻った後は同じ区間で再強調しません。次の切替・復帰、クレーン変更、実験終了・無効化では前の強調と入力監視をクリアします。
+フェーズのみ条件では見出し支援を出しません。電流数値の適正範囲・緑色表示は独立して継続します。
+
+### 従来の着床開始時の数値強調（電流色モードOFFの場合のみ）
 
 **Use Current Range Coloring** をOFFにすると、以下の従来方式を使用します。この場合、適正範囲による緑色表示は行いません。
 
@@ -195,6 +213,8 @@ CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMaxとCurrentRangeClea
 CurrentColorMode=RangeStatusは適正範囲の緑色表示、TouchdownReminderは従来の着床開始時の強調です。
 CurrentRangeExpandedは上限をMAXに広げた状態、CurrentAppropriateVisibleは緑色表示、CurrentHighlightVisibleはフェーズ色表示を示します。
 CurrentGuidanceは不足時IncreaseCurrent、超過時DecreaseCurrent、ゼロ目標で非ゼロならSetCurrentToZero、判定不能時CurrentTargetUnavailable、適正範囲内ではReadyToRaiseです。
+見出しはCognitiveSupportCurrentInputLabelShownで提示、CognitiveSupportCurrentInputLabelFadeStartedで入力受付を起点とするフェード開始、
+CognitiveSupportCurrentInputLabelHiddenで終了を記録します。入力による完了はReason=InputAcceptedです。
 他の実験イベント、入力ログ、操作判定を置き換えません。
 
 ## 確認

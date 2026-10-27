@@ -103,6 +103,10 @@ public class LifMagSystem
 {
     public bool IsInputValueLiftMode=true;public float CurrentLiftCapacityKg,CurrentElectricCurrentA;
     public float MaximumCurrentAmpere=75f;
+    public bool IsElectricCurrentInputReady=true;
+    public event Action<LifMagSystem,float> ElectricCurrentInputAccepted;
+    public int CurrentInputSubscriberCount=>ElectricCurrentInputAccepted==null?0:ElectricCurrentInputAccepted.GetInvocationList().Length;
+    public void AcceptCurrent(float value) { CurrentElectricCurrentA=value;ElectricCurrentInputAccepted?.Invoke(this,value); }
     public float AttachedWeight;
     public List<UnityEngine.GameObject> AttachedBoards=new List<UnityEngine.GameObject>();
     public bool HasAttachedBoard=>AttachedBoards.Count>0;

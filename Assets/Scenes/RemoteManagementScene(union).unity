@@ -189598,6 +189598,8 @@ MonoBehaviour:
   rightZGroup: {fileID: 9000010061}
   rightZArrow: {fileID: 9000010065}
   rightYLabel: {fileID: 9000010049}
+  currentInputLabel: {fileID: 374089580}
+  currentInputLabelFadeSeconds: 0.75
   currentValueDisplays:
   - {fileID: 1470163867}
   - {fileID: 263746697}

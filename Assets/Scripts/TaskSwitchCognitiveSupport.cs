@@ -51,6 +51,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [SerializeField] private Text rightYLabel;
     [SerializeField] private LifMagAccumValueText[] currentValueDisplays = new LifMagAccumValueText[0];
 
+    [Header("切替時の電流入力案内")]
+    [SerializeField] private Text currentInputLabel;
+    [Tooltip("電流入力の受付開始から、リフマグ電流の見出しが白へ戻るまでの秒数。")]
+    [SerializeField, Range(0.5f, 1f)] private float currentInputLabelFadeSeconds = 0.75f;
+
     [Header("電流の適正範囲")]
     [Tooltip("ON: 適正電流のみ座標と同じ緑色にし、切替時のフェーズ色による強調は行いません。OFF: 従来の着床開始時の強調。")]
     [SerializeField] private bool useCurrentRangeColoring = true;
@@ -87,6 +92,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private int capturedXCount = 1, capturedYCount = 1, capturedZCount = 1;
     private CraneWorkLoadPlanManager loadPlan;
     private ArrowFade leftFade, rightYFade, rightZFade;
+    private bool currentLabelDecisionPending, currentLabelHighlighted, currentLabelFading;
+    private double currentLabelFadeStarted;
+    private Color currentLabelFadeColor;
+    private LifMagSystem currentLabelInputSource;
 
     private sealed class ArrowFade
     {
@@ -143,6 +152,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (visible && ExperimentPauseManager.ActiveRealtime >= hideAt)
             HideArrows("Timeout");
         if (visible || currentHighlightWindowActive || currentFeedbackActive) RefreshPresentation();
+        UpdateCurrentInputLabel();
     }
 
     private void EnsureNormalCurrentFeedback()
@@ -226,6 +236,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentHighlightWindowActive = touchdownAtSwitch;
         currentFeedbackActive = true;
         currentHighlightLatched = hasCurrentLiftSample = false;
+        currentLabelDecisionPending = true;
         visible = true;
         supportRoot.SetActive(true);
         Record("Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
@@ -235,6 +246,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMax" +
             ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeClearance=" + currentRangeClearance.ToString(CultureInfo.InvariantCulture) +
+            ";CurrentInputLabelFadeSeconds=" + Mathf.Clamp(currentInputLabelFadeSeconds, 0.5f, 1f).ToString(CultureInfo.InvariantCulture) +
             ";CurrentHighlightEligibleAtSwitch=" + touchdownAtSwitch +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
@@ -306,6 +318,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         bool currentAdjustmentStage = noMovement && step != null && unit != null && tracker != null &&
             !TaskSwitchSupportGuidance.TryGetRaisingTarget(step, out ignoredHeight) &&
             IsCurrentAdjustmentStage(step, unit);
+        bool currentOperationPhase = phase == CraneStatusManager.WorkPhase.LiftUp ||
+            phase == CraneStatusManager.WorkPhase.Place || phase == CraneStatusManager.WorkPhase.PlaceToTrack;
+        CaptureCurrentInputLabel(currentOperationPhase && (currentAdjustmentStage || movement.y > 0f), currentGuidance);
         // The tracker may already be on a raising step based on held weight. That must not
         // bypass the displayed-current check, including on a mid-raising Source return.
         if (currentAdjustmentStage || movement.y > 0f)
@@ -382,6 +397,59 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             lastPresentation = presentation;
             Record("Updated", presentation);
         }
+    }
+
+    private void CaptureCurrentInputLabel(bool needsCurrentOperation, string guidance)
+    {
+        if (!currentLabelDecisionPending) return;
+        currentLabelDecisionPending = false;
+        bool needsAdjustment = guidance == "IncreaseCurrent" || guidance == "DecreaseCurrent" || guidance == "SetCurrentToZero";
+        if (currentInputLabel == null || supportContent == TaskSwitchSupportContent.PhaseOnly ||
+            !needsCurrentOperation || !needsAdjustment || selectedCrane.LifMagSystem == null) return;
+        currentLabelHighlighted = true;
+        currentInputLabel.color = phaseText != null ? phaseText.color : Color.white;
+        currentLabelInputSource = selectedCrane.LifMagSystem;
+        currentLabelInputSource.ElectricCurrentInputAccepted += HandleCurrentInputAccepted;
+        Record("CurrentInputLabelShown", "Role=" + (targetSide ? "Target" : "Source") + ";CurrentGuidance=" + guidance);
+    }
+
+    private void HandleCurrentInputAccepted(LifMagSystem source, float currentAmpere)
+    {
+        if (currentInputLabel == null || !currentLabelHighlighted || currentLabelFading || source != currentLabelInputSource ||
+            awaitingConfirmation || !arrowTimerStarted || ExperimentPauseManager.IsPaused ||
+            operationManager == null || operationManager.CurrentCraneInstance != selectedCrane ||
+            !source.IsElectricCurrentInputReady || float.IsNaN(currentAmpere) || float.IsInfinity(currentAmpere)) return;
+        currentLabelFading = true;
+        currentLabelFadeStarted = ExperimentPauseManager.ActiveRealtime;
+        currentLabelFadeColor = currentInputLabel.color;
+        source.ElectricCurrentInputAccepted -= HandleCurrentInputAccepted;
+        currentLabelInputSource = null;
+        Record("CurrentInputLabelFadeStarted", "Anchor=ElectricCurrentInputAccepted;CurrentA=" + currentAmpere.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private void UpdateCurrentInputLabel()
+    {
+        if (supportContent == TaskSwitchSupportContent.PhaseOnly)
+        {
+            ResetCurrentInputLabel("ContentDisabled");
+            return;
+        }
+        if (!currentLabelHighlighted || !currentLabelFading || currentInputLabel == null) return;
+        float progress = Mathf.Clamp01((float)(ExperimentPauseManager.ActiveRealtime - currentLabelFadeStarted) /
+            Mathf.Clamp(currentInputLabelFadeSeconds, 0.5f, 1f));
+        currentInputLabel.color = Color.Lerp(currentLabelFadeColor, Color.white, progress);
+        if (progress >= 1f) ResetCurrentInputLabel("InputAccepted");
+    }
+
+    private void ResetCurrentInputLabel(string reason)
+    {
+        if (currentLabelInputSource != null)
+            currentLabelInputSource.ElectricCurrentInputAccepted -= HandleCurrentInputAccepted;
+        currentLabelInputSource = null;
+        bool wasHighlighted = currentLabelHighlighted;
+        currentLabelDecisionPending = currentLabelHighlighted = currentLabelFading = false;
+        if (currentInputLabel != null) currentInputLabel.color = Color.white;
+        if (wasHighlighted) Record("CurrentInputLabelHidden", "Reason=" + reason);
     }
 
     private string EvaluateCurrentGuidance(CraneStatusManager.WorkPhase phase, bool pendingPhase,
@@ -533,6 +601,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void Hide(string reason)
     {
+        ResetCurrentInputLabel(reason);
         currentFeedbackActive = false;
         HideArrows(reason);
         EndCurrentHighlight(reason);

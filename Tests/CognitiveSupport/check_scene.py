@@ -14,6 +14,11 @@ assert int(re.search(r'^  directionPresentation: (.+)$',component,re.M)[1]) in [
 assert .5<=float(re.search(r'^  fadeOutSeconds: (.+)$',component,re.M)[1])<=1
 assert 'currentHighlightDisplaySeconds:' not in component
 assert 'rightYLabel: {fileID: 9000010049}' in component
+assert 'currentInputLabel: {fileID: 374089580}' in component
+assert .5<=float(re.search(r'^  currentInputLabelFadeSeconds: (.+)$',component,re.M)[1])<=1
+assert r'\u30EA\u30D5\u30DE\u30B0\n\u96FB\u6D41' in docs['374089580'][1]
+assert 'm_GameObject: {fileID: 374089578}' in docs['374089580'][1]
+assert 'm_Father: {fileID: 1796973733}' in docs['374089579'][1]
 for id in ['1470163867','263746697','1055664397','1973951998','1132206959']:
     assert f'  - {{fileID: {id}}}' in component and id in docs
 for id in ['9000010026','9000010066']:

@@ -571,6 +571,82 @@ public static class SupportTests
         Check(support.IsVisible&&SameColor(currentText.color,coordinateColors.AchievedValueColor),"Actual switch after normal work still uses the pending Target preview and opens support");
         Call(support,"OnDisable");
         Check(SameColor(currentText.color,Color.white),"Disabling restores the original current color");
+        var currentHeading=new Text {color=Color.white};Set(support,"currentInputLabel",currentHeading);
+        manager.CurrentState=TaskSwitchExperimentState.WaitingForConfirmation;
+        manager.PickupWeight=load.Weight=5000;load.HasWeight=manager.HasPickupWeightPreview=true;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.LoadAcquisition");
+        manager.TargetCondition.workPhase=CraneStatusManager.WorkPhase.LiftUp;
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;crane.CraneUnit.LocalY=-3;
+        magnet.CurrentElectricCurrentA=30;magnet.IsElectricCurrentInputReady=true;
+        ExperimentPauseManager.ActiveRealtime=2000;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentHeading.color,phase.color)&&SameColor(currentText.color,Color.white),"Switch-time current adjustment colors only the heading, not the numeric current");
+        Check(magnet.CurrentInputSubscriberCount==1,"Heading listens to the selected magnet's accepted-current event");
+        magnet.AcceptCurrent(31);Call(support,"LateUpdate");
+        Check(!Flag(support,"currentLabelFading")&&SameColor(currentHeading.color,phase.color),"Input before confirmation does not start heading fade");
+        manager.Raise("TargetOperationStarted");magnet.AcceptCurrent(32);Call(support,"LateUpdate");
+        Check(!Flag(support,"currentLabelFading"),"Confirmation alone is not an input unlock");
+        manager.Raise("TargetInputUnlocked");
+        var otherMagnet=new LifMagSystem();otherMagnet.AcceptCurrent(40);Call(support,"LateUpdate");
+        Check(!Flag(support,"currentLabelFading"),"Input from another crane cannot fade the heading");
+        ExperimentPauseManager.IsPaused=true;magnet.AcceptCurrent(33);Call(support,"LateUpdate");
+        Check(!Flag(support,"currentLabelFading"),"Paused input cannot start the heading fade");
+        ExperimentPauseManager.IsPaused=false;magnet.IsElectricCurrentInputReady=false;magnet.AcceptCurrent(34);Call(support,"LateUpdate");
+        Check(!Flag(support,"currentLabelFading"),"Current rearm lock prevents treating input as accepted for the heading");
+        magnet.IsElectricCurrentInputReady=true;magnet.AcceptCurrent(35);Call(support,"LateUpdate");
+        Check(Flag(support,"currentLabelFading")&&SameColor(currentHeading.color,phase.color),"First accepted input starts fading even before current reaches the target band");
+        Check(magnet.CurrentInputSubscriberCount==0,"First accepted input detaches the event to prevent timer restarts");
+        ExperimentPauseManager.ActiveRealtime=2000.375;Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.Lerp(phase.color,Color.white,.5f)),"Heading fades halfway toward white in 0.375 seconds");
+        ExperimentPauseManager.IsPaused=true;Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.Lerp(phase.color,Color.white,.5f)),"Pause preserves heading fade progress");
+        ExperimentPauseManager.IsPaused=false;magnet.AcceptCurrent(50);
+        ExperimentPauseManager.ActiveRealtime=2000.75;Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white)&&currentHeading.color.a==1&&!Flag(support,"currentLabelHighlighted"),"Heading returns to opaque white without disappearing");
+        Check(SameColor(currentText.color,coordinateColors.AchievedValueColor),"Numeric current still independently turns green in its valid range");
+        magnet.AcceptCurrent(20);Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white),"Heading cannot re-highlight in the same switch episode");
+
+        ExperimentPauseManager.ActiveRealtime=2010;manager.Raise("SourceDisplayRestored");
+        Check(SameColor(currentHeading.color,phase.color),"Source return makes a fresh heading decision");
+        manager.Raise("SourceOperationResumed");manager.Raise("SourceInputUnlocked");
+        ExperimentPauseManager.ActiveRealtime=2013;Call(support,"LateUpdate");
+        Check(!root.activeSelf&&SameColor(currentHeading.color,phase.color),"Heading waits for accepted input beyond the arrow deadline");
+        magnet.AcceptCurrent(25);ExperimentPauseManager.ActiveRealtime=2013.75;Call(support,"LateUpdate");
+        Check(!root.activeSelf&&SameColor(currentHeading.color,Color.white),"Heading can complete its fade after arrows are gone");
+
+        magnet.CurrentElectricCurrentA=50;manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentHeading.color,Color.white)&&magnet.CurrentInputSubscriberCount==0,"An already appropriate current needs no heading cue");
+        magnet.CurrentElectricCurrentA=20;Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white),"Later current changes do not retrospectively arm the switch snapshot");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentHeading.color,Color.white),"A switch requiring lowering first does not request current adjustment yet");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white),"Later touchdown cannot activate a new heading cue");
+        load.HasWeight=manager.HasPickupWeightPreview=false;manager.Raise("TargetDisplaySwitched");
+        Check(SameColor(currentHeading.color,Color.white),"Unknown current target does not invent an adjustment cue");
+        load.HasWeight=manager.HasPickupWeightPreview=true;
+
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Place;tracker.CurrentStepDefinition=Step("Place.LoadRelease");
+        load.RemainingWeight=0;magnet.CurrentElectricCurrentA=5;manager.Raise("SourceDisplayRestored");
+        Check(SameColor(currentHeading.color,phase.color),"Nonzero current for zero-weight placement is an adjustment cue");
+        manager.Raise("SourceOperationResumed");manager.Raise("SourceInputUnlocked");magnet.AcceptCurrent(4);
+        Check(Flag(support,"currentLabelFading"),"Reducing placement current starts fading without waiting for zero A");
+        manager.Raise("SourceDisplayRestored");
+        Check(SameColor(currentHeading.color,phase.color)&&magnet.CurrentInputSubscriberCount==1,"A new return cancels the old fade and subscribes exactly once");
+        Set(support,"supportContent",TaskSwitchSupportContent.PhaseOnly);Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white)&&magnet.CurrentInputSubscriberCount==0,"Phase-only content clears heading cue and event subscription");
+        Set(support,"supportContent",TaskSwitchSupportContent.InputDirectionOnly);Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white),"Re-enabling directions does not create another switch snapshot");
+        manager.Raise("SourceDisplayRestored");Call(support,"OnDisable");
+        Check(SameColor(currentHeading.color,Color.white)&&magnet.CurrentInputSubscriberCount==0,"Disable restores white and detaches the selected magnet");
+        manager.CurrentState=TaskSwitchExperimentState.OperatingSource;Call(support,"OnEnable");Call(support,"LateUpdate");
+        Check(SameColor(currentHeading.color,Color.white),"Ordinary current coloring never activates the switch-only heading cue");
+        manager.Raise("SourceDisplayRestored");manager.Raise("ExperimentCompleted");
+        Check(SameColor(currentHeading.color,Color.white)&&magnet.CurrentInputSubscriberCount==0,"Experiment completion clears the heading cue");
+        Check(manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelShown:"))&&
+            manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelFadeStarted:")&&s.Contains("Anchor=ElectricCurrentInputAccepted"))&&
+            manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelHidden:")&&s.Contains("Reason=InputAccepted")),"Heading show, accepted-input fade, and completion are logged");
+        Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
 }
