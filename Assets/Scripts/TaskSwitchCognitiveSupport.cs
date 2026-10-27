@@ -53,8 +53,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     [Header("切替時の電流入力案内")]
     [SerializeField] private Text currentInputLabel;
-    [Tooltip("電流入力の受付開始から、リフマグ電流の見出しが白へ戻るまでの秒数。")]
+    [Tooltip("コントローラの電流スライダーを動かし始めてからフェードを開始するまでの秒数。")]
+    [SerializeField, Min(0f)] private float currentInputLabelDelaySeconds = 1f;
+    [Tooltip("待ち時間の後、見出しが白へ戻るまでのフェード秒数。")]
     [SerializeField, Range(0.5f, 1f)] private float currentInputLabelFadeSeconds = 0.75f;
+    [Tooltip("切替時の生のスライダー軸値からの変化量。電流制御の受付やロック解除を待たず、この値以上の動きでフェードします。")]
+    [SerializeField, Min(0.001f)] private float currentInputMovementThreshold = 0.01f;
 
     [Header("電流の適正範囲")]
     [Tooltip("ON: 適正電流のみ座標と同じ緑色にし、切替時のフェーズ色による強調は行いません。OFF: 従来の着床開始時の強調。")]
@@ -93,9 +97,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private CraneWorkLoadPlanManager loadPlan;
     private ArrowFade leftFade, rightYFade, rightZFade;
     private bool currentLabelDecisionPending, currentLabelHighlighted, currentLabelFading;
+    private bool currentLabelFadeLogged;
     private double currentLabelFadeStarted;
     private Color currentLabelFadeColor;
     private LifMagSystem currentLabelInputSource;
+    private float currentLabelControllerBaseline;
+    private bool hasCurrentLabelControllerBaseline;
 
     private sealed class ArrowFade
     {
@@ -147,7 +154,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             Hide("ExperimentInactive");
             return;
         }
-        if (ExperimentPauseManager.IsPaused) return;
+        if (ExperimentPauseManager.IsPaused)
+        {
+            // Movement during pause is not a new operation when the experiment resumes.
+            if (currentLabelHighlighted && !currentLabelFading) CaptureCurrentControllerBaseline();
+            return;
+        }
         EnsureNormalCurrentFeedback();
         if (visible && ExperimentPauseManager.ActiveRealtime >= hideAt)
             HideArrows("Timeout");
@@ -247,6 +259,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeClearance=" + currentRangeClearance.ToString(CultureInfo.InvariantCulture) +
             ";CurrentInputLabelFadeSeconds=" + Mathf.Clamp(currentInputLabelFadeSeconds, 0.5f, 1f).ToString(CultureInfo.InvariantCulture) +
+            ";CurrentInputLabelDelaySeconds=" + Mathf.Max(0f, currentInputLabelDelaySeconds).ToString(CultureInfo.InvariantCulture) +
+            ";CurrentInputMovementThreshold=" + currentInputMovementThreshold.ToString(CultureInfo.InvariantCulture) +
             ";CurrentHighlightEligibleAtSwitch=" + touchdownAtSwitch +
             ";DirectionPresentation=" + directionPresentation + ";MaximumChevrons=" + maximumChevrons +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True" +
@@ -409,22 +423,43 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentLabelHighlighted = true;
         currentInputLabel.color = phaseText != null ? phaseText.color : Color.white;
         currentLabelInputSource = selectedCrane.LifMagSystem;
-        currentLabelInputSource.ElectricCurrentInputAccepted += HandleCurrentInputAccepted;
+        CaptureCurrentControllerBaseline();
         Record("CurrentInputLabelShown", "Role=" + (targetSide ? "Target" : "Source") + ";CurrentGuidance=" + guidance);
     }
 
-    private void HandleCurrentInputAccepted(LifMagSystem source, float currentAmpere)
+    private float ReadCurrentControllerAxis()
     {
-        if (currentInputLabel == null || !currentLabelHighlighted || currentLabelFading || source != currentLabelInputSource ||
-            awaitingConfirmation || !arrowTimerStarted || ExperimentPauseManager.IsPaused ||
-            operationManager == null || operationManager.CurrentCraneInstance != selectedCrane ||
-            !source.IsElectricCurrentInputReady || float.IsNaN(currentAmpere) || float.IsInfinity(currentAmpere)) return;
+        if (currentLabelInputSource == null || string.IsNullOrEmpty(currentLabelInputSource.CurrentSliderAxis)) return float.NaN;
+        return Input.GetAxisRaw(currentLabelInputSource.CurrentSliderAxis);
+    }
+
+    private void CaptureCurrentControllerBaseline()
+    {
+        currentLabelControllerBaseline = ReadCurrentControllerAxis();
+        hasCurrentLabelControllerBaseline = !float.IsNaN(currentLabelControllerBaseline) && !float.IsInfinity(currentLabelControllerBaseline);
+    }
+
+    private void TryStartCurrentInputLabelFade()
+    {
+        if (currentLabelInputSource == null || operationManager == null ||
+            operationManager.CurrentCraneInstance != selectedCrane) return;
+        float input = ReadCurrentControllerAxis();
+        if (float.IsNaN(input) || float.IsInfinity(input)) return;
+        if (!hasCurrentLabelControllerBaseline)
+        {
+            CaptureCurrentControllerBaseline();
+            return;
+        }
+        float delta = Mathf.Abs(input - currentLabelControllerBaseline);
+        if (delta < Mathf.Max(0.001f, currentInputMovementThreshold)) return;
         currentLabelFading = true;
-        currentLabelFadeStarted = ExperimentPauseManager.ActiveRealtime;
+        currentLabelFadeStarted = ExperimentPauseManager.ActiveRealtime + Mathf.Max(0f, currentInputLabelDelaySeconds);
         currentLabelFadeColor = currentInputLabel.color;
-        source.ElectricCurrentInputAccepted -= HandleCurrentInputAccepted;
+        string axis = currentLabelInputSource.CurrentSliderAxis;
         currentLabelInputSource = null;
-        Record("CurrentInputLabelFadeStarted", "Anchor=ElectricCurrentInputAccepted;CurrentA=" + currentAmpere.ToString(CultureInfo.InvariantCulture));
+        Record("CurrentInputLabelInputStarted", "Anchor=ControllerSliderMovement;Axis=" + axis +
+            ";FadeDelaySeconds=" + Mathf.Max(0f, currentInputLabelDelaySeconds).ToString(CultureInfo.InvariantCulture) +
+            ";Input=" + input.ToString(CultureInfo.InvariantCulture) + ";Delta=" + delta.ToString(CultureInfo.InvariantCulture));
     }
 
     private void UpdateCurrentInputLabel()
@@ -434,20 +469,28 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ResetCurrentInputLabel("ContentDisabled");
             return;
         }
-        if (!currentLabelHighlighted || !currentLabelFading || currentInputLabel == null) return;
+        if (!currentLabelHighlighted || currentInputLabel == null) return;
+        if (!currentLabelFading) TryStartCurrentInputLabelFade();
+        if (!currentLabelFading) return;
+        if (ExperimentPauseManager.ActiveRealtime < currentLabelFadeStarted) return;
+        if (!currentLabelFadeLogged)
+        {
+            currentLabelFadeLogged = true;
+            Record("CurrentInputLabelFadeStarted", "Anchor=ControllerSliderMovementPlusDelay");
+        }
         float progress = Mathf.Clamp01((float)(ExperimentPauseManager.ActiveRealtime - currentLabelFadeStarted) /
             Mathf.Clamp(currentInputLabelFadeSeconds, 0.5f, 1f));
         currentInputLabel.color = Color.Lerp(currentLabelFadeColor, Color.white, progress);
-        if (progress >= 1f) ResetCurrentInputLabel("InputAccepted");
+        if (progress >= 1f) ResetCurrentInputLabel("ControllerInputStarted");
     }
 
     private void ResetCurrentInputLabel(string reason)
     {
-        if (currentLabelInputSource != null)
-            currentLabelInputSource.ElectricCurrentInputAccepted -= HandleCurrentInputAccepted;
         currentLabelInputSource = null;
+        hasCurrentLabelControllerBaseline = false;
         bool wasHighlighted = currentLabelHighlighted;
         currentLabelDecisionPending = currentLabelHighlighted = currentLabelFading = false;
+        currentLabelFadeLogged = false;
         if (currentInputLabel != null) currentInputLabel.color = Color.white;
         if (wasHighlighted) Record("CurrentInputLabelHidden", "Reason=" + reason);
     }

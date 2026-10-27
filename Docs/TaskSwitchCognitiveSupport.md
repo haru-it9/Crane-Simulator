@@ -5,7 +5,7 @@
 矢印・フェーズは切替・復帰時に提示し、操作入力の解禁から設定時間を数えます。
 コード既定値8秒、現在のシーン設定は1.5秒です。電流値は適正範囲に入ると緑色になります。
 電流色モードがONの場合、適正範囲外の数値は通常色で表示し、数値をフェーズ色にはしません。
-切替・復帰時に電流調整が必要なら「リフマグ電流」の見出しをフェーズ色にし、入力受付開始から白へフェードします。
+切替・復帰時に電流調整が必要なら「リフマグ電流」の見出しをフェーズ色にし、コントローラのスライダー操作開始から1秒後に白へのフェードを始めます。
 
 ## 条件の選択
 
@@ -106,13 +106,19 @@ TaskSwitch UIの既存Text（`TextandButton/LifMagCurrent`）を **Current Input
 この見出しをフェーズ文字と同じ色にします。既に適正な場合、目標不明の場合、まず位置合わせ・下降が必要な場合は白のままです。
 判定は切替・復帰ごとに一度だけ行います。通常作業中に電流が範囲外へ出たり、切替後に着床しただけでは新たに強調しません。
 
-対象クレーンの `ElectricCurrentInputAccepted`（実際の電流入力受付）を受け取ると、見出しを白へフェードします。
-確認前・操作入力解禁前・電流再入力ロック中・一時停止中の入力は開始扱いにしません。
-電流が適正になるまで待つのではなく、最初の受付時点から開始します。以後の入力でタイマーを延長しません。
-**Current Input Label Fade Seconds** は既定0.75秒、Inspectorで0.5〜1秒に調整できます。
-文字を透明にするのではなく、色を白（不透明）へ戻します。一時停止時間はフェードの経過に含めません。
+切替・復帰時のコントローラの電流スライダー軸値を保存し、`Input.GetAxisRaw` でその位置からの変化を監視します。
+対象クレーンの `LifMagSystem.CurrentSliderAxis` を使い、電流の受付イベントや表示電流の変化は操作開始判定に使いません。
+確認待ち・操作解禁前・電流再入力ロック中でも、コントローラを動かし始めたら開始扱いにします。
+切替前から同じ位置に保持しているスライダーは、新しい入力とはしません。
+**Current Input Movement Threshold** は生の軸値の変化量で、既定0.01です。小さな揺らぎを無視し、切替時点からの累積変化で判定します。
 
-矢印の表示時間が終わっても、入力開始までは見出しの強調を保持し、その後フェードします。
+最初の操作検出から **Current Input Label Delay Seconds**（既定1秒）の間は強調色を保ち、その後、
+**Current Input Label Fade Seconds**（既定0.75秒、Inspectorで0.5〜1秒）をかけて白へ戻します。
+既定では操作開始から合計1.75秒で白になります。以後の入力で待ち時間やフェードを延長しません。
+文字を透明にするのではなく、色を白（不透明）へ戻します。一時停止時間は待ち時間・フェードの経過に含めません。
+停止中にスライダーを動かしただけでは開始扱いにせず、再開後に新たに動いた時点で検出します。
+
+矢印の表示時間が終わっても、スライダー操作開始までは見出しの強調を保持し、その後1秒の待ち時間を経てフェードします。
 一度白へ戻った後は同じ区間で再強調しません。次の切替・復帰、クレーン変更、実験終了・無効化では前の強調と入力監視をクリアします。
 フェーズのみ条件では見出し支援を出しません。電流数値の適正範囲・緑色表示は独立して継続します。
 
@@ -213,8 +219,9 @@ CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMaxとCurrentRangeClea
 CurrentColorMode=RangeStatusは適正範囲の緑色表示、TouchdownReminderは従来の着床開始時の強調です。
 CurrentRangeExpandedは上限をMAXに広げた状態、CurrentAppropriateVisibleは緑色表示、CurrentHighlightVisibleはフェーズ色表示を示します。
 CurrentGuidanceは不足時IncreaseCurrent、超過時DecreaseCurrent、ゼロ目標で非ゼロならSetCurrentToZero、判定不能時CurrentTargetUnavailable、適正範囲内ではReadyToRaiseです。
-見出しはCognitiveSupportCurrentInputLabelShownで提示、CognitiveSupportCurrentInputLabelFadeStartedで入力受付を起点とするフェード開始、
-CognitiveSupportCurrentInputLabelHiddenで終了を記録します。入力による完了はReason=InputAcceptedです。
+見出しはCognitiveSupportCurrentInputLabelShownで提示、CognitiveSupportCurrentInputLabelInputStartedで生のコントローラ操作検出
+（Anchor=ControllerSliderMovement、Axis/Input/Delta/FadeDelaySecondsを含む）、CognitiveSupportCurrentInputLabelFadeStartedで待ち時間後のフェード開始、
+CognitiveSupportCurrentInputLabelHiddenで終了を記録します。入力による完了はReason=ControllerInputStartedです。
 他の実験イベント、入力ログ、操作判定を置き換えません。
 
 ## 確認

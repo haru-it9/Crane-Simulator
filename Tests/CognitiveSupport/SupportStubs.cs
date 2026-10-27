@@ -59,6 +59,12 @@ namespace UnityEngine
         public static float Abs(float v)=>Math.Abs(v);
     }
     public static class Debug { public static void LogWarning(object message,object context=null) { } }
+    public static class Input
+    {
+        private static Dictionary<string,float> axes=new Dictionary<string,float>();
+        public static float GetAxisRaw(string axis) {float value;return axes.TryGetValue(axis,out value)?value:0f;}
+        public static void SetAxis(string axis,float value) {axes[axis]=value;}
+    }
     public class SerializeField : Attribute { }
     public class Header : Attribute { public Header(string s) { } }
     public class Tooltip : Attribute { public Tooltip(string s) { } }
@@ -104,6 +110,7 @@ public class LifMagSystem
     public bool IsInputValueLiftMode=true;public float CurrentLiftCapacityKg,CurrentElectricCurrentA;
     public float MaximumCurrentAmpere=75f;
     public bool IsElectricCurrentInputReady=true;
+    public string CurrentSliderAxis="CurrentSlider";
     public event Action<LifMagSystem,float> ElectricCurrentInputAccepted;
     public int CurrentInputSubscriberCount=>ElectricCurrentInputAccepted==null?0:ElectricCurrentInputAccepted.GetInvocationList().Length;
     public void AcceptCurrent(float value) { CurrentElectricCurrentA=value;ElectricCurrentInputAccepted?.Invoke(this,value); }
