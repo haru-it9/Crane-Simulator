@@ -446,6 +446,25 @@ public class CraneWorkCycleController : MonoBehaviour
             return false;
         }
 
+        // Recheck the completed movement before consuming the saved next phase.
+        // A moved source must finish alignment again after return, not skip it.
+        if (phaseTracker == null ||
+            !phaseTracker.TryRevalidateCompletedMovement(out bool alignmentReopened))
+        {
+            isPaused = true;
+            Log("BoundaryResumeValidationFailed");
+            return false;
+        }
+        if (alignmentReopened)
+        {
+            StopAdvanceRoutine();
+            waitingAtBoundary = holdAfterCurrentPhase = hasPendingNextPhase = false;
+            isPaused = false;
+            currentPhase = phaseTracker.CurrentMajorPhase;
+            Log($"BoundaryAlignmentReopened, Phase={currentPhase}, Step={phaseTracker.CurrentStepId}");
+            return true;
+        }
+
         CraneStatusManager.WorkPhase nextPhase = pendingNextPhase;
 
         waitingAtBoundary = false;

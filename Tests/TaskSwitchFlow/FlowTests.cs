@@ -247,6 +247,55 @@ static class FlowTests
         ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.PauseOffsetSeconds=0;Input.buttons.Clear();Time.deltaTime=0;
         Console.WriteLine("PASS: three hybrid policies, deadline boundaries/zero/Pause, notice UI/font restoration, actual phase completion, one-click early choice, source resume/hold cleanup, selection failure, completion/restart and enum compatibility");
     }
+    static Rig SourceReturnReady(CraneStatusManager.WorkPhase phase)
+    {
+        var r=HybridRig(TaskSwitchMethod.AnnouncedPhaseBoundary);
+        if(phase==CraneStatusManager.WorkPhase.Move2) {r.Complete(0);r.Attach(0,2);r.Complete(0);}
+        r.Manager.RequestSwitch();r.Complete(0);r.Manager.ConfirmTargetTask();r.Update();
+        r.Complete(1);r.Attach(1,2);r.Complete(1);
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForSourceConfirmation,"source return setup failed");
+        return r;
+    }
+    static void CheckSourceReturnValidation()
+    {
+        foreach(var phase in new[]{CraneStatusManager.WorkPhase.Move1,CraneStatusManager.WorkPhase.Move2})
+        {
+            var r=SourceReturnReady(phase);var goal=r.Target(0);int completed=r.Cycle(0).CompletedCycleCount;
+            r.Tracker(0).ReopenAlignmentOnBoundary=true;r.Manager.ConfirmTargetTask();
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource && r.Cycle(0).CurrentPhase==phase &&
+                !r.Cycle(0).IsPaused && !r.Cycle(0).HasPendingNextPhase && !r.Cycle(0).IsWaitingAtBoundary &&
+                r.Tracker(0).IsMonitoring && !r.Tracker(0).IsMajorPhaseCompleted,"invalid boundary did not resume same movement alignment");
+            Require(r.Target(0).targetX==goal.targetX && r.Target(0).targetZ==goal.targetZ && r.Cycle(0).CompletedCycleCount==completed &&
+                r.Events.Contains("SourceMovementBoundaryReopened"),"reopening changed the goal/count or lost audit event");
+            r.Update();r.Complete(0);
+            Require(r.Cycle(0).CurrentPhase==(phase==CraneStatusManager.WorkPhase.Move1?CraneStatusManager.WorkPhase.LiftUp:CraneStatusManager.WorkPhase.Place),
+                "realignment completion did not restore ordinary phase progress");
+        }
+        var failed=SourceReturnReady(CraneStatusManager.WorkPhase.Move1);failed.Tracker(0).BoundaryValidationSucceeds=false;
+        failed.Manager.ConfirmTargetTask();failed.Update();
+        Require(failed.Manager.CurrentState==TaskSwitchExperimentState.WaitingForSourceConfirmation && failed.Op.IsOperationInputLocked &&
+            failed.Cycle(0).HasPendingNextPhase && failed.Cycle(0).IsPaused && failed.Events.Contains("SourceReturnResumeFailed") &&
+            !failed.Events.Contains("SwitchCompleted") && !failed.Events.Contains("SourceInputUnlocked"),"failed validation unlocked source or completed switch");
+        failed.Tracker(0).BoundaryValidationSucceeds=true;failed.Manager.ConfirmTargetTask();failed.Update();
+        Require(failed.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource && !failed.Op.IsOperationInputLocked &&
+            failed.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp,"failed validation could not be retried");
+
+        var legacy=SourceReturnReady(CraneStatusManager.WorkPhase.Move1);legacy.Cycle(0).StopCycle();Set(legacy.Manager,"sourceCycleController",null);
+        legacy.Tracker(0).ReopenAlignmentOnBoundary=true;legacy.Manager.ConfirmTargetTask();
+        Require(legacy.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource && legacy.Tracker(0).CurrentMajorPhase==CraneStatusManager.WorkPhase.Move1 &&
+            legacy.Tracker(0).IsMonitoring && legacy.Events.Contains("SourceMovementBoundaryReopened"),"tracker-only fallback skipped realignment");
+
+        var held=SourceReturnReady(CraneStatusManager.WorkPhase.Move1);held.Op.MovementCommand=new Vector3(.2f,0,0);
+        Input.buttons["JoyStick2RedButton"]=true;held.Manager.ConfirmTargetTask();held.Update();Input.buttons.Clear();held.Update();
+        Require(held.Op.IsOperationInputLocked && !held.Events.Contains("SourceInputUnlocked") &&
+            ((UnityEngine.UI.Text)Get(held.Manager,"confirmationButtonText")).text=="操作入力を中立へ","held return controls unlocked or lacked hint");
+        held.Op.MovementCommand=new Vector3(0,1,0);held.Update();Require(held.Op.IsOperationInputLocked,"held vertical return input unlocked");
+        held.Op.MovementCommand=Vector3.zero;held.Op.SpreadCommand=.3f;held.Update();Require(held.Op.IsOperationInputLocked,"held spread return input unlocked");
+        held.Op.SpreadCommand=.01f;ExperimentPauseManager.IsPaused=true;held.Update();Require(held.Op.IsOperationInputLocked,"Pause unlocked return controls");
+        ExperimentPauseManager.IsPaused=false;held.Update();held.Update();
+        Require(!held.Op.IsOperationInputLocked && held.Events.FindAll(e=>e=="SourceInputUnlocked").Count==1,"neutral return controls did not unlock exactly once");
+        Console.WriteLine("PASS: source return validation, Move1/Move2 fine-alignment restoration and goal/count preservation, failure lock/retry, tracker-only fallback and neutral movement/spread release gate with Pause/UI hint");
+    }
     public static void Main()
     {
         CheckCognitiveSupportGoalPreview();
@@ -315,6 +364,7 @@ static class FlowTests
         Require(automatic.Manager.CurrentState==TaskSwitchExperimentState.WaitingForOperatorSwitch,"CSV request did not arm operator confirmation");
         CheckSwitchMethodCsvPairs();
         CheckHybridSwitches();
+        CheckSourceReturnValidation();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

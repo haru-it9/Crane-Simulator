@@ -523,6 +523,46 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// 完了済み移動の座標を再確認し、範囲外なら最終微調整を再開します。
+    /// falseは目標や条件を取得できず検証できなかったことを表します。
+    /// 座標・目標・吸着状態は変更しません。
+    /// </summary>
+    public bool TryRevalidateCompletedMovement(out bool alignmentReopened)
+    {
+        alignmentReopened = false;
+        if (!majorPhaseCompleted ||
+            (CurrentMajorPhase != CraneStatusManager.WorkPhase.Move1 &&
+             CurrentMajorPhase != CraneStatusManager.WorkPhase.Move2)) return true;
+
+        if (activeSteps.Count == 0) return false;
+        CraneWorkStepDefinition finalStep = activeSteps[activeSteps.Count - 1];
+        Transform target = GetInformationTarget();
+        if (finalStep == null || finalStep.completionConditions == null || target == null ||
+            !TryGetTargetPosition(out float targetX, out float targetZ)) return false;
+
+        CurrentTargetErrorX = Mathf.Abs(target.position.x - targetX);
+        CurrentTargetErrorZ = Mathf.Abs(target.position.z - targetZ);
+        bool hasPositionCondition = false, withinTarget = true;
+        foreach (CraneWorkConditionDefinition condition in finalStep.completionConditions)
+        {
+            if (condition == null || condition.conditionType != CraneWorkConditionType.PositionWithinTarget) continue;
+            hasPositionCondition = true;
+            withinTarget &= CurrentTargetErrorX <= condition.threshold &&
+                            CurrentTargetErrorZ <= condition.secondaryThreshold;
+        }
+        if (!hasPositionCondition) return false;
+        if (withinTarget) return true;
+
+        currentStepIndex = activeSteps.Count - 1;
+        majorPhaseCompleted = false;
+        ResetStepTimers();
+        isMonitoring = true;
+        alignmentReopened = true;
+        NotifyStepStarted();
+        return true;
+    }
+
     public void StartMonitoring()
     {
         if (activeSteps.Count == 0)

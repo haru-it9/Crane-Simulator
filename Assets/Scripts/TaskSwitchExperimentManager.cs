@@ -1730,7 +1730,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        string resumeDetail = ResumeSourceWorkAfterReturn();
+        if (!TryResumeSourceWorkAfterReturn(out string resumeDetail))
+        {
+            pendingOperationInputUnlock = false;
+            confirmationAcceptedUntilRealtime = 0f;
+            craneOperationManager.SetTaskSwitchOperationInputLocked(true);
+            SetState(TaskSwitchExperimentState.WaitingForSourceConfirmation);
+            EmitEvent("SourceReturnResumeFailed", resumeDetail);
+            return;
+        }
 
         completedSwitchCount = Mathf.Max(
             completedSwitchCount,
@@ -1752,10 +1760,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         SetPanelActive(confirmationPanel, true);
         SetPanelActive(countdownPanel, false);
 
-        string resumeDetail = ResumeSourceWorkAfterReturn();
-
-        craneOperationManager.SetTaskSwitchOperationInputLocked(false);
-        SetState(TaskSwitchExperimentState.OperatingSource);
+        bool resumed = TryResumeSourceWorkAfterReturn(out string resumeDetail);
+        ScheduleOperationInputUnlockAfterButtonRelease();
+        if (!resumed) pendingOperationInputUnlock = false;
+        SetState(resumed ? TaskSwitchExperimentState.OperatingSource : TaskSwitchExperimentState.WaitingForSourceConfirmation);
         EmitEvent(
             "TargetSelectionFailed",
             $"{detail};{resumeDetail}"
@@ -1777,16 +1785,17 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        string resumeDetail = ResumeSourceWorkAfterReturn();
-        craneOperationManager.SetTaskSwitchOperationInputLocked(false);
-        SetState(TaskSwitchExperimentState.OperatingSource);
+        bool resumed = TryResumeSourceWorkAfterReturn(out string resumeDetail);
+        ScheduleOperationInputUnlockAfterButtonRelease();
+        if (!resumed) pendingOperationInputUnlock = false;
+        SetState(resumed ? TaskSwitchExperimentState.OperatingSource : TaskSwitchExperimentState.WaitingForSourceConfirmation);
         EmitEvent(
-            "SourceOperationResumed",
+            resumed ? "SourceOperationResumed" : "SourceReturnResumeFailed",
             $"TargetStartFailure;{resumeDetail}"
         );
     }
 
-    private string ResumeSourceWorkAfterReturn()
+    private bool TryResumeSourceWorkAfterReturn(out string resumeDetail)
     {
         if (sourceCycleController != null &&
             sourceCycleController.IsRunning)
@@ -1797,8 +1806,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             if (sourceCycleController.IsWaitingAtBoundary ||
                 sourceCycleController.HasPendingNextPhase)
             {
+                var previousPhase = sourceCycleController.CurrentPhase;
                 resumed = sourceCycleController.ContinueAfterBoundary();
-                resumeKind = "ContinueAfterBoundary";
+                resumeKind = resumed && sourceCycleController.CurrentPhase == previousPhase
+                    ? "ResumeFineAlignment" : "ContinueAfterBoundary";
             }
             else
             {
@@ -1806,32 +1817,53 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
                 resumeKind = "ResumeCycle";
             }
 
-            sourceMajorPhaseCompleted = false;
-            sourceCondition.workPhase =
-                sourceCycleController.CurrentPhase;
+            if (resumed)
+            {
+                sourceMajorPhaseCompleted = false;
+                sourceCondition.workPhase = sourceCycleController.CurrentPhase;
+                if (resumeKind == "ResumeFineAlignment")
+                    EmitEvent("SourceMovementBoundaryReopened", sourceCycleController.CurrentPhase.ToString());
+            }
 
-            return resumed
+            resumeDetail = resumed
                 ? $"{resumeKind}:" +
                   $"{sourceCycleController.CurrentPhase}/" +
                   $"Cycle={sourceCycleController.CurrentCycleNumber}"
                 : $"{resumeKind}Failed";
+            return resumed;
         }
 
         if (sourceWorkPhaseTracker == null)
         {
-            return "TrackerUnavailable";
+            resumeDetail = "TrackerUnavailable";
+            return false;
         }
 
         // Confirm・Countdownなど、フェーズ途中で切り替えた場合は
         // 詳細ステップと吸着基準高さを保持したまま再開します。
         // 連続安定時間だけはTracker側で0へ戻します。
-        if (!sourceMajorPhaseCompleted)
+        if (!sourceMajorPhaseCompleted && !sourceWorkPhaseTracker.IsMajorPhaseCompleted)
         {
             bool resumed = sourceWorkPhaseTracker.ResumeMonitoring();
-            return resumed
+            resumeDetail = resumed
                 ? $"ResumeSamePhase:{sourceWorkPhaseTracker.CurrentMajorPhase}/" +
                   $"{sourceWorkPhaseTracker.CurrentStepId}"
                 : "ResumeSamePhaseFailed";
+            return resumed;
+        }
+
+        if (!sourceWorkPhaseTracker.TryRevalidateCompletedMovement(out bool alignmentReopened))
+        {
+            resumeDetail = "MovementBoundaryValidationFailed";
+            return false;
+        }
+        if (alignmentReopened)
+        {
+            sourceMajorPhaseCompleted = false;
+            sourceCondition.workPhase = sourceWorkPhaseTracker.CurrentMajorPhase;
+            resumeDetail = $"ResumeFineAlignment:{sourceWorkPhaseTracker.CurrentMajorPhase}/{sourceWorkPhaseTracker.CurrentStepId}";
+            EmitEvent("SourceMovementBoundaryReopened", sourceWorkPhaseTracker.CurrentMajorPhase.ToString());
+            return true;
         }
 
         // PhaseBoundaryなど、Sourceフェーズ完了後に切り替えた場合は
@@ -1870,9 +1902,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             true
         );
 
-        return configured
+        resumeDetail = configured
             ? $"StartNextPhase:{nextPhase}"
             : $"StartNextPhaseFailed:{nextPhase}";
+        return configured;
     }
 
     private static CraneStatusManager.WorkPhase GetNextWorkPhase(
@@ -2247,7 +2280,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        if (!Input.GetButton(confirmationInputButton))
+        if (!Input.GetButton(confirmationInputButton) && !IsSourceReturnInputHeld())
         {
             pendingOperationInputUnlock = false;
 
@@ -2260,6 +2293,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
                     ? "SourceInputUnlocked" : "TargetInputUnlocked");
             }
         }
+    }
+
+    private bool IsSourceReturnInputHeld()
+    {
+        if (craneOperationManager == null ||
+            craneOperationManager.CurrentCraneIndex != sourceCondition.craneIndex) return false;
+        Vector3 command = craneOperationManager.ReadMovementCommand();
+        return command.sqrMagnitude > 0f ||
+               Mathf.Abs(craneOperationManager.ReadSpreadCommand()) > craneOperationManager.MovementDeadZone;
     }
 
     private void ShowConfirmationAcceptedFeedback()
@@ -2315,7 +2357,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         Color displayColor;
         bool interactable;
 
-        if (acceptedFeedbackActive)
+        if (pendingOperationInputUnlock && IsSourceReturnInputHeld())
+        {
+            displayText = "操作入力を中立へ";
+            displayColor = confirmationStandbyColor;
+            interactable = false;
+        }
+        else if (acceptedFeedbackActive)
         {
             displayText = confirmationAcceptedText;
             displayColor = confirmationAcceptedColor;

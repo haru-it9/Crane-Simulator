@@ -119,9 +119,36 @@ static class MovementBoundaryTests
         Check(r.Completions==1 && r.Tracker.IsMonitoring && r.Tracker.CurrentMajorPhase==CraneStatusManager.WorkPhase.LiftUp,"completion callback's new monitoring was overwritten");
     }
     static void OpToOtherCrane(Rig r) {r.Op.CurrentCraneInstance=new CraneInstance();}
+    static void CompletedMovementReturnValidation()
+    {
+        foreach(var phase in new[]{CraneStatusManager.WorkPhase.Move1,CraneStatusManager.WorkPhase.Move2})
+        {
+            var r=new Rig(phase);r.Fine();for(int i=0;i<5;i++)r.Tick();
+            bool reopened;
+            var original=r.Crane.InformationTarget.position;
+            Check(r.Tracker.TryRevalidateCompletedMovement(out reopened) && !reopened && r.Tracker.IsMajorPhaseCompleted,
+                "valid completed movement was reopened");
+            r.Crane.InformationTarget.position=new Vector3(.08f,2,original.z);
+            int boards=r.Crane.LifMagSystem.AttachedBoards.Count;
+            Check(r.Tracker.TryRevalidateCompletedMovement(out reopened) && reopened && !r.Tracker.IsMajorPhaseCompleted &&
+                r.Tracker.IsMonitoring && r.Tracker.CurrentStepId.Contains("FineAlign") && r.Tracker.ConditionStableSeconds==0,
+                "out-of-range return did not reopen final alignment");
+            Check(r.Crane.InformationTarget.position.x==.08f && r.Crane.InformationTarget.position.y==2 &&
+                r.Crane.LifMagSystem.AttachedBoards.Count==boards,"return validation moved the crane or changed its load");
+            Check(r.Tracker.TryRevalidateCompletedMovement(out reopened) && !reopened,"unfinished alignment was reopened twice");
+            for(int i=0;i<8;i++)r.Tick();Check(r.Completions==1,"out-of-range restored alignment completed");
+            r.Crane.InformationTarget.position=new Vector3(.02f,2,.02f);Input.axes["x"]=.2f;
+            for(int i=0;i<8;i++)r.Tick();Check(r.Completions==1,"held input completed reopened alignment");
+            Input.axes.Clear();for(int i=0;i<5;i++)r.Tick();
+            Check(r.Completions==2 && r.Tracker.IsMajorPhaseCompleted,"reopened alignment did not complete after correction/release");
+            Set(r.Tracker,"useManualTargetWhenUnavailable",false);
+            Check(!r.Tracker.TryRevalidateCompletedMovement(out reopened) && !reopened && r.Tracker.IsMajorPhaseCompleted,
+                "missing goal was accepted or mutated the completed state");
+        }
+    }
     public static void Main()
     {
-        BothMovementPhases();InputAndProfileCompatibility();
+        BothMovementPhases();InputAndProfileCompatibility();CompletedMovementReturnValidation();
         Console.WriteLine("PASS: movement boundary checks="+checks+"; full production tracker/profile, real input mapping/dispatch, strict X/Z tolerances, slow held input, continuous neutral stability, late input hold, pause, keyboard/dead-zone compatibility and callback ordering");
     }
 }
