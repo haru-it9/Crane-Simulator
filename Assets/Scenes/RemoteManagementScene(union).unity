@@ -26137,6 +26137,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 293505546}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 293505553}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -28825,6 +28826,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 319117105}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 319117112}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -29938,7 +29940,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 3
+  switchMethod: 5
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29976,6 +29978,9 @@ MonoBehaviour:
   countdownPanel: {fileID: 429858653}
   countdownText: {fileID: 376037744}
   experimentStateText: {fileID: 0}
+  phaseBoundaryNoticeFontSize: 80
+  phaseBoundaryNoticeSize: {x: 350, y: 300}
+  phaseBoundaryNoticePosition: {x: 425, y: 0}
   confirmationInputButton: JoyStick2RedButton
   targetConfirmationReadyText: "\u8D64\u30DC\u30BF\u30F3\u3067\u4F5C\u696D\u958B\u59CB"
   sourceConfirmationReadyText: "\u8D64\u30DC\u30BF\u30F3\u3067\u4F5C\u696D\u518D\u958B"
@@ -88650,6 +88655,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 968091386}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 968091388}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -91759,6 +91765,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 995693978}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 995693980}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -95266,6 +95273,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1033601256}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1033601258}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -112540,6 +112548,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1229067183}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1229067186}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -121514,6 +121523,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1343052241}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1343052243}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -122581,6 +122591,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1351253244}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1351253251}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -125169,6 +125180,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1378636667}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1378636670}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -138297,6 +138309,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1531814517}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1531814524}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -143924,6 +143937,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1602054560}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1602054567}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -159723,6 +159737,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   craneInstance: {fileID: 1780959810}
+  craneOperationManager: {fileID: 0}
   workTargetManager: {fileID: 1780959817}
   schematicDisplay: {fileID: 0}
   phaseProfile: {fileID: 0}
@@ -189608,14 +189623,19 @@ MonoBehaviour:
   rightZGroup: {fileID: 9000010061}
   rightZArrow: {fileID: 9000010065}
   rightYLabel: {fileID: 9000010049}
-  currentInputLabel: {fileID: 374089580}
-  currentInputLabelFadeSeconds: 0.75
   currentValueDisplays:
   - {fileID: 1470163867}
   - {fileID: 263746697}
   - {fileID: 1055664397}
   - {fileID: 1973951998}
   - {fileID: 1132206959}
+  currentInputLabel: {fileID: 374089580}
+  currentInputLabelDelaySeconds: 1
+  currentInputLabelFadeSeconds: 0.75
+  currentInputMovementThreshold: 0.01
+  useCurrentRangeColoring: 1
+  coordinateColorSource: {fileID: 0}
+  currentRangeClearance: 0.1
   positiveXPointsUp: 1
   positiveYPointsUp: 0
   positiveZPointsRight: 0
