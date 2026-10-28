@@ -146,8 +146,10 @@ static class FlowTests
         ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.PauseOffsetSeconds=0;
         Time.realtimeSinceStartupAsDouble=0;Time.deltaTime=0;Input.buttons.Clear();
         var r=new Rig(method);
-        Set(r.Manager,"countdownText",new UnityEngine.UI.Text());
-        Set(r.Manager,"countdownPanel",new GameObject());
+        var countdownText=new UnityEngine.UI.Text();countdownText.rectTransform.sizeDelta=new Vector2(300,300);
+        Set(r.Manager,"countdownText",countdownText);
+        var panel=new GameObject();panel.components[typeof(RectTransform)]=new RectTransform { sizeDelta=new Vector2(300,300),anchoredPosition=new Vector2(400,0) };
+        Set(r.Manager,"countdownPanel",panel);
         Set(r.Manager,"confirmationButtonText",new UnityEngine.UI.Text());
         r.Manager.StartExperiment();return r;
     }
@@ -168,7 +170,8 @@ static class FlowTests
         r.Manager.RequestSwitch();
         var label=(UnityEngine.UI.Text)Get(r.Manager,"countdownText");
         Require(r.Op.CurrentCraneIndex==0 && !r.Op.IsOperationInputLocked && !r.Cycle(0).IsPaused &&
-            r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && label.text.Contains("10") && label.resizeTextForBestFit,"deadline notice/source continuation");
+            r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && label.text=="10" && !label.resizeTextForBestFit && label.fontSize==170,"deadline numeral size/source continuation");
+        Require(((UnityEngine.UI.Text)Get(r.Manager,"confirmationButtonText")).text=="確認ボタンで切替","deadline early-switch hint missing");
         Time.realtimeSinceStartupAsDouble=9.999;Input.buttons["JoyStick2RedButton"]=true;r.Manager.ConfirmTargetTask();
         Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && r.Op.IsOperationInputLocked &&
             r.Events.Contains("OperatorSwitchConfirmationPressed") && !r.Events.Contains("OperatorDeadlineReached"),"early deadline choice/one-click");
@@ -200,7 +203,11 @@ static class FlowTests
             r=HybridRig(method);r.Complete(0);r.Attach(0,2); // request during LiftUp, not Inspector's initial Move1.
             r.Manager.RequestSwitch();label=(UnityEngine.UI.Text)Get(r.Manager,"countdownText");
             Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForPhaseBoundary && !r.Cycle(0).IsPaused &&
-                label.text.Contains("現フェーズ終了") && r.Events.Contains("PhaseBoundaryAdvanceNoticeShown"),"announced boundary notice/source continuation");
+                label.text=="フェーズ\n終了後" && !label.resizeTextForBestFit && label.fontSize==80 && r.Events.Contains("PhaseBoundaryAdvanceNoticeShown"),"announced boundary notice/source continuation");
+            var panelRect=((GameObject)Get(r.Manager,"countdownPanel")).GetComponent<RectTransform>();
+            Require(label.rectTransform.sizeDelta.x==350 && panelRect.sizeDelta.x==350 && panelRect.anchoredPosition.x==425,"phase notice layout not widened");
+            var hint=((UnityEngine.UI.Text)Get(r.Manager,"confirmationButtonText")).text;
+            Require(method==TaskSwitchMethod.AnnouncedPhaseBoundary ? hint!="確認ボタンで切替" : hint=="確認ボタンで切替","phase early-switch hint policy mismatch");
             if(method==TaskSwitchMethod.AnnouncedPhaseBoundary)
             {
                 r.Manager.ConfirmTargetTask();Require(r.Op.CurrentCraneIndex==0 && !r.Events.Contains("OperatorSwitchConfirmationPressed"),"boundary-only accepted early switch");
@@ -209,6 +216,8 @@ static class FlowTests
             r.Complete(0);
             Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation && r.Op.CurrentCraneIndex==1 &&
                 r.Cycle(0).HasPendingNextPhase,"actual current phase boundary failed or advanced prematurely");
+            Require(label.fontSize==170 && !label.resizeTextForBestFit && label.rectTransform.sizeDelta.x==300 &&
+                panelRect.sizeDelta.x==300 && panelRect.anchoredPosition.x==400,"phase notice failed to restore numeral layout");
             r.Manager.ConfirmTargetTask();ReturnFromPickup(r);
             Require(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move2 && !r.Cycle(0).IsWaitingAtBoundary,"boundary return did not continue next phase");
         }

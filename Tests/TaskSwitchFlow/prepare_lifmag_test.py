@@ -31,8 +31,8 @@ stubs = stubs.replace('public static bool GetKey(KeyCode key)', 'public static b
 stubs = stubs.replace('None=0,Minus=', 'E=101,R=114,None=0,Minus=')
 stubs = stubs.replace('public static Color red', 'public static Color green=>new Color(0,1,0); public static Color red')
 stubs = stubs.replace('public static Color green', 'public static Color black=>new Color(0,0,0); public static Color green')
-stubs = stubs.replace('public class RectTransform : Transform {', 'public class RectTransform : Transform { public Vector2 anchorMin,anchorMax,pivot,anchoredPosition,sizeDelta,offsetMin,offsetMax;')
-stubs = stubs.replace('public class Text : UnityEngine.MonoBehaviour {', 'public class Text : UnityEngine.MonoBehaviour { public UnityEngine.Font font; public int fontSize; public UnityEngine.TextAnchor alignment; public UnityEngine.Color color; public bool raycastTarget=true;')
+stubs = stubs.replace('public class RectTransform : Transform {', 'public class RectTransform : Transform { public Vector2 anchorMin,anchorMax,pivot,offsetMin,offsetMax;')
+stubs = stubs.replace('public class Text : UnityEngine.MonoBehaviour {', 'public class Text : UnityEngine.MonoBehaviour { public UnityEngine.Font font; public UnityEngine.TextAnchor alignment; public UnityEngine.Color color; public bool raycastTarget=true;')
 output.joinpath('LifMagUnityStubs.cs').write_text(stubs + '''
 namespace UnityEngine {
     public class CanvasRenderer {} public class Font {} public enum TextAnchor {MiddleCenter}

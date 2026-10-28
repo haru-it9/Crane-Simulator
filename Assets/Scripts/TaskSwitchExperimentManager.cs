@@ -138,6 +138,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField] private Text countdownText;
     [SerializeField] private Text experimentStateText;
 
+    [Header("フェーズ境界の予告表示")]
+    [SerializeField, Min(1)] private int phaseBoundaryNoticeFontSize = 80;
+    [SerializeField] private Vector2 phaseBoundaryNoticeSize = new Vector2(350f, 300f);
+    [Tooltip("切替UIの親を基準にした予告位置です。既存の数字表示付近に表示します。")]
+    [SerializeField] private Vector2 phaseBoundaryNoticePosition = new Vector2(425f, 0f);
+
     [Header("確認コントローラ入力")]
     [SerializeField]
     private string confirmationInputButton = "JoyStick2RedButton";
@@ -221,6 +227,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private bool noticeTextStyleCaptured;
     private bool originalNoticeBestFit;
     private int originalNoticeMinSize, originalNoticeMaxSize;
+    private int originalNoticeFontSize;
+    private RectTransform noticePanelRect;
+    private Vector2 originalNoticePanelSize, originalNoticePanelPosition, originalNoticeTextSize;
 
     [Header("複数回切替（実行時確認用）")]
     [SerializeField]
@@ -850,9 +859,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (currentState != TaskSwitchExperimentState.WaitingForPhaseBoundary) return;
         SetPanelActive(countdownPanel, true);
         SetPanelActive(confirmationPanel, true);
-        ShowAdvanceNoticeText(allowEarlySwitch
-            ? "現フェーズ終了までに切替\n赤ボタンで前倒し切替可"
-            : "現フェーズ終了時に切替");
+        ShowAdvanceNoticeText("フェーズ\n終了後");
         EmitEvent("PhaseBoundaryAdvanceNoticeShown", "AllowEarlySwitch=" + allowEarlySwitch);
         if (allowEarlySwitch) EmitEvent("OperatorSwitchAvailable", "UntilPhaseBoundary");
         // A request can arrive after completion but before the deferred next phase.
@@ -881,12 +888,26 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             originalNoticeBestFit = countdownText.resizeTextForBestFit;
             originalNoticeMinSize = countdownText.resizeTextMinSize;
             originalNoticeMaxSize = countdownText.resizeTextMaxSize;
+            originalNoticeFontSize = countdownText.fontSize;
+            originalNoticeTextSize = countdownText.rectTransform.sizeDelta;
+            noticePanelRect = countdownPanel != null ? countdownPanel.GetComponent<RectTransform>() : null;
+            if (noticePanelRect != null)
+            {
+                originalNoticePanelSize = noticePanelRect.sizeDelta;
+                originalNoticePanelPosition = noticePanelRect.anchoredPosition;
+            }
             noticeTextStyleCaptured = true;
         }
-        // The existing countdown uses a 170pt numeral; notices must fit the same box.
-        countdownText.resizeTextForBestFit = true;
-        countdownText.resizeTextMinSize = 14;
-        countdownText.resizeTextMaxSize = 40;
+        // Keep the two-line notice large in the countdown area. The slightly wider
+        // box fits four Japanese characters without covering the confirmation button.
+        countdownText.resizeTextForBestFit = false;
+        countdownText.fontSize = Mathf.Max(1, phaseBoundaryNoticeFontSize);
+        countdownText.rectTransform.sizeDelta = phaseBoundaryNoticeSize;
+        if (noticePanelRect != null)
+        {
+            noticePanelRect.sizeDelta = phaseBoundaryNoticeSize;
+            noticePanelRect.anchoredPosition = phaseBoundaryNoticePosition;
+        }
         countdownText.text = message;
     }
 
@@ -901,7 +922,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             countdownText.resizeTextForBestFit = originalNoticeBestFit;
             countdownText.resizeTextMinSize = originalNoticeMinSize;
             countdownText.resizeTextMaxSize = originalNoticeMaxSize;
+            countdownText.fontSize = originalNoticeFontSize;
+            countdownText.rectTransform.sizeDelta = originalNoticeTextSize;
         }
+        if (noticeTextStyleCaptured && noticePanelRect != null)
+        {
+            noticePanelRect.sizeDelta = originalNoticePanelSize;
+            noticePanelRect.anchoredPosition = originalNoticePanelPosition;
+        }
+        noticePanelRect = null;
         noticeTextStyleCaptured = false;
     }
 
@@ -2174,11 +2203,6 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void UpdateCountdownText()
     {
-        if (operatorDeadlinePending)
-        {
-            ShowAdvanceNoticeText("あと" + Mathf.CeilToInt(countdownRemaining) + "秒で切替\n赤ボタンで前倒し切替可");
-            return;
-        }
         if (countdownText != null)
         {
             countdownText.text = Mathf.CeilToInt(countdownRemaining).ToString();
@@ -2299,7 +2323,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
         else if (CanChooseOperatorSwitch())
         {
-            displayText = "赤ボタンで作業切替";
+            displayText = advanceNoticeAllowsEarlySwitch ? "確認ボタンで切替" : "赤ボタンで作業切替";
             displayColor = confirmationReadyColor;
             interactable = confirmationAvailable;
         }
@@ -2319,8 +2343,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
         else
         {
-            displayText = advanceNoticeActive && currentState == TaskSwitchExperimentState.WaitingForPhaseBoundary
-                ? "現フェーズ終了時に切替" : confirmationStandbyText;
+            displayText = confirmationStandbyText;
             displayColor = confirmationStandbyColor;
             interactable = false;
         }

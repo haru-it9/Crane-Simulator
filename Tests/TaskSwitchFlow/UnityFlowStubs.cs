@@ -38,7 +38,7 @@ namespace UnityEngine
     public static class AudioListener { public static bool pause; }
     public class Transform { public Vector3 position; }
     public class TextAsset : Object { public string text,name="test.csv"; public TextAsset(string content) { text=content; } }
-    public class RectTransform : Transform { public GameObject gameObject = new GameObject(); public void GetWorldCorners(Vector3[] p) {} }
+    public class RectTransform : Transform { public Vector2 sizeDelta,anchoredPosition; public GameObject gameObject = new GameObject(); public void GetWorldCorners(Vector3[] p) {} }
     public class Camera { }
     public struct Vector2 { public float x,y; public Vector2(float a,float b) { x=a;y=b; } public static Vector2 zero => new Vector2(); }
     public struct Vector3
@@ -104,7 +104,7 @@ namespace UnityEngine.UI
 {
     public struct ColorBlock { public UnityEngine.Color normalColor,highlightedColor,selectedColor,pressedColor,disabledColor; }
     public class Image : UnityEngine.MonoBehaviour { public UnityEngine.Color color; public bool raycastTarget=true; }
-    public class Text : UnityEngine.MonoBehaviour { public string text; public bool resizeTextForBestFit; public int resizeTextMinSize,resizeTextMaxSize=170; }
+    public class Text : UnityEngine.MonoBehaviour { public string text; public UnityEngine.RectTransform rectTransform=new UnityEngine.RectTransform(); public int fontSize=170; public bool resizeTextForBestFit; public int resizeTextMinSize,resizeTextMaxSize=170; }
     public class Button : UnityEngine.MonoBehaviour
     {
         public class ClickEvent
