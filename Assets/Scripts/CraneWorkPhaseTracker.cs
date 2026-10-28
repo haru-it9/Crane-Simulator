@@ -14,6 +14,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
     [SerializeField]
     private CraneInstance craneInstance;
 
+    [Tooltip("操作中のクレーンの微調整完了では、実際の水平操作入力が中立であることも確認します。通常は自動取得します。")]
+    [SerializeField]
+    private CraneOperationManager craneOperationManager;
+
     [Tooltip(
         "表示モードに依存しない共通目標座標です。" +
         "同じクレーンのManagerを登録します。"
@@ -824,7 +828,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             conditionStableSeconds = 0f;
         }
 
-        if (conditionStableSeconds >= step.requiredStableSeconds)
+        if (allConditionsSatisfied && conditionStableSeconds >= step.requiredStableSeconds)
         {
             CompleteCurrentStep();
         }
@@ -999,6 +1003,13 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             return false;
         }
 
+        // Slow fine movement is still movement. Require the actual horizontal
+        // controls to be released throughout the final alignment's stability window.
+        if (IsFinalMovementAlignmentStep() && !IsHorizontalInputNeutral())
+        {
+            return false;
+        }
+
         foreach (CraneWorkConditionDefinition condition in
                  step.completionConditions)
         {
@@ -1009,6 +1020,25 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         }
 
         return true;
+    }
+
+    private bool IsFinalMovementAlignmentStep()
+    {
+        return (CurrentMajorPhase == CraneStatusManager.WorkPhase.Move1 ||
+                CurrentMajorPhase == CraneStatusManager.WorkPhase.Move2) &&
+               activeSteps.Count > 0 && currentStepIndex == activeSteps.Count - 1;
+    }
+
+    private bool IsHorizontalInputNeutral()
+    {
+        // Other cranes can be progressing automatically; their completion must not
+        // depend on the controls currently directed at a different crane.
+        if (craneOperationManager == null || craneInstance == null ||
+            craneOperationManager.CurrentCraneInstance != craneInstance)
+            return true;
+
+        Vector3 command = craneOperationManager.ReadMovementCommand();
+        return command.x == 0f && command.z == 0f;
     }
 
     private bool IsLiftUpPositionInterlockSatisfied()
@@ -1071,15 +1101,12 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                     informationTarget.position.z - targetZ
                 );
 
-                float allowedX = condition.threshold +
-                    (positionConditionLatched
-                        ? positionExitHysteresis
-                        : 0f);
-
-                float allowedZ = condition.secondaryThreshold +
-                    (positionConditionLatched
-                        ? positionExitHysteresis
-                        : 0f);
+                // Hysteresis can stabilize coarse approach feedback, but must not
+                // enlarge the final goal tolerance (5cm must not become 10cm).
+                float exitMargin = positionConditionLatched && !IsFinalMovementAlignmentStep()
+                    ? positionExitHysteresis : 0f;
+                float allowedX = condition.threshold + exitMargin;
+                float allowedZ = condition.secondaryThreshold + exitMargin;
 
                 bool isWithinPosition =
                     CurrentTargetErrorX <= allowedX &&
@@ -1389,8 +1416,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             );
         }
 
-        MajorPhaseCompleted?.Invoke(this, CurrentMajorPhase);
         isMonitoring = false;
+        MajorPhaseCompleted?.Invoke(this, CurrentMajorPhase);
     }
 
     private void NotifyStepStarted()
@@ -1785,6 +1812,9 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
     private void ResolveReferences()
     {
+        if (craneOperationManager == null)
+            craneOperationManager = FindObjectOfType<CraneOperationManager>(true);
+
         if (craneInstance == null)
         {
             craneInstance = GetComponent<CraneInstance>();

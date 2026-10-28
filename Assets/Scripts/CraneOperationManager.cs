@@ -1558,6 +1558,18 @@ public class CraneOperationManager : MonoBehaviour
             mainYInput = 0f;
         }
 
+        // A completed Move phase can wait for the next phase or a task switch.
+        // Keep its achieved X/Z position throughout that gap; the next tracker
+        // configuration releases this hold. Other experiment/control modes are unchanged.
+        if (taskSwitchExperimentMode && selectedWorkPhaseTracker != null &&
+            selectedWorkPhaseTracker.IsMajorPhaseCompleted &&
+            (selectedWorkPhaseTracker.CurrentMajorPhase == CraneStatusManager.WorkPhase.Move1 ||
+             selectedWorkPhaseTracker.CurrentMajorPhase == CraneStatusManager.WorkPhase.Move2))
+        {
+            mainXInput = 0f;
+            mainZInput = 0f;
+        }
+
         CurrentCrane.MoveMainLifMagX(mainXInput);
         CurrentCrane.MoveMainLifMagY(mainYInput);
         CurrentCrane.MoveMainCraneZ(mainZInput);

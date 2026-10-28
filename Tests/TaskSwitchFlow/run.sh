@@ -16,3 +16,9 @@ python3 "$root/Tests/TaskSwitchFlow/prepare_lifmag_test.py" "$output"
 "${MCS:-mcs}" -out:"$output/lifmag.exe" "$output/LifMagUnityStubs.cs" "$output/CraneAttachmentProduction.cs" "$output/ScenarioSetupProduction.cs" "$output/CurrentIndicatorPlacementProduction.cs" "$root/Assets/Scripts/LifMagSystem.cs" "$root/Assets/Scripts/LifMagCurrentControlIndicator.cs" "$root/Tests/TaskSwitchFlow/LifMagTests.cs"
 "${MONO:-mono}" "$output/lifmag.exe"
 python3 "$root/Tests/TaskSwitchFlow/check_templates.py"
+python3 "$root/Tests/TaskSwitchFlow/prepare_movement_boundary_test.py" "$output"
+"${MCS:-mcs}" -out:"$output/movement.exe" "$root/Assets/Scripts/CraneWorkPhaseTypes.cs" \
+    "$root/Assets/Scripts/CraneWorkPhaseProfile.cs" "$root/Assets/Scripts/CraneWorkPhaseTracker.cs" \
+    "$output/MovementDispatchProduction.cs" "$root/Tests/TaskSwitchFlow/MovementBoundaryStubs.cs" \
+    "$root/Tests/TaskSwitchFlow/MovementBoundaryTests.cs"
+"${MONO:-mono}" "$output/movement.exe"
