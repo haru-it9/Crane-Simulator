@@ -19,4 +19,13 @@ guid = re.search(r'^guid: (\w+)', Path(str(work_path) + '.meta').read_text(), re
 assert f'workConditionsCsv: {{fileID: 4900000, guid: {guid}, type: 3}}' in scene
 assert 'sourceTotalCycleCount: 5' in scene and 'targetTaskPattern: 0' in scene
 assert 'targetRunsFullCycle:' not in scene
-print('PASS: schedule templates, all eight Target and five Source condition rows, and scene assignment')
+assert 'operatorSwitchDeadlineSeconds: 10' in scene
+for field in ['countdownOperatorInitiatedCsv','announcedPhaseBoundaryCsv','announcedPhaseBoundaryOperatorInitiatedCsv']:
+    pair=re.search(r'^  '+field+r':\n(    .*\n){2}',scene,re.M)
+    assert pair,field
+    for guid in re.findall(r'guid: (\w+)',pair[0]):
+        matches=[p for p in root.glob('Assets/**/*.csv.meta') if f'guid: {guid}' in p.read_text()]
+        assert len(matches)==1,(field,guid,matches)
+        csv_path=Path(str(matches[0])[:-5])
+        assert csv_path.exists(),csv_path
+print('PASS: schedule templates, eight Target/five Source rows, scene assignment and all three hybrid CSV pairs')

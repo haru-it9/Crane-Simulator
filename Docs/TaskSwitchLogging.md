@@ -158,6 +158,8 @@ Pauseは主タスク・切替・監視・電流制御・音/色提示を保持�
 
 切替先はMove1→LiftUp / Move2→PlaceをスケジュールCSVで選択します。切替元は5サイクルです。session.csvにwork_conditions_csv / target_task_pattern、events.csvにtarget_task_pattern / target_work_condition_jsonを追加し、座標・枚数・各要請の作業を記録します。設定と新イベントの説明は [TaskSwitchWorkConditions.md](TaskSwitchWorkConditions.md) を参照してください。cycle_summaryの切替先行は2フェーズの部分作業を表し、切替元の完全サイクルと分けて集計してください。既存の12ファイル構成を維持します。
 
+融合手法は`CountdownOperatorInitiated`、`AnnouncedPhaseBoundary`、`AnnouncedPhaseBoundaryOperatorInitiated`をswitch_methodに記録します。期限式ではsession.csvのcountdown_sが独立設定のOperator Switch Deadline Seconds（初期値10秒）になります。`SwitchTriggerSelected`のdetailに`Trigger=Operator / Deadline / PhaseBoundary`を保存し、同じ手法内での前倒し・期限・境界を区別します。列構成とschema 9は維持します。稼働時計による期限はPauseを除き、CSV時刻は引き続きPauseを含む実時間です。
+
 ## 電流制御の再開条件（schema 9）
 
 crane_state.csvにcurrent_rearm_condition（None / AtLeast / AtMost）とcurrent_rearm_threshold_aを追加しました。厚板を持って操作対象に戻った場合はAtLeast・70A、空の状態ならAtMost・10Aです。safe_current_hold_active=1はどちらの条件でも解除待ちを表します。待機中は厚板ありで仮想70A、厚板なしで仮想10Aを表示・記録し、input.csvのrequested_current_aに実際のスライダー入力を残します。

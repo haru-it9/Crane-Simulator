@@ -57,6 +57,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [Min(0f)]
     private float countdownSeconds = 5f;
 
+    [Tooltip("カウントダウン＋作業者主導の期限です。既存のCountdown Secondsとは独立し、Pause中は進みません。")]
+    [SerializeField]
+    [Min(0f)]
+    private float operatorSwitchDeadlineSeconds = 10f;
+
     [Header("Source終了条件")]
     [Tooltip(
         "Sourceがこのサイクル数を累積完了したら実験を終了します。" +
@@ -209,6 +214,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private int activeCraneCountBeforeExperiment = -1;
     private bool pendingOperationInputUnlock;
     private float confirmationAcceptedUntilRealtime;
+    private bool operatorDeadlinePending;
+    private double operatorDeadlineActiveRealtime;
+    private bool advanceNoticeActive;
+    private bool advanceNoticeAllowsEarlySwitch;
+    private bool noticeTextStyleCaptured;
+    private bool originalNoticeBestFit;
+    private int originalNoticeMinSize, originalNoticeMaxSize;
 
     [Header("複数回切替（実行時確認用）")]
     [SerializeField]
@@ -221,7 +233,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     public string SwitchScheduleCsvText => EffectiveSwitchScheduleCsv != null ? EffectiveSwitchScheduleCsv.text : "";
     public int SourceTotalCycleCount => sourceTotalCycleCount;
-    public float CountdownSeconds => countdownSeconds;
+    public float CountdownSeconds => switchMethod == TaskSwitchMethod.CountdownOperatorInitiated
+        ? operatorSwitchDeadlineSeconds : countdownSeconds;
+    public float OperatorSwitchDeadlineSeconds => operatorSwitchDeadlineSeconds;
     public TaskSwitchMethod SwitchMethod => switchMethod;
     public TaskSwitchExperimentState CurrentState => currentState;
     public float CountdownRemaining => countdownRemaining;
@@ -293,6 +307,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         UpdateSecondarySubtask();
         if (ExperimentPauseManager.IsPaused) return;
         UpdatePendingOperationInputUnlock();
+        // Resolve the deadline before a simultaneous confirmation press. Public UI
+        // callbacks perform the same check, so expiration never counts as early choice.
+        if (TryCompleteOperatorDeadline()) return;
+        if (operatorDeadlinePending)
+        {
+            countdownRemaining = Mathf.Max(0f,
+                (float)(operatorDeadlineActiveRealtime - ExperimentPauseManager.ActiveRealtime));
+            UpdateCountdownText();
+        }
         UpdateConfirmationButtonVisual();
 
         if (CanAcceptConfirmationInput() &&
@@ -359,7 +382,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        if (currentState != TaskSwitchExperimentState.CountingDown)
+        if (currentState != TaskSwitchExperimentState.CountingDown || operatorDeadlinePending)
         {
             return;
         }
@@ -412,6 +435,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         experimentStartRealtime = Time.realtimeSinceStartup;
 
         sourceMajorPhaseCompleted = false;
+        ResetAdvanceNotice();
         pendingScheduledSwitch = false;
         pendingScheduledSwitchDetail = string.Empty;
         scheduledSwitchCountdownActive = false;
@@ -518,6 +542,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
         currentSwitchIndex = nextSwitchIndex;
         sourceMajorPhaseCompleted = false;
+        ResetAdvanceNotice();
 
         // 旧版でSource復帰後に使用していた状態から要求された場合も、
         // 以降の判定を通常のSource操作状態へ統一します。
@@ -548,18 +573,28 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
                 SetPanelActive(confirmationPanel, true);
                 EmitEvent("OperatorSwitchAvailable");
                 break;
+            case TaskSwitchMethod.CountdownOperatorInitiated:
+                StartOperatorDeadlineSwitch();
+                break;
+            case TaskSwitchMethod.AnnouncedPhaseBoundary:
+                StartAnnouncedPhaseBoundarySwitch(false);
+                break;
+            case TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated:
+                StartAnnouncedPhaseBoundarySwitch(true);
+                break;
         }
     }
 
     public void ConfirmTargetTask()
     {
+        if (TryCompleteOperatorDeadline()) return;
         // 既存のUI ButtonとJoyStick2RedButtonの両方から呼び出します。
         if (!CanAcceptConfirmationInput())
         {
             return;
         }
 
-        if (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch)
+        if (CanChooseOperatorSwitch())
         {
             AcceptOperatorSwitch();
             return;
@@ -623,6 +658,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         StopSecondarySubtask("ExperimentCompleted");
+        ResetAdvanceNotice();
+        pendingOperationInputUnlock = false;
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         StopSourceWorkPhaseMonitoring();
         if (sourceCycleController != null && sourceCycleController.IsRunning) sourceCycleController.StopCycleAndTracker();
@@ -639,6 +676,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public void ExitExperimentMode()
     {
         StopSecondarySubtask("ExperimentExited");
+        ResetAdvanceNotice();
+        pendingOperationInputUnlock = false;
         HideTransitionPanels();
         StopSourceWorkPhaseMonitoring();
         StopTargetWorkPhaseMonitoring();
@@ -678,6 +717,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public void SetCountdownSeconds(float seconds)
     {
         countdownSeconds = Mathf.Max(0f, seconds);
+    }
+
+    public void SetOperatorSwitchDeadlineSeconds(float seconds)
+    {
+        if (float.IsNaN(seconds) || float.IsInfinity(seconds)) return;
+        operatorSwitchDeadlineSeconds = Mathf.Max(0f, seconds);
     }
 
     public void SetSourceCraneIndex(int craneIndex)
@@ -765,6 +810,101 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
     }
 
+    private void StartOperatorDeadlineSwitch()
+    {
+        operatorDeadlinePending = true;
+        advanceNoticeActive = true;
+        advanceNoticeAllowsEarlySwitch = true;
+        countdownRemaining = Mathf.Max(0f, operatorSwitchDeadlineSeconds);
+        operatorDeadlineActiveRealtime = ExperimentPauseManager.ActiveRealtime + countdownRemaining;
+        SetState(TaskSwitchExperimentState.CountingDown);
+        SetPanelActive(confirmationPanel, true);
+        SetPanelActive(countdownPanel, true);
+        UpdateCountdownText();
+        EmitEvent("CountdownStarted", countdownRemaining.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+        EmitEvent("OperatorDeadlineStarted", "DurationSeconds=" +
+            countdownRemaining.ToString("F3", System.Globalization.CultureInfo.InvariantCulture));
+        EmitEvent("OperatorSwitchAvailable", "UntilDeadline");
+        TryCompleteOperatorDeadline();
+    }
+
+    private bool TryCompleteOperatorDeadline()
+    {
+        if (ExperimentPauseManager.IsPaused || !operatorDeadlinePending ||
+            currentState != TaskSwitchExperimentState.CountingDown ||
+            ExperimentPauseManager.ActiveRealtime < operatorDeadlineActiveRealtime)
+            return false;
+        countdownRemaining = 0f;
+        EmitEvent("OperatorDeadlineReached");
+        EmitEvent("CountdownCompleted", "OperatorDeadline");
+        EmitEvent("SwitchTriggerSelected", "Trigger=Deadline;Policy=CountdownOperatorInitiated");
+        SwitchControlToTarget("OperatorDeadline");
+        return true;
+    }
+
+    private void StartAnnouncedPhaseBoundarySwitch(bool allowEarlySwitch)
+    {
+        advanceNoticeActive = true;
+        advanceNoticeAllowsEarlySwitch = allowEarlySwitch;
+        StartPhaseBoundarySwitch();
+        if (currentState != TaskSwitchExperimentState.WaitingForPhaseBoundary) return;
+        SetPanelActive(countdownPanel, true);
+        SetPanelActive(confirmationPanel, true);
+        ShowAdvanceNoticeText(allowEarlySwitch
+            ? "現フェーズ終了までに切替\n赤ボタンで前倒し切替可"
+            : "現フェーズ終了時に切替");
+        EmitEvent("PhaseBoundaryAdvanceNoticeShown", "AllowEarlySwitch=" + allowEarlySwitch);
+        if (allowEarlySwitch) EmitEvent("OperatorSwitchAvailable", "UntilPhaseBoundary");
+        // A request can arrive after completion but before the deferred next phase.
+        if ((sourceWorkPhaseTracker != null && sourceWorkPhaseTracker.IsMajorPhaseCompleted) ||
+            (sourceCycleController != null && (sourceCycleController.IsWaitingAtBoundary || sourceCycleController.HasPendingNextPhase)))
+        {
+            sourceMajorPhaseCompleted = true;
+            CompletePhaseBoundarySwitch("AlreadyCompletedAtRequest");
+        }
+    }
+
+    private bool CanChooseOperatorSwitch()
+    {
+        if (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch) return true;
+        return advanceNoticeAllowsEarlySwitch &&
+            ((currentState == TaskSwitchExperimentState.CountingDown && operatorDeadlinePending &&
+              ExperimentPauseManager.ActiveRealtime < operatorDeadlineActiveRealtime) ||
+             currentState == TaskSwitchExperimentState.WaitingForPhaseBoundary);
+    }
+
+    private void ShowAdvanceNoticeText(string message)
+    {
+        if (countdownText == null) return;
+        if (!noticeTextStyleCaptured)
+        {
+            originalNoticeBestFit = countdownText.resizeTextForBestFit;
+            originalNoticeMinSize = countdownText.resizeTextMinSize;
+            originalNoticeMaxSize = countdownText.resizeTextMaxSize;
+            noticeTextStyleCaptured = true;
+        }
+        // The existing countdown uses a 170pt numeral; notices must fit the same box.
+        countdownText.resizeTextForBestFit = true;
+        countdownText.resizeTextMinSize = 14;
+        countdownText.resizeTextMaxSize = 40;
+        countdownText.text = message;
+    }
+
+    private void ResetAdvanceNotice()
+    {
+        operatorDeadlinePending = false;
+        operatorDeadlineActiveRealtime = 0;
+        advanceNoticeActive = false;
+        advanceNoticeAllowsEarlySwitch = false;
+        if (noticeTextStyleCaptured && countdownText != null)
+        {
+            countdownText.resizeTextForBestFit = originalNoticeBestFit;
+            countdownText.resizeTextMinSize = originalNoticeMinSize;
+            countdownText.resizeTextMaxSize = originalNoticeMaxSize;
+        }
+        noticeTextStyleCaptured = false;
+    }
+
     private void StartPhaseBoundarySwitch()
     {
         if (sourceCycleController != null &&
@@ -788,6 +928,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     {
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         PauseSourceWorkForSwitch();
+        // An early choice cancels only the future hold request. Do not advance a
+        // pending/completed boundary while the source is being suspended.
+        if (advanceNoticeAllowsEarlySwitch && currentState == TaskSwitchExperimentState.WaitingForPhaseBoundary &&
+            sourceCycleController != null &&
+            !sourceCycleController.IsWaitingAtBoundary && !sourceCycleController.HasPendingNextPhase)
+            sourceCycleController.CancelBoundaryHoldRequest();
+        ResetAdvanceNotice();
 
         if (!craneOperationManager.SelectCraneForTaskSwitch(
                 targetCondition.craneIndex
@@ -1364,7 +1511,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         EmitEvent("SourcePhaseBoundaryReached", detail);
-        SwitchControlToTarget("PhaseBoundary");
+        if (advanceNoticeActive)
+            EmitEvent("SwitchTriggerSelected", "Trigger=PhaseBoundary;Policy=" + switchMethod);
+        SwitchControlToTarget(advanceNoticeActive ? switchMethod.ToString() : "PhaseBoundary");
     }
 
     private void StartSourceWorkPhaseMonitoring()
@@ -2025,6 +2174,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void UpdateCountdownText()
     {
+        if (operatorDeadlinePending)
+        {
+            ShowAdvanceNoticeText("あと" + Mathf.CeilToInt(countdownRemaining) + "秒で切替\n赤ボタンで前倒し切替可");
+            return;
+        }
         if (countdownText != null)
         {
             countdownText.text = Mathf.CeilToInt(countdownRemaining).ToString();
@@ -2047,7 +2201,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private bool CanAcceptConfirmationInput()
     {
         return !ExperimentPauseManager.IsPaused &&
-            (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch ||
+            (CanChooseOperatorSwitch() ||
              currentState == TaskSwitchExperimentState.WaitingForConfirmation ||
              currentState == TaskSwitchExperimentState.WaitingForSourceConfirmation);
     }
@@ -2143,7 +2297,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             displayColor = confirmationAcceptedColor;
             interactable = false;
         }
-        else if (currentState == TaskSwitchExperimentState.WaitingForOperatorSwitch)
+        else if (CanChooseOperatorSwitch())
         {
             displayText = "赤ボタンで作業切替";
             displayColor = confirmationReadyColor;
@@ -2165,7 +2319,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
         else
         {
-            displayText = confirmationStandbyText;
+            displayText = advanceNoticeActive && currentState == TaskSwitchExperimentState.WaitingForPhaseBoundary
+                ? "現フェーズ終了時に切替" : confirmationStandbyText;
             displayColor = confirmationStandbyColor;
             interactable = false;
         }
@@ -2289,6 +2444,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (sourceCycleController == null)
         {
             Debug.LogError("Sourceの5サイクル進行にCraneWorkCycleControllerが必要です。", this);
+            return false;
+        }
+
+        if (switchMethod == TaskSwitchMethod.CountdownOperatorInitiated &&
+            (float.IsNaN(operatorSwitchDeadlineSeconds) || float.IsInfinity(operatorSwitchDeadlineSeconds) || operatorSwitchDeadlineSeconds < 0f))
+        {
+            Debug.LogError("Operator Switch Deadline Secondsには0以上の有限値を指定してください。", this);
             return false;
         }
 

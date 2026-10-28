@@ -2,10 +2,13 @@ using System;
 
 public enum TaskSwitchMethod
 {
-    ConfirmAfterDisplaySwitch,
-    Countdown,
-    PhaseBoundary,
-    OperatorInitiated
+    ConfirmAfterDisplaySwitch = 0,
+    Countdown = 1,
+    PhaseBoundary = 2,
+    OperatorInitiated = 3,
+    CountdownOperatorInitiated = 4,
+    AnnouncedPhaseBoundary = 5,
+    AnnouncedPhaseBoundaryOperatorInitiated = 6
 }
 
 public enum TaskSwitchExperimentState

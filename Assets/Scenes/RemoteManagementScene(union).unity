@@ -29958,6 +29958,7 @@ MonoBehaviour:
     targetPointIndex: 6
     targetXSelection: 0
   countdownSeconds: 5
+  operatorSwitchDeadlineSeconds: 10
   sourceTotalCycleCount: 5
   useSwitchScheduleCsv: 0
   switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
@@ -30024,6 +30025,15 @@ MonoBehaviour:
   operatorInitiatedCsv:
     switchScheduleCsv: {fileID: 4900000, guid: 474444c205321a64c9136f54f73d77e8, type: 3}
     workConditionsCsv: {fileID: 4900000, guid: d896c4e184ec70942913b9da9de25a80, type: 3}
+  countdownOperatorInitiatedCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: fc5dc007f7a25f341b91c4849385be96, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: 0024d3cb9b7e7e44882ba95bd7f1bbba, type: 3}
+  announcedPhaseBoundaryCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: a9e00e6c22bb93a4193aad01cb5f8326, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: 4e7d2016ec3912142a46d18ecb834bee, type: 3}
+  announcedPhaseBoundaryOperatorInitiatedCsv:
+    switchScheduleCsv: {fileID: 4900000, guid: a9e00e6c22bb93a4193aad01cb5f8326, type: 3}
+    workConditionsCsv: {fileID: 4900000, guid: 4e7d2016ec3912142a46d18ecb834bee, type: 3}
   workConditionsCsv: {fileID: 4900000, guid: 70256d08a71148448c60d00f157166bc, type: 3}
   targetTaskPattern: 0
 --- !u!4 &333508957

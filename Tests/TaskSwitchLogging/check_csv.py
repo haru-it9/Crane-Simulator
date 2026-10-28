@@ -242,14 +242,21 @@ visual_settings = re.search(r'  visualSubtask:\n((?:    .*\n)+)', manager).group
 assert 'minimumIntervalSeconds: 2' in visual_settings
 assert 'responseTimeoutSeconds:' not in visual_settings
 assert 'secondaryTaskSelectionMigrated: 1' in manager
-for image_id, rect_id, go_id, side, x in [('9000001004', '9000001002', '9000001001', 'Left', -1900),
-                                        ('9000001008', '9000001006', '9000001005', 'Right', 1900)]:
+marker_positions = []
+for image_id, rect_id, go_id, side in [('9000001004', '9000001002', '9000001001', 'Left'),
+                                     ('9000001008', '9000001006', '9000001005', 'Right')]:
     assert f'visual{side}Indicator: {{fileID: {image_id}}}' in manager
     assert f'm_Name: VisualSubtask{side}' in blocks[go_id] and 'm_IsActive: 0' in blocks[go_id]
     assert 'm_RaycastTarget: 0' in blocks[image_id] and 'm_Color: {r: 0, g: 0, b: 1, a: 1}' in blocks[image_id]
     assert 'm_Father: {fileID: 1796973733}' in blocks[rect_id]
-    assert f'm_AnchoredPosition: {{x: {x}, y: 0}}' in blocks[rect_id]
+    position = re.search(r'm_AnchoredPosition: \{x: ([\d.eE+-]+), y: ([\d.eE+-]+)\}', blocks[rect_id])
+    assert position, 'missing visual marker position'
+    marker_positions.append(tuple(map(float, position.groups())))
     assert f'{{fileID: {rect_id}}}' in blocks['1796973733']
+# Check the spatial relationship; scene layout tuning must not require obsolete pixel coordinates.
+left, right = marker_positions
+assert left[0] < 0 < right[0] and abs(left[0] + right[0]) < .00001
+assert abs(left[1] - right[1]) < .00001
 print('PASS: Unity scene marker references, left/right placement, blue initial state, hidden auditory-mode UI and noninteractive Images')
 
 # Keyboard-emulating pedals must be scored when the legacy TaskSwitchPedal axis is still zero.

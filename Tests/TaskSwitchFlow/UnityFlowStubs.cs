@@ -104,7 +104,7 @@ namespace UnityEngine.UI
 {
     public struct ColorBlock { public UnityEngine.Color normalColor,highlightedColor,selectedColor,pressedColor,disabledColor; }
     public class Image : UnityEngine.MonoBehaviour { public UnityEngine.Color color; public bool raycastTarget=true; }
-    public class Text : UnityEngine.MonoBehaviour { public string text; }
+    public class Text : UnityEngine.MonoBehaviour { public string text; public bool resizeTextForBestFit; public int resizeTextMinSize,resizeTextMaxSize=170; }
     public class Button : UnityEngine.MonoBehaviour
     {
         public class ClickEvent
@@ -134,7 +134,7 @@ namespace Tobii.Gaming
 }
 
 public class CraneStatusManager { public enum WorkPhase { Move1,LiftUp,Move2,Place,PlaceToTrack } public enum ErrorType { None,ErrorA,ErrorB,ErrorC } }
-public static class ExperimentPauseManager { public static bool IsPaused; public static double ActiveRealtime=>UnityEngine.Time.realtimeSinceStartupAsDouble; }
+public static class ExperimentPauseManager { public static bool IsPaused; public static double PauseOffsetSeconds; public static double ActiveRealtime=>UnityEngine.Time.realtimeSinceStartupAsDouble-PauseOffsetSeconds; }
 public class CraneInstance:UnityEngine.MonoBehaviour { public int CraneId; public BoardGenerator BoardGenerator; public CraneUnit CraneUnit; public LifMagSystem LifMagSystem; }
 public class CraneUnit { public LifMagSystem magnet; public void ClearInterventionBoardAttachment() { magnet.AttachedBoards.Clear(); } public void SetInterventionBoardAttached(UnityEngine.GameObject board,UnityEngine.Vector3 pos,UnityEngine.Vector3 rot,bool append=false) { if(!append) magnet.AttachedBoards.Clear(); magnet.AttachedBoards.Add(board); } }
 public class CraneRegistry { public CraneInstance[] cranes; public int ActiveCraneCount; public void SetActiveCraneCount(int n) { ActiveCraneCount=n; } public CraneInstance GetCraneByRuntimeIndex(int i) { return i>=0&&i<cranes.Length?cranes[i]:null; } }

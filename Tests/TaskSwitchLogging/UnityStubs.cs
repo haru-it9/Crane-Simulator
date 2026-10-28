@@ -65,7 +65,8 @@ namespace UnityEngine
         public static string ToJson(object v) { string json="{\"test\":true,\"id\":"+values.Count+"}";values[json]=v;return json; }
         public static T FromJson<T>(string json) where T:new()
         {
-            T copy=new T(); foreach(var f in typeof(T).GetFields()) f.SetValue(copy,f.GetValue(values[json]));return copy;
+            // Unity serializes instance data, not static constants (e.g. visual response timeout).
+            T copy=new T(); foreach(var f in typeof(T).GetFields(System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance)) f.SetValue(copy,f.GetValue(values[json]));return copy;
         }
     }
     public static class RectTransformUtility { public static Vector2 WorldToScreenPoint(Camera c, Vector3 p) { return new Vector2(p.x,p.y); } public static bool RectangleContainsScreenPoint(RectTransform r, Vector2 p, Camera c) { return true; } }

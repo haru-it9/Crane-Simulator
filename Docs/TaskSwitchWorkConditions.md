@@ -4,7 +4,7 @@ TaskSwitchExperimentManagerの **Switch Schedule Csv** に切替要請スケジ�
 
 ## SwitchMethodごとのCSV登録
 
-TaskSwitchExperimentManagerのInspectorで **Use Switch Method Csv Pairs** をONにし、次の4つの欄を展開します。各欄の **Switch Schedule Csv** と **Work Conditions Csv** に、対応するCSVアセットをそれぞれドラッグします。
+TaskSwitchExperimentManagerのInspectorで **Use Switch Method Csv Pairs** をONにし、次の7つの欄を展開します。各欄の **Switch Schedule Csv** と **Work Conditions Csv** に、対応するCSVアセットをそれぞれドラッグします。
 
 | Inspectorの登録欄 | 適用されるSwitch Method |
 | --- | --- |
@@ -12,12 +12,15 @@ TaskSwitchExperimentManagerのInspectorで **Use Switch Method Csv Pairs** をON
 | Countdown Csv | Countdown |
 | Phase Boundary Csv | Phase Boundary |
 | Operator Initiated Csv | Operator Initiated |
+| Countdown Operator Initiated Csv | Countdown Operator Initiated |
+| Announced Phase Boundary Csv | Announced Phase Boundary |
+| Announced Phase Boundary Operator Initiated Csv | Announced Phase Boundary Operator Initiated |
 
 **Switch Method** を選択してStartすると、その手法の2ファイルを読み込みます。次の実験で手法を変えた場合は、次回のStartで新しい組を読み込みます。実行中のCSV割り当ての編集はその実験の適用内容を変更しません。CSVの中身・形式は従来と同じです。
 
 この設定がONの場合、共通欄のUse Switch Schedule Csvの値にかかわらず手法別スケジュールを使用します。選択した手法にどちらかのCSVが未登録、または内容が無効ならConsoleに理由を出して開始を中止します。他の手法や共通欄のCSVを自動的に代用しません。
 
-既存シーンでは **Use Switch Method Csv Pairs** の初期値はOFFで、従来の共通CSV設定を使用します。手法別設定を使う際はONにしてください。用意したCSVの組はInspectorで登録してください。
+RemoteManagementScene(union)では **Use Switch Method Csv Pairs** がONで、7手法の初期CSVを登録済みです。追加した期限式は既存Countdownの組、予告式2手法は既存Phase Boundaryの組を初期値として共用します。新手法用に条件を変える際は、CSVを複製して対応欄に割り当ててください。既存4手法の割り当ては変更していません。共通CSVを使用する場合は同設定をOFFにします。
 
 session.csvのswitch_schedule_csvとwork_conditions_csvには、選択した手法に実際に適用したCSV全文を記録します。events.csvのSwitchScheduleLoadedとWorkConditionsLoadedにはファイル名とBySwitchMethodを記録します。CSV出力の列構成は変更しません。
 
@@ -76,6 +79,36 @@ Managerの **Switch Method = Operator Initiated** を選びます。
 5. 切替先完了後は切替元へ戻り、従来どおり確認ボタンで中断点から再開します。
 
 Pause中は切替確認を受理せず、Start後も同じ要請待ちを維持します。要請待ちの間に切替元の5サイクルがすべて完了した場合は実験を終了します。既存の表示先切替後確認・Countdown・Phase Boundaryは、切替先画面を表示した後の確認操作を維持します。既存enum値0～2は変えず、OperatorInitiatedを3として追加しています。
+
+## 融合切替3手法
+
+| Switch Method | 要請後の予告と操作 | 自動切替の条件 |
+| --- | --- | --- |
+| Countdown Operator Initiated（4） | 「あとN秒で切替」と表示し、期限内は赤ボタンで前倒し切替 | Operator Switch Deadline Seconds到達。初期値10秒、0秒は即時切替 |
+| Announced Phase Boundary（5） | 「現フェーズ終了時に切替」と予告。前倒しボタンは無効 | 要請時点で実行中の大フェーズ完了 |
+| Announced Phase Boundary Operator Initiated（6） | 「現フェーズ終了までに切替」と予告。終了前は赤ボタンで前倒し切替 | 前倒しされなければ同じ大フェーズの完了 |
+
+既存enum値0～3は維持しています。①の **Operator Switch Deadline Seconds** は、既存Countdown用の **Countdown Seconds**（初期値5秒）とは独立です。①の期限は要請からの実験稼働時間を使い、Pauseの経過時間は含めません。表示もPause中は保持します。設定変更は実験を終了してから行ってください。
+
+3手法とも、予告中はSourceの表示・入力・作業進行を継続します。予告式の「フェーズ」はMove1／LiftUp／Move2／Place等の大フェーズで、詳細ステップではありません。開始時のSource Conditionではなく、要請時に実際に作業しているフェーズの完了を使用します。②③に秒数による打切りはありません。
+
+前倒しした場合は、既存Operator Initiatedと同様、1回の赤ボタンで切替先の表示と作業開始まで進めます。入力はボタンを離してから許可します。期限・境界で自動切替した場合は、既存Countdown／Phase Boundaryと同様、表示切替後に赤ボタンで作業開始を確認します。期限到達と同時の押下は期限到達を優先し、前倒しとは記録しません。
+
+③を途中で前倒しした場合は、その切替のために予約した境界停止を解除し、復帰後は中断フェーズの途中から継続します。境界で切り替えた②③は、復帰確認後に次のフェーズへ進みます。予告中にSourceの全サイクルが終了した場合は、切替より実験終了を優先します。
+
+予告には既存CountDownPanelを使用し、文章表示中だけ文字サイズを自動調整します。切替・終了・次の実験開始時には既存の数字表示設定へ戻します。新しい画面オブジェクトやOnClick設定は不要です。
+
+### 融合切替のログ
+
+schema 9の列構成は維持し、`switch_method`に新しいenum名を保存します。①では`session.csv`の`countdown_s`に実際に使用する期限を記録します。`manager_configuration_json`には独立した2つの時間設定を保持します。
+
+- `OperatorDeadlineStarted`：期限の秒数。`OperatorDeadlineReached`：期限到達。
+- `PhaseBoundaryAdvanceNoticeShown`：境界予告。detailの`AllowEarlySwitch`で②③を区別。
+- `OperatorSwitchConfirmationPressed`：作業者による前倒し。detailに手法を保存。
+- `SwitchTriggerSelected`：detailの`Trigger=Operator / Deadline / PhaseBoundary`で切替原因を識別。
+- 既存の`SwitchRequested`、`SourceWorkSuspended`、`TargetDisplaySwitched`、確認・入力解除・復帰イベントは引き続き記録。
+
+期限内の前倒しと、期限・境界による自動切替は、同じ手法内でも異なる切替原因として分けて分析できます。
 
 ## 切替・復帰時の電流制御
 

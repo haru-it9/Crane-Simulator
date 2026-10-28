@@ -48,15 +48,15 @@ static class FlowTests
     }
     static void CheckSwitchMethodCsvPairs()
     {
-        string[] fields={"confirmAfterDisplaySwitchCsv","countdownCsv","phaseBoundaryCsv","operatorInitiatedCsv"};
+        string[] fields={"confirmAfterDisplaySwitchCsv","countdownCsv","phaseBoundaryCsv","operatorInitiatedCsv","countdownOperatorInitiatedCsv","announcedPhaseBoundaryCsv","announcedPhaseBoundaryOperatorInitiatedCsv"};
         var rig=new Rig(TaskSwitchMethod.OperatorInitiated);
         // Start once without schedules: enabling method pairs on the next run must subscribe correctly.
         Set(rig.Manager,"useSwitchScheduleCsv",false);
         rig.Manager.StartExperiment();
         Require(rig.Target(0).targetZ==1,"common work CSV compatibility");
         rig.Manager.ExitExperimentMode();
-        var pairs=new TaskSwitchMethodCsvPair[4];
-        for(int i=0;i<4;i++)
+        var pairs=new TaskSwitchMethodCsvPair[fields.Length];
+        for(int i=0;i<fields.Length;i++)
         {
             int delay=20+i;
             pairs[i]=new TaskSwitchMethodCsvPair {
@@ -68,7 +68,7 @@ static class FlowTests
         Set(rig.Manager,"useSwitchMethodCsvPairs",true);
         var loaded=new List<TaskSwitchEventData>();
         rig.Manager.ExperimentEventOccurred+=e=>loaded.Add(e);
-        for(int i=0;i<4;i++)
+        for(int i=0;i<fields.Length;i++)
         {
             rig.Manager.SetSwitchMethod(i);
             Require(rig.Manager.SwitchScheduleCsvText==pairs[i].switchScheduleCsv.text && rig.Manager.WorkConditionsCsvText==pairs[i].workConditionsCsv.text,"selected method CSV preview: "+i);
@@ -108,7 +108,7 @@ static class FlowTests
         Require(rig.Target(0).targetZ==1,"common work CSV not restored");
         Time.realtimeSinceStartupAsDouble=11;rig.Update();
         Require(rig.Manager.CurrentState==TaskSwitchExperimentState.WaitingForOperatorSwitch,"common schedule not restored");
-        Console.WriteLine("PASS: four method CSV pairs, automatic schedule despite common toggle, restart selection, active-run snapshots, file provenance, missing/invalid pair rejection and common CSV compatibility");
+        Console.WriteLine("PASS: seven method CSV pairs, automatic schedule despite common toggle, restart selection, active-run snapshots, file provenance, missing/invalid pair rejection and common CSV compatibility");
     }
     static void CheckCognitiveSupportGoalPreview()
     {
@@ -140,6 +140,103 @@ static class FlowTests
             "Support event must be recorded without changing experiment state");
         r.Manager.ExitExperimentMode();
         Console.WriteLine("PASS: cognitive support CSV goal preview without goal mutation, active condition selection, and event recording");
+    }
+    static Rig HybridRig(TaskSwitchMethod method)
+    {
+        ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.PauseOffsetSeconds=0;
+        Time.realtimeSinceStartupAsDouble=0;Time.deltaTime=0;Input.buttons.Clear();
+        var r=new Rig(method);
+        Set(r.Manager,"countdownText",new UnityEngine.UI.Text());
+        Set(r.Manager,"countdownPanel",new GameObject());
+        Set(r.Manager,"confirmationButtonText",new UnityEngine.UI.Text());
+        r.Manager.StartExperiment();return r;
+    }
+    static void ReturnFromPickup(Rig r)
+    {
+        Input.buttons.Clear();r.Update();r.Complete(1);r.Attach(1,2);r.Complete(1);
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForSourceConfirmation,"hybrid target segment did not return");
+        r.Manager.ConfirmTargetTask();r.Update();
+    }
+    static void CheckHybridSwitches()
+    {
+        Require((int)TaskSwitchMethod.ConfirmAfterDisplaySwitch==0 && (int)TaskSwitchMethod.OperatorInitiated==3 &&
+            (int)TaskSwitchMethod.CountdownOperatorInitiated==4 && (int)TaskSwitchMethod.AnnouncedPhaseBoundary==5 &&
+            (int)TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated==6,"serialized method values changed");
+
+        var r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);
+        Require(r.Manager.OperatorSwitchDeadlineSeconds==10 && r.Manager.CountdownSeconds==10,"hybrid deadline/default CSV duration");
+        r.Manager.RequestSwitch();
+        var label=(UnityEngine.UI.Text)Get(r.Manager,"countdownText");
+        Require(r.Op.CurrentCraneIndex==0 && !r.Op.IsOperationInputLocked && !r.Cycle(0).IsPaused &&
+            r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && label.text.Contains("10") && label.resizeTextForBestFit,"deadline notice/source continuation");
+        Time.realtimeSinceStartupAsDouble=9.999;Input.buttons["JoyStick2RedButton"]=true;r.Manager.ConfirmTargetTask();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && r.Op.IsOperationInputLocked &&
+            r.Events.Contains("OperatorSwitchConfirmationPressed") && !r.Events.Contains("OperatorDeadlineReached"),"early deadline choice/one-click");
+        Require(!label.resizeTextForBestFit && label.resizeTextMaxSize==170,"notice changed original countdown style");
+        ReturnFromPickup(r);Time.realtimeSinceStartupAsDouble=50;r.Update();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource && !r.Events.Contains("OperatorDeadlineReached"),"old deadline survived early switch/return");
+
+        r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);r.Manager.RequestSwitch();
+        Time.realtimeSinceStartupAsDouble=10;r.Update();r.Update();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation && r.Op.CurrentCraneIndex==1 &&
+            r.Op.IsOperationInputLocked && r.Events.FindAll(x=>x=="OperatorDeadlineReached").Count==1 && !r.Events.Contains("ConfirmationPressed"),"deadline fallback must switch once and retain confirmation");
+        r.Manager.ConfirmTargetTask();Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget,"deadline target confirmation failed");
+
+        r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);r.Manager.RequestSwitch();
+        Time.realtimeSinceStartupAsDouble=10;r.Manager.ConfirmTargetTask();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation && !r.Events.Contains("OperatorSwitchConfirmationPressed"),"UI press exactly at deadline counted as early choice");
+        r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);r.Manager.SetOperatorSwitchDeadlineSeconds(0);r.Manager.RequestSwitch();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation,"zero deadline did not switch immediately");
+
+        r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);r.Manager.RequestSwitch();Time.realtimeSinceStartupAsDouble=3;r.Update();
+        ExperimentPauseManager.IsPaused=true;Time.realtimeSinceStartupAsDouble=103;r.Update();r.Manager.ConfirmTargetTask();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && r.Manager.CountdownRemaining==7,"paused deadline/input progressed");
+        ExperimentPauseManager.PauseOffsetSeconds=100;ExperimentPauseManager.IsPaused=false;r.Update();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && r.Manager.CountdownRemaining==7,"pause duration consumed deadline");
+        Time.realtimeSinceStartupAsDouble=110;r.Update();Require(r.Events.Contains("OperatorDeadlineReached"),"resumed deadline failed");
+
+        foreach(var method in new[]{TaskSwitchMethod.AnnouncedPhaseBoundary,TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated})
+        {
+            r=HybridRig(method);r.Complete(0);r.Attach(0,2); // request during LiftUp, not Inspector's initial Move1.
+            r.Manager.RequestSwitch();label=(UnityEngine.UI.Text)Get(r.Manager,"countdownText");
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForPhaseBoundary && !r.Cycle(0).IsPaused &&
+                label.text.Contains("現フェーズ終了") && r.Events.Contains("PhaseBoundaryAdvanceNoticeShown"),"announced boundary notice/source continuation");
+            if(method==TaskSwitchMethod.AnnouncedPhaseBoundary)
+            {
+                r.Manager.ConfirmTargetTask();Require(r.Op.CurrentCraneIndex==0 && !r.Events.Contains("OperatorSwitchConfirmationPressed"),"boundary-only accepted early switch");
+                Time.realtimeSinceStartupAsDouble=100;r.Update();Require(r.Op.CurrentCraneIndex==0,"announced boundary used a time deadline");
+            }
+            r.Complete(0);
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation && r.Op.CurrentCraneIndex==1 &&
+                r.Cycle(0).HasPendingNextPhase,"actual current phase boundary failed or advanced prematurely");
+            r.Manager.ConfirmTargetTask();ReturnFromPickup(r);
+            Require(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move2 && !r.Cycle(0).IsWaitingAtBoundary,"boundary return did not continue next phase");
+        }
+
+        r=HybridRig(TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated);r.Manager.RequestSwitch();
+        Input.buttons["JoyStick2RedButton"]=true;r.Manager.ConfirmTargetTask();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && r.Cycle(0).IsPaused &&
+            !(bool)Get(r.Cycle(0),"holdAfterCurrentPhase"),"early boundary choice left future boundary hold armed");
+        ReturnFromPickup(r);Require(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1,"early return skipped interrupted phase");
+        r.Complete(0);Require(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp && !r.Cycle(0).IsWaitingAtBoundary,"source stranded at a later boundary after early choice");
+
+        r=HybridRig(TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated);
+        r.Tracker(0).Complete(); // leave the next phase pending instead of Rig.Complete's auto continuation.
+        r.Manager.RequestSwitch();Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation,"already-completed phase request waited indefinitely");
+
+        r=HybridRig(TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated);r.Manager.RequestSwitch();r.Op.FailSelect=true;r.Manager.ConfirmTargetTask();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource && !r.Cycle(0).IsPaused &&
+            !(bool)Get(r.Cycle(0),"holdAfterCurrentPhase"),"early selection failure left source/hold stranded");
+
+        r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);r.Manager.RequestSwitch();r.Manager.CompleteExperiment();Time.realtimeSinceStartupAsDouble=30;r.Update();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Op.IsOperationInputLocked && !r.Events.Contains("OperatorDeadlineReached"),"completed experiment retained deadline");
+        r.Manager.ExitExperimentMode();r.Manager.SetSwitchMethod(1);r.Manager.StartExperiment();r.Manager.RequestSwitch();
+        Require(r.Manager.CountdownSeconds==5 && !((UnityEngine.UI.Text)Get(r.Manager,"countdownText")).resizeTextForBestFit,"legacy countdown setting/style changed after hybrid exit");
+        Time.deltaTime=6;r.Update();Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation,"legacy countdown no longer works after hybrid run");
+        r=HybridRig(TaskSwitchMethod.CountdownOperatorInitiated);r.Manager.ExitExperimentMode();Set(r.Manager,"operatorSwitchDeadlineSeconds",float.NaN);r.Manager.StartExperiment();
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.Idle,"non-finite deadline accepted");
+        ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.PauseOffsetSeconds=0;Input.buttons.Clear();Time.deltaTime=0;
+        Console.WriteLine("PASS: three hybrid policies, deadline boundaries/zero/Pause, notice UI/font restoration, actual phase completion, one-click early choice, source resume/hold cleanup, selection failure, completion/restart and enum compatibility");
     }
     public static void Main()
     {
@@ -208,6 +305,7 @@ static class FlowTests
         var automatic=new Rig(TaskSwitchMethod.OperatorInitiated);Time.realtimeSinceStartupAsDouble=0;automatic.Manager.StartExperiment();Time.realtimeSinceStartupAsDouble=11;automatic.Update();
         Require(automatic.Manager.CurrentState==TaskSwitchExperimentState.WaitingForOperatorSwitch,"CSV request did not arm operator confirmation");
         CheckSwitchMethodCsvPairs();
+        CheckHybridSwitches();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

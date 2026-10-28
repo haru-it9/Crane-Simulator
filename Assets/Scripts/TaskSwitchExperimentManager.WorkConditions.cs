@@ -18,6 +18,9 @@ public partial class TaskSwitchExperimentManager
     [SerializeField] private TaskSwitchMethodCsvPair countdownCsv = new TaskSwitchMethodCsvPair();
     [SerializeField] private TaskSwitchMethodCsvPair phaseBoundaryCsv = new TaskSwitchMethodCsvPair();
     [SerializeField] private TaskSwitchMethodCsvPair operatorInitiatedCsv = new TaskSwitchMethodCsvPair();
+    [SerializeField] private TaskSwitchMethodCsvPair countdownOperatorInitiatedCsv = new TaskSwitchMethodCsvPair();
+    [SerializeField] private TaskSwitchMethodCsvPair announcedPhaseBoundaryCsv = new TaskSwitchMethodCsvPair();
+    [SerializeField] private TaskSwitchMethodCsvPair announcedPhaseBoundaryOperatorInitiatedCsv = new TaskSwitchMethodCsvPair();
 
     [Header("CSV作業条件（Source:サイクル / Target:切替番号）")]
     [Tooltip("role,index,pickupX,pickupZ,placementX,placementZ,pickupCount,placementCount。座標はワールドXZ[m]。")]
@@ -91,6 +94,9 @@ public partial class TaskSwitchExperimentManager
                 case TaskSwitchMethod.Countdown: return countdownCsv;
                 case TaskSwitchMethod.PhaseBoundary: return phaseBoundaryCsv;
                 case TaskSwitchMethod.OperatorInitiated: return operatorInitiatedCsv;
+                case TaskSwitchMethod.CountdownOperatorInitiated: return countdownOperatorInitiatedCsv;
+                case TaskSwitchMethod.AnnouncedPhaseBoundary: return announcedPhaseBoundaryCsv;
+                case TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated: return announcedPhaseBoundaryOperatorInitiatedCsv;
                 default: return null;
             }
         }
@@ -176,8 +182,14 @@ public partial class TaskSwitchExperimentManager
     private void AcceptOperatorSwitch()
     {
         // The source continues until this click, then switches and starts the target with one confirmation.
-        EmitEvent("OperatorSwitchConfirmationPressed");
-        SwitchControlToTarget("OperatorInitiated");
+        string policy = operatorDeadlinePending
+            ? "CountdownOperatorInitiated"
+            : advanceNoticeAllowsEarlySwitch
+                ? "AnnouncedPhaseBoundaryOperatorInitiated"
+                : "OperatorInitiated";
+        EmitEvent("OperatorSwitchConfirmationPressed", policy);
+        EmitEvent("SwitchTriggerSelected", "Trigger=Operator;Policy=" + policy);
+        SwitchControlToTarget(policy);
         if(currentState==TaskSwitchExperimentState.WaitingForConfirmation) ConfirmTargetTask();
     }
     private void ClearExperimentWorkConditions()
