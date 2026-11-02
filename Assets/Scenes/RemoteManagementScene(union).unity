@@ -1173,7 +1173,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -100}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1500, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &14138010
@@ -29940,7 +29940,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 5
+  switchMethod: 4
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29960,7 +29960,7 @@ MonoBehaviour:
     targetPointIndex: 6
     targetXSelection: 0
   countdownSeconds: 5
-  operatorSwitchDeadlineSeconds: 10
+  operatorSwitchDeadlineSeconds: 7
   sourceTotalCycleCount: 5
   useSwitchScheduleCsv: 0
   switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
@@ -159888,7 +159888,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 700, y: -110}
+  m_AnchoredPosition: {x: 700, y: 0}
   m_SizeDelta: {x: 250, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1784259947
