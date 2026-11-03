@@ -731,11 +731,6 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         pendingTargetConfirmationDetail = string.Empty;
-        if (pilotExperiment)
-        {
-            SetPanelActive(countdownPanel, true);
-            ShowAdvanceNoticeText("フェーズ\n後に復帰");
-        }
         EmitEvent(
             "TargetOperationStarted",
             confirmationDetail
@@ -1564,6 +1559,37 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         );
     }
 
+    private void HandleTargetPhaseStarted(
+        CraneWorkCycleController controller,
+        CraneStatusManager.WorkPhase phase,
+        int cycleNumber)
+    {
+        if (!pilotExperiment || controller != targetCycleController ||
+            currentState != TaskSwitchExperimentState.OperatingTarget || phase != TargetEndPhase)
+            return;
+
+        string phaseLabel;
+        switch (phase)
+        {
+            case CraneStatusManager.WorkPhase.Move1:
+            case CraneStatusManager.WorkPhase.Move2:
+                phaseLabel = "移動";
+                break;
+            case CraneStatusManager.WorkPhase.LiftUp:
+                phaseLabel = "吊上";
+                break;
+            case CraneStatusManager.WorkPhase.Place:
+            case CraneStatusManager.WorkPhase.PlaceToTrack:
+                phaseLabel = "配置";
+                break;
+            default:
+                return;
+        }
+
+        ShowAdvanceNoticeText($"{phaseLabel}\n後に復帰");
+        SetPanelActive(countdownPanel, true);
+    }
+
     private void HandleTargetMajorPhaseCompleted(
         CraneWorkPhaseTracker tracker,
         CraneStatusManager.WorkPhase completedPhase
@@ -2196,6 +2222,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             targetCycleController.AllCyclesCompleted +=
                 HandleTargetAllCyclesCompleted;
+            targetCycleController.PhaseStarted += HandleTargetPhaseStarted;
             targetCycleSubscribed = true;
         }
     }
@@ -2222,6 +2249,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             targetCycleController.AllCyclesCompleted -=
                 HandleTargetAllCyclesCompleted;
+            targetCycleController.PhaseStarted -= HandleTargetPhaseStarted;
         }
 
         sourceCycleSubscribed = false;
