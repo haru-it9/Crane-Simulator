@@ -571,7 +571,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool UpdatePilotRequestTimer()
     {
-        if (!CanRequestSwitch) return false;
+        if (!CanRequestSwitch || sourceCycleController == null || !sourceCycleController.IsRunning ||
+            !IsPilotRequestSlot(sourceCycleController.CurrentPhase, sourceCycleController.CurrentCycleNumber))
+            return false;
+
         double now = ExperimentPauseManager.ActiveRealtime;
         if (pilotRequestDue < 0)
         {
@@ -580,10 +583,39 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             pilotRequestDue = now + interval;
             EmitEvent("PilotRequestTimerStarted", $"IntervalSeconds={interval:F3}");
         }
-        if (now < pilotRequestDue) return false;
+        bool atBoundary = sourceCycleController.IsWaitingAtBoundary;
+        if (now < pilotRequestDue && !atBoundary) return false;
+        if (now < pilotRequestDue)
+            EmitEvent("PilotRequestAdvancedAtBoundary",
+                $"Cycle={sourceCycleController.CurrentCycleNumber};Phase={sourceCycleController.CurrentPhase};RemainingSeconds={pilotRequestDue - now:F3}");
+
         pilotRequestDue = -1;
         RequestSwitchCore();
         return true;
+    }
+
+    private bool IsPilotRequestSlot(CraneStatusManager.WorkPhase phase, int cycleNumber)
+    {
+        if (!pilotExperiment || completedSwitchCount >= PilotRequiredSwitches ||
+            cycleNumber != completedSwitchCount / 2 + 1)
+            return false;
+
+        return phase == (completedSwitchCount % 2 == 0
+            ? CraneStatusManager.WorkPhase.Move1
+            : CraneStatusManager.WorkPhase.Move2);
+    }
+
+    private void HandleSourcePilotPhaseCompleted(
+        CraneWorkCycleController controller,
+        CraneStatusManager.WorkPhase phase,
+        int cycleNumber)
+    {
+        if (controller != sourceCycleController || !IsPilotRequestSlot(phase, cycleNumber))
+            return;
+
+        // Keep the next phase pending if this slot has not completed its return.
+        // In particular, Move2 cannot advance to placement while request 12 is pending.
+        controller.RequestHoldAfterCurrentPhase();
     }
 
     private void TryCompletePilotExperiment()
@@ -2223,6 +2255,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceCycleController.AllCyclesCompleted +=
                 HandleSourceAllCyclesCompleted;
             sourceCycleController.CycleCompleted += HandleSourceCycleCompleted;
+            sourceCycleController.PhaseCompleted += HandleSourcePilotPhaseCompleted;
             sourceCycleSubscribed = true;
         }
 
@@ -2252,6 +2285,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceCycleController.AllCyclesCompleted -=
                 HandleSourceAllCyclesCompleted;
             sourceCycleController.CycleCompleted -= HandleSourceCycleCompleted;
+            sourceCycleController.PhaseCompleted -= HandleSourcePilotPhaseCompleted;
         }
 
         if (sourceSchedulePhaseSubscribed &&
