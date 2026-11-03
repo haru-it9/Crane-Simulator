@@ -1637,12 +1637,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void NotifyPilotSupportPhaseStarted(CraneStatusManager.WorkPhase phase, int cycleNumber)
     {
-        if (!pilotExperiment || pilotDirectionDisplay != PilotDirectionDisplay.MovementPhaseTemporary)
+        if (!pilotExperiment || (pilotDirectionDisplay != PilotDirectionDisplay.Temporary &&
+            pilotDirectionDisplay != PilotDirectionDisplay.MovementPhaseTemporary))
             return;
 
-        bool isMovement = phase == CraneStatusManager.WorkPhase.Move1 ||
-            phase == CraneStatusManager.WorkPhase.Move2;
-        EmitEvent(isMovement ? "PilotMovementPhaseStarted" : "PilotNonMovementPhaseStarted",
+        EmitEvent("PilotMajorPhaseStarted",
             $"Phase={phase};Cycle={cycleNumber}");
     }
 

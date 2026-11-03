@@ -79,7 +79,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private bool subscribed, visible, targetSide, awaitingConfirmation;
     private double hideAt;
     private bool arrowTimerStarted;
-    private bool verticalOnlySwitchCue;
+    private bool ContinuousPilotArrows => experimentManager != null && experimentManager.IsPilotExperiment &&
+        experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
     private bool currentHighlightWindowActive;
     private bool currentFeedbackActive;
     private bool currentHighlightLatched, hasCurrentLiftSample;
@@ -206,9 +207,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         switch (data.eventName)
         {
-            case "PilotMovementPhaseStarted": ShowMovementPhase(); break;
-            case "PilotNonMovementPhaseStarted":
-                if (!verticalOnlySwitchCue || arrowTimerStarted) HideArrows(data.eventName);
+            case "PilotMajorPhaseStarted": ShowPhaseCue(); break;
+            case "SourceOperationStarted":
+                if (ContinuousPilotArrows) ShowPhaseCue();
                 break;
             case "TargetDisplaySwitched": Show(true); break;
             case "SourceDisplayRestored": Show(false); break;
@@ -232,13 +233,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
     }
 
-    private void ShowMovementPhase()
+    private void ShowPhaseCue()
     {
         if (supportRoot == null || operationManager == null || !operationManager.IsTaskSwitchExperimentMode)
             return;
 
-        HideArrows("MovementPhaseStarted");
-        verticalOnlySwitchCue = false;
+        HideArrows("MajorPhaseStarted");
         BindSelectedCrane();
         if (selectedCrane == null) return;
 
@@ -251,7 +251,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentFeedbackActive = true;
         visible = true;
         supportRoot.SetActive(true);
-        StartArrowTimer("MovementPhaseStarted");
+        StartArrowTimer(ContinuousPilotArrows ? "SourceOperationStarted" : "MajorPhaseStarted");
     }
 
     private void Show(bool isTarget)
@@ -276,9 +276,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentFeedbackActive = true;
         currentHighlightLatched = hasCurrentLiftSample = false;
         currentLabelDecisionPending = true;
-        verticalOnlySwitchCue = experimentManager.IsPilotExperiment &&
-            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.MovementPhaseTemporary;
-        visible = !experimentManager.IsPilotExperiment || verticalOnlySwitchCue ||
+        visible = !experimentManager.IsPilotExperiment ||
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.MovementPhaseTemporary ||
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary ||
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
         supportRoot.SetActive(true);
@@ -394,7 +393,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
         bool showDirection = visible && (experimentManager.IsPilotExperiment
-            ? arrowTimerStarted : directionEnabled);
+            ? ContinuousPilotArrows || arrowTimerStarted : directionEnabled);
         if (!chevronCountsCaptured)
             CaptureChevronCounts(raisingStep ?? step, position, unit, movement, hasGoal, goalX, goalZ);
         int xCount = capturedXCount, yCount = capturedYCount, zCount = capturedZCount;
@@ -414,12 +413,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
         }
-        bool showHorizontal = showDirection && !verticalOnlySwitchCue;
-        SetArrow(leftFade, leftXArrow, showHorizontal ? movement.x : 0f,
+        SetArrow(leftFade, leftXArrow, showDirection ? movement.x : 0f,
             positiveXPointsUp, true, xCount);
         SetArrow(rightYFade, rightYArrow, showDirection ? movement.y : 0f,
             positiveYPointsUp, true, yCount);
-        SetArrow(rightZFade, rightZArrow, showHorizontal ? movement.z : 0f,
+        SetArrow(rightZFade, rightZArrow, showDirection ? movement.z : 0f,
             positiveZPointsRight, false, zCount);
         if (rightYLabel != null && movement.y != 0f && showDirection)
         {
@@ -431,9 +429,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";X=" + movement.x + ";Y=" + movement.y + ";Z=" + movement.z +
             ";Content=" + supportContent + ";GoalAvailable=" + hasGoal +
             ";DirectionPresentation=" + directionPresentation +
-            ";ChevronsX=" + DisplayedCount(showHorizontal, movement.x, xCount) +
+            ";ChevronsX=" + DisplayedCount(showDirection, movement.x, xCount) +
             ";ChevronsY=" + DisplayedCount(showDirection, movement.y, yCount) +
-            ";ChevronsZ=" + DisplayedCount(showHorizontal, movement.z, zCount) +
+            ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
             ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
             ";CurrentGuidance=" + currentGuidance +
             ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
@@ -669,7 +667,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             bool requested = command != 0f;
             double now = ExperimentPauseManager.ActiveRealtime;
             if (!requested && fade.requested) fade.fadeStarted = now;
-            float localOpacity = requested ? 1f : fade.group.gameObject.activeSelf
+            float localOpacity = requested ? 1f : !ContinuousPilotArrows && fade.group.gameObject.activeSelf
                 ? Mathf.Clamp01(1f - (float)(now - fade.fadeStarted) / EffectiveFadeSeconds) : 0f;
             fade.requested = requested;
             fade.canvas.alpha = localOpacity * WindowOpacity;
