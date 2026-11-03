@@ -1023,6 +1023,32 @@ public class CraneUnit : MonoBehaviour
         UpdateSpeedTexts();
     }
 
+    public bool TryAlignInterventionPickup(Transform informationTarget, float worldX, float worldZ)
+    {
+        if (informationTarget == null || mainCrane == null || mainLifMag == null ||
+            mainCrane.parent == null || mainLifMag.parent == null)
+            return false;
+
+        Vector3 xAxis = mainLifMag.parent.TransformVector(Vector3.right);
+        Vector3 zAxis = mainCrane.parent.TransformVector(Vector3.forward);
+        float determinant = xAxis.x * zAxis.z - zAxis.x * xAxis.z;
+        if (Mathf.Abs(determinant) < 0.00001f) return false;
+
+        Vector3 position = informationTarget.position;
+        float dx = worldX - position.x;
+        float dz = worldZ - position.z;
+        float localX = mainLifMag.localPosition.x + (dx * zAxis.z - dz * zAxis.x) / determinant;
+        float localZ = mainCrane.localPosition.z + (dz * xAxis.x - dx * xAxis.z) / determinant;
+        const float tolerance = 0.001f;
+        if (localX < minMainX - tolerance || localX > maxMainX + tolerance ||
+            localZ < minZ - tolerance || localZ > maxZ + tolerance)
+            return false;
+
+        SetInterventionPose(localZ, localX, mainLifMag.localPosition.y);
+        return Mathf.Abs(informationTarget.position.x - worldX) <= tolerance &&
+            Mathf.Abs(informationTarget.position.z - worldZ) <= tolerance;
+    }
+
     public void SetInterventionBoardAttached(
         GameObject board,
         Vector3 attachedLocalPosition,

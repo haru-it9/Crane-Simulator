@@ -88,12 +88,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private double pilotRequestDue = -1;
     private bool pilotPlacementDeadlineReached;
     private bool pilotFullCycle;
-    private string PilotWorkLabel => pilotFullCycle ? "1サイクル" : "1大フェーズ";
+    private bool PilotLiftOnly => pilotExperiment && !pilotFullCycle;
+    private string PilotWorkLabel => pilotFullCycle ? "1サイクル" : "吊上";
     private CraneStatusManager.WorkPhase TargetEndPhase => !pilotExperiment
         ? TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)
         : pilotFullCycle && targetCycleController != null
             ? targetCycleController.PlacementPhase
-            : CraneStatusManager.WorkPhase.Move1;
+            : CraneStatusManager.WorkPhase.LiftUp;
 
     private bool PilotFullCycleFor(int switchIndex)
     {
@@ -1188,8 +1189,16 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             condition.craneIndex,
             interventionStartLocalZ,
             !(condition == targetCondition && activeTargetWorkCondition != null &&
-              ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move2ToPlace)
+              (PilotLiftOnly || ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move2ToPlace))
         );
+
+        if (condition == targetCondition && PilotLiftOnly && activeTargetWorkCondition != null &&
+            !craneInstance.CraneUnit.TryAlignInterventionPickup(
+                craneInstance.InformationTarget, activeTargetWorkCondition.pickupX, activeTargetWorkCondition.pickupZ))
+        {
+            Debug.LogError($"Target {activeTargetWorkCondition.index}: 吊上開始位置が操作範囲外、または座標参照が未設定です。", this);
+            return false;
+        }
 
         if (!PrepareCsvWorkCondition(condition, craneInstance)) return false;
 
@@ -1857,7 +1866,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         ApplyTargetCycleStartCondition();
         targetCycleController.SetExperimentConditions(activeTargetWorkCondition == null ? null : new [] { activeTargetWorkCondition });
         bool started = targetCycleController.StartTaskSegment(
-            TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern), TargetEndPhase);
+            targetCondition.workPhase, TargetEndPhase);
         if (!started) return false;
         if (activeTargetWorkCondition == null && ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move1ToLiftUp && !PrepareTargetFullCycleLoadPlan())
         {
@@ -2149,7 +2158,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void ApplyTargetCycleStartCondition()
     {
-        targetCondition.workPhase = TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern);
+        targetCondition.workPhase = PilotLiftOnly ? CraneStatusManager.WorkPhase.LiftUp :
+            TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern);
         // CSV conditions preload actual generated boards for Move2; no synthetic ErrorC board.
         targetCondition.errorType = CraneStatusManager.ErrorType.None;
     }
