@@ -25,6 +25,8 @@ public partial class TaskSwitchExperimentManager
     [Header("CSV作業条件（Source:サイクル / Target:切替番号）")]
     [Tooltip("role,index,pickupX,pickupZ,placementX,placementZ,pickupCount,placementCount。座標はワールドXZ[m]。")]
     [SerializeField] private TextAsset workConditionsCsv;
+    [Tooltip("Pilot Experiment専用の作業条件です。")]
+    [SerializeField] private TextAsset pilotWorkConditionsCsv;
     [SerializeField] private TaskSwitchTargetTaskPattern targetTaskPattern = TaskSwitchTargetTaskPattern.Move1ToLiftUp;
     private TaskSwitchTargetTaskPattern activeTargetTaskPattern;
     private TaskSwitchWorkCondition activeTargetWorkCondition;
@@ -35,7 +37,10 @@ public partial class TaskSwitchExperimentManager
         currentState != TaskSwitchExperimentState.Idle && currentState != TaskSwitchExperimentState.Completed;
     private TextAsset EffectiveSwitchScheduleCsv => pilotExperiment ? null : HasActiveRunCsvFiles ? runSwitchScheduleCsv :
         useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.switchScheduleCsv : switchScheduleCsv;
+    private TextAsset PilotWorkFile => pilotWorkConditionsCsv != null
+        ? pilotWorkConditionsCsv : Resources.Load<TextAsset>("TaskSwitchPilotWorkConditions");
     private TextAsset EffectiveWorkConditionsCsv => HasActiveRunCsvFiles ? runWorkConditionsCsv :
+        pilotExperiment ? PilotWorkFile :
         useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.workConditionsCsv : workConditionsCsv;
     private bool ShouldUseSwitchScheduleCsv => !pilotExperiment && (HasActiveRunCsvFiles ? runUseSwitchScheduleCsv :
         useSwitchMethodCsvPairs || useSwitchScheduleCsv);
@@ -125,10 +130,10 @@ public partial class TaskSwitchExperimentManager
         {
             // Resolve from Inspector for this start, not from the previous run's snapshot.
             var pair = SelectedMethodCsvPair;
-            if(useSwitchMethodCsvPairs && (pair==null || (!pilotExperiment && pair.switchScheduleCsv==null) || pair.workConditionsCsv==null))
+            if(!pilotExperiment && useSwitchMethodCsvPairs && (pair==null || pair.switchScheduleCsv==null || pair.workConditionsCsv==null))
                 throw new FormatException($"{switchMethod}: SwitchMethod別設定のSwitch Schedule CSVとWork Conditions CSVを両方登録してください。");
             TextAsset scheduleFile = pilotExperiment ? null : useSwitchMethodCsvPairs ? pair.switchScheduleCsv : switchScheduleCsv;
-            TextAsset workFile = useSwitchMethodCsvPairs ? pair.workConditionsCsv : workConditionsCsv;
+            TextAsset workFile = pilotExperiment ? PilotWorkFile : useSwitchMethodCsvPairs ? pair.workConditionsCsv : workConditionsCsv;
             bool scheduleEnabled = !pilotExperiment && (useSwitchMethodCsvPairs || useSwitchScheduleCsv);
             var schedule=scheduleEnabled && scheduleFile!=null
                 ? TaskSwitchConditionCsv.ParseSchedule(scheduleFile.text,targetTaskPattern,sourceTotalCycleCount)
@@ -137,7 +142,7 @@ public partial class TaskSwitchExperimentManager
             pilotSourceRows = pilotExperiment ? work.FindAll(c => c.role == "Source").Count : 0;
             if (pilotExperiment)
             {
-                if (workFile == null) throw new FormatException("予備実験には Work Conditions CSV が必要です。");
+                if (workFile == null) throw new FormatException("予備実験には Pilot Work Conditions CSV が必要です。");
                 for (int i = 1; i <= PilotRequiredSwitches; i++)
                     if (!work.Exists(c => c.role == "Target" && c.index == i))
                         throw new FormatException("Missing Target work condition: " + i);
