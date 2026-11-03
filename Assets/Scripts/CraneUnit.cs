@@ -1025,12 +1025,14 @@ public class CraneUnit : MonoBehaviour
 
     public bool TryAlignInterventionPickup(Transform informationTarget, float worldX, float worldZ)
     {
-        if (informationTarget == null || mainCrane == null || mainLifMag == null ||
-            mainCrane.parent == null || mainLifMag.parent == null)
+        if (informationTarget == null || mainCrane == null || mainLifMag == null)
             return false;
 
-        Vector3 xAxis = mainLifMag.parent.TransformVector(Vector3.right);
-        Vector3 zAxis = mainCrane.parent.TransformVector(Vector3.forward);
+        // A scene-root transform's local axes are already in world space.
+        Vector3 xAxis = mainLifMag.parent != null
+            ? mainLifMag.parent.TransformVector(Vector3.right) : Vector3.right;
+        Vector3 zAxis = mainCrane.parent != null
+            ? mainCrane.parent.TransformVector(Vector3.forward) : Vector3.forward;
         float determinant = xAxis.x * zAxis.z - zAxis.x * xAxis.z;
         if (Mathf.Abs(determinant) < 0.00001f) return false;
 
