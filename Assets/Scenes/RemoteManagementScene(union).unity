@@ -29961,6 +29961,17 @@ MonoBehaviour:
     targetXSelection: 0
   countdownSeconds: 5
   operatorSwitchDeadlineSeconds: 7
+  pilotExperiment: 1
+  pilotDirectionDisplay: 2
+  pilotDisplaySeconds: 2
+  pilotSwitchDeadlineSeconds: 7
+  pilotWorkOrder: 1
+  pilotLongFirst: 0
+  pilotOrderSeed: 0
+  pilotMinimumRequestIntervalSeconds: 10
+  pilotMaximumRequestIntervalSeconds: 20
+  pilotShortRun: 1
+  pilotRequestTimingSeed: 0
   sourceTotalCycleCount: 5
   useSwitchScheduleCsv: 0
   switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
@@ -30040,6 +30051,8 @@ MonoBehaviour:
     switchScheduleCsv: {fileID: 4900000, guid: a9e00e6c22bb93a4193aad01cb5f8326, type: 3}
     workConditionsCsv: {fileID: 4900000, guid: 4e7d2016ec3912142a46d18ecb834bee, type: 3}
   workConditionsCsv: {fileID: 4900000, guid: 70256d08a71148448c60d00f157166bc, type: 3}
+  pilotWorkConditionsCsv: {fileID: 0}
+  pilotTargetOrderSeed: 0
   targetTaskPattern: 0
 --- !u!4 &333508957
 Transform:
