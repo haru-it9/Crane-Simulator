@@ -249,11 +249,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentFeedbackActive = true;
         currentHighlightLatched = hasCurrentLiftSample = false;
         currentLabelDecisionPending = true;
-        visible = true;
+        visible = !experimentManager.IsPilotExperiment ||
+            experimentManager.PilotSupport != TaskSwitchExperimentManager.PilotDirectionDisplay.None;
         supportRoot.SetActive(true);
-        Record("Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
+        Record(experimentManager.IsPilotExperiment ? "Prepared" : "Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
             ";Content=" + supportContent + ";DurationSeconds=" +
-            displaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
+            EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
             ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
             ";CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMax" +
             ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
@@ -360,9 +361,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             }
         }
 
-        bool showPhase = supportContent != TaskSwitchSupportContent.InputDirectionOnly;
+        bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
-        bool showDirection = visible && directionEnabled;
+        bool showDirection = visible && (experimentManager.IsPilotExperiment
+            ? arrowTimerStarted : directionEnabled);
         if (!chevronCountsCaptured)
             CaptureChevronCounts(raisingStep ?? step, position, unit, movement, hasGoal, goalX, goalZ);
         int xCount = capturedXCount, yCount = capturedYCount, zCount = capturedZCount;
@@ -559,7 +561,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         return directionPresentation == TaskSwitchDirectionPresentation.DistanceChevrons ? count : 1;
     }
 
-    private float EffectiveFadeSeconds => Mathf.Min(Mathf.Max(0.1f, displaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
+    private float EffectiveDisplaySeconds => experimentManager != null && experimentManager.IsPilotExperiment
+        ? experimentManager.PilotDisplaySeconds : displaySeconds;
+    private float EffectiveFadeSeconds => Mathf.Min(Mathf.Max(0.1f, EffectiveDisplaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
     private float WindowOpacity => Mathf.Clamp01((float)(hideAt - ExperimentPauseManager.ActiveRealtime) / EffectiveFadeSeconds);
 
     private void StartArrowTimer()
@@ -567,9 +571,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (!visible || arrowTimerStarted || awaitingConfirmation || operationManager == null ||
             operationManager.CurrentCraneInstance != selectedCrane) return;
         arrowTimerStarted = true;
-        hideAt = ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, displaySeconds);
+        bool continuous = experimentManager.IsPilotExperiment &&
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
+        hideAt = continuous ? double.PositiveInfinity :
+            ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, EffectiveDisplaySeconds);
         Record("ArrowTimerStarted", "Anchor=InputUnlocked;Role=" + (targetSide ? "Target" : "Source") +
-            ";DurationSeconds=" + displaySeconds.ToString("F3", CultureInfo.InvariantCulture));
+            ";DurationSeconds=" + (continuous ? "Continuous" : EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture)));
         RefreshPresentation();
     }
 

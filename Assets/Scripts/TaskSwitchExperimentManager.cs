@@ -62,6 +62,39 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [Min(0f)]
     private float operatorSwitchDeadlineSeconds = 10f;
 
+    public enum PilotDirectionDisplay { None, Temporary, Continuous }
+    public enum PilotWorkOrder { Alternate, ShuffledPairs }
+
+    [Header("予備実験")]
+    [SerializeField] private bool pilotExperiment;
+    [SerializeField] private PilotDirectionDisplay pilotDirectionDisplay = PilotDirectionDisplay.None;
+    [SerializeField, Min(0.1f)] private float pilotDisplaySeconds = 2f;
+    [SerializeField, Min(0f)] private float pilotSwitchDeadlineSeconds = 7f;
+    [SerializeField] private PilotWorkOrder pilotWorkOrder = PilotWorkOrder.ShuffledPairs;
+    [SerializeField] private bool pilotLongFirst;
+    [SerializeField] private int pilotOrderSeed;
+
+    public bool IsPilotExperiment => pilotExperiment;
+    public PilotDirectionDisplay PilotSupport => pilotDirectionDisplay;
+    public float PilotDisplaySeconds => pilotDisplaySeconds;
+
+    private bool pilotFullCycle;
+    private string PilotWorkLabel => pilotFullCycle ? "1サイクル" : "1大フェーズ";
+    private CraneStatusManager.WorkPhase TargetEndPhase => !pilotExperiment
+        ? TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)
+        : pilotFullCycle && targetCycleController != null
+            ? targetCycleController.PlacementPhase
+            : CraneStatusManager.WorkPhase.Move1;
+
+    private bool PilotFullCycleFor(int switchIndex)
+    {
+        int index = switchIndex - 1;
+        bool longFirst = pilotWorkOrder == PilotWorkOrder.Alternate
+            ? pilotLongFirst
+            : new System.Random(unchecked(pilotOrderSeed + index / 2 * 397)).Next(2) == 1;
+        return longFirst == (index % 2 == 0);
+    }
+
     [Header("Source終了条件")]
     [Tooltip(
         "Sourceがこのサイクル数を累積完了したら実験を終了します。" +
@@ -242,7 +275,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     public string SwitchScheduleCsvText => EffectiveSwitchScheduleCsv != null ? EffectiveSwitchScheduleCsv.text : "";
     public int SourceTotalCycleCount => sourceTotalCycleCount;
-    public float CountdownSeconds => switchMethod == TaskSwitchMethod.CountdownOperatorInitiated
+    public float CountdownSeconds => pilotExperiment ? pilotSwitchDeadlineSeconds : switchMethod == TaskSwitchMethod.CountdownOperatorInitiated
         ? operatorSwitchDeadlineSeconds : countdownSeconds;
     public float OperatorSwitchDeadlineSeconds => operatorSwitchDeadlineSeconds;
     public TaskSwitchMethod SwitchMethod => switchMethod;
@@ -252,7 +285,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public TaskSwitchCraneCondition TargetCondition => targetCondition;
     public int CurrentSwitchIndex => currentSwitchIndex;
     public int CompletedSwitchCount => completedSwitchCount;
-    public bool TargetRunsFullCycle => false;
+    public bool TargetRunsFullCycle => pilotExperiment && pilotFullCycle;
     public bool CanRequestSwitch =>
         !ExperimentPauseManager.IsPaused &&
         (currentState == TaskSwitchExperimentState.OperatingSource ||
@@ -421,6 +454,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         SubscribeToWorkPhaseEvents();
         SubscribeToCycleEvents();
 
+        if (pilotExperiment && switchMethod != TaskSwitchMethod.Countdown &&
+            switchMethod != TaskSwitchMethod.CountdownOperatorInitiated)
+        {
+            Debug.LogError("予備実験では Countdown または CountdownOperatorInitiated を選択してください。", this);
+            return;
+        }
         if (!LoadExperimentConditions()) return;
         ApplyTargetCycleStartCondition();
 
@@ -563,7 +602,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
         EmitEvent(
             "SwitchRequested",
-            $"SwitchIndex={currentSwitchIndex}"
+            pilotExperiment
+                ? $"SwitchIndex={currentSwitchIndex};PilotWork={(pilotFullCycle ? "FullCycle" : "OneMajorPhase")};PilotSupport={pilotDirectionDisplay};PilotDisplaySeconds={pilotDisplaySeconds};PilotOrder={pilotWorkOrder};PilotSeed={pilotOrderSeed}"
+                : $"SwitchIndex={currentSwitchIndex}"
         );
 
         switch (switchMethod)
@@ -806,11 +847,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void StartCountdownSwitch()
     {
-        countdownRemaining = countdownSeconds;
+        countdownRemaining = CountdownSeconds;
         SetState(TaskSwitchExperimentState.CountingDown);
         SetPanelActive(countdownPanel, true);
         UpdateCountdownText();
-        EmitEvent("CountdownStarted", countdownSeconds.ToString("F2"));
+        EmitEvent("CountdownStarted", countdownRemaining.ToString("F2"));
 
         if (countdownRemaining <= 0f)
         {
@@ -824,7 +865,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         operatorDeadlinePending = true;
         advanceNoticeActive = true;
         advanceNoticeAllowsEarlySwitch = true;
-        countdownRemaining = Mathf.Max(0f, operatorSwitchDeadlineSeconds);
+        countdownRemaining = Mathf.Max(0f, CountdownSeconds);
         operatorDeadlineActiveRealtime = ExperimentPauseManager.ActiveRealtime + countdownRemaining;
         SetState(TaskSwitchExperimentState.CountingDown);
         SetPanelActive(confirmationPanel, true);
@@ -1475,7 +1516,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        if (completedPhase != TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)) return;
+        if (completedPhase != TargetEndPhase) return;
         EmitEvent("TargetMajorPhaseCompleted", $"Pattern={ActiveTargetTaskPattern};EndPhase={completedPhase}");
         // The cycle controller closes its segment and emits completion before we stop it.
         // Avoid stopping it from the tracker callback before its cycle counters/CSV are updated.
@@ -1650,14 +1691,14 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         ApplyTargetCycleStartCondition();
         targetCycleController.SetExperimentConditions(activeTargetWorkCondition == null ? null : new [] { activeTargetWorkCondition });
         bool started = targetCycleController.StartTaskSegment(
-            TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern), TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern));
+            TaskSwitchConditionCsv.StartPhase(ActiveTargetTaskPattern), TargetEndPhase);
         if (!started) return false;
         if (activeTargetWorkCondition == null && ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move1ToLiftUp && !PrepareTargetFullCycleLoadPlan())
         {
             targetCycleController.StopCycleAndTracker();
             return false;
         }
-        EmitEvent("TargetTaskSegmentStarted", $"Pattern={ActiveTargetTaskPattern};StartPhase={targetCondition.workPhase};EndPhase={TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)}");
+        EmitEvent("TargetTaskSegmentStarted", $"Pattern={ActiveTargetTaskPattern};StartPhase={targetCondition.workPhase};EndPhase={TargetEndPhase}");
         return true;
     }
 
@@ -2238,7 +2279,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     {
         if (countdownText != null)
         {
-            countdownText.text = Mathf.CeilToInt(countdownRemaining).ToString();
+            countdownText.text = pilotExperiment
+                ? $"{Mathf.CeilToInt(countdownRemaining)}\n<size=32>{PilotWorkLabel}</size>"
+                : Mathf.CeilToInt(countdownRemaining).ToString();
         }
     }
 

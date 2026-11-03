@@ -107,6 +107,11 @@ public partial class TaskSwitchExperimentManager
     {
         var entry=scheduledSwitches.Find(e=>e.switchIndex==switchIndex);
         activeTargetTaskPattern=entry!=null ? entry.targetTaskPattern : targetTaskPattern;
+        if (pilotExperiment)
+        {
+            activeTargetTaskPattern = TaskSwitchTargetTaskPattern.Move1ToLiftUp;
+            pilotFullCycle = PilotFullCycleFor(switchIndex);
+        }
         activeTargetWorkCondition=experimentWorkConditions.Find(c=>c.role=="Target" && c.index==switchIndex);
     }
     private bool LoadExperimentConditions()
@@ -123,6 +128,9 @@ public partial class TaskSwitchExperimentManager
             var schedule=scheduleEnabled && scheduleFile!=null
                 ? TaskSwitchConditionCsv.ParseSchedule(scheduleFile.text,targetTaskPattern,sourceTotalCycleCount)
                 : new List<TaskSwitchScheduleRow>();
+            if (pilotExperiment && schedule.Count > 0 &&
+                (schedule.Count % 2 != 0 || schedule.Exists(e => e.switchIndex > schedule.Count)))
+                throw new FormatException("予備実験の切替スケジュールは、連続した切替番号で偶数件を指定してください。");
             var work=workFile!=null ? TaskSwitchConditionCsv.ParseWork(workFile.text,sourceTotalCycleCount) : new List<TaskSwitchWorkCondition>();
             if(workFile!=null)
             {

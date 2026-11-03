@@ -159,6 +159,9 @@ public class CraneWorkCycleController : MonoBehaviour
     private const string LoadAcquisitionStepId =
         "LiftUp.LoadAcquisition";
 
+    public CraneStatusManager.WorkPhase PlacementPhase => useTrailerPlacement
+        ? CraneStatusManager.WorkPhase.PlaceToTrack : CraneStatusManager.WorkPhase.Place;
+
     public bool IsRunning => isRunning;
     public bool IsPaused => isPaused;
     public bool IsWaitingAtBoundary => waitingAtBoundary;
