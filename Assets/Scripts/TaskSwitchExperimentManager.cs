@@ -731,6 +731,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         pendingTargetConfirmationDetail = string.Empty;
+        if (pilotExperiment)
+        {
+            SetPanelActive(countdownPanel, true);
+            ShowAdvanceNoticeText("フェーズ\n後に復帰");
+        }
         EmitEvent(
             "TargetOperationStarted",
             confirmationDetail
@@ -1776,6 +1781,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         CraneStatusManager.WorkPhase completedTargetPhase
     )
     {
+        if (pilotExperiment)
+        {
+            ResetAdvanceNotice();
+            SetPanelActive(countdownPanel, false);
+        }
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         StopTargetWorkPhaseMonitoring();
         SetState(TaskSwitchExperimentState.ReturningToSource);
