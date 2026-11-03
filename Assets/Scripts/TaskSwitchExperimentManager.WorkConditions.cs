@@ -37,8 +37,44 @@ public partial class TaskSwitchExperimentManager
         currentState != TaskSwitchExperimentState.Idle && currentState != TaskSwitchExperimentState.Completed;
     private TextAsset EffectiveSwitchScheduleCsv => pilotExperiment ? null : HasActiveRunCsvFiles ? runSwitchScheduleCsv :
         useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.switchScheduleCsv : switchScheduleCsv;
-    private TextAsset PilotWorkFile => pilotWorkConditionsCsv != null
-        ? pilotWorkConditionsCsv : Resources.Load<TextAsset>("TaskSwitchPilotWorkConditions");
+    private TextAsset PilotWorkFile
+    {
+        get
+        {
+            int pattern = GetShortPilotWorkPattern();
+            if (pattern != 0)
+                return Resources.Load<TextAsset>("PilotWorkConditionsPattern" + pattern);
+
+            return pilotWorkConditionsCsv != null ? pilotWorkConditionsCsv :
+                Resources.Load<TextAsset>("TaskSwitchPilotWorkConditions");
+        }
+    }
+
+    private int GetShortPilotWorkPattern()
+    {
+        if (!pilotShortRun) return 0;
+        if (Mathf.Approximately(pilotSwitchDeadlineSeconds, 7f))
+        {
+            if (switchMethod == TaskSwitchMethod.Countdown &&
+                pilotDirectionDisplay == PilotDirectionDisplay.None) return 1;
+            if (switchMethod != TaskSwitchMethod.CountdownOperatorInitiated) return 0;
+            switch (pilotDirectionDisplay)
+            {
+                case PilotDirectionDisplay.None: return 2;
+                case PilotDirectionDisplay.Temporary:
+                case PilotDirectionDisplay.MovementPhaseTemporary: return 3;
+                case PilotDirectionDisplay.Continuous: return 4;
+            }
+        }
+
+        if (switchMethod == TaskSwitchMethod.CountdownOperatorInitiated &&
+            pilotDirectionDisplay == PilotDirectionDisplay.None)
+        {
+            if (Mathf.Approximately(pilotSwitchDeadlineSeconds, 3f)) return 5;
+            if (Mathf.Approximately(pilotSwitchDeadlineSeconds, 10f)) return 6;
+        }
+        return 0;
+    }
     private TextAsset EffectiveWorkConditionsCsv => HasActiveRunCsvFiles ? runWorkConditionsCsv :
         pilotExperiment ? PilotWorkFile :
         useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.workConditionsCsv : workConditionsCsv;
