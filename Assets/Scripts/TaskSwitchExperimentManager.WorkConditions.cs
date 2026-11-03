@@ -27,6 +27,9 @@ public partial class TaskSwitchExperimentManager
     [SerializeField] private TextAsset workConditionsCsv;
     [Tooltip("Pilot Experiment専用の作業条件です。")]
     [SerializeField] private TextAsset pilotWorkConditionsCsv;
+    [Tooltip("短縮予備実験のTarget行を並べ替えるシード。同じ値で同じ順番になります。")]
+    [SerializeField] private int pilotTargetOrderSeed;
+    private int[] shortPilotTargetOrder;
     [SerializeField] private TaskSwitchTargetTaskPattern targetTaskPattern = TaskSwitchTargetTaskPattern.Move1ToLiftUp;
     private TaskSwitchTargetTaskPattern activeTargetTaskPattern;
     private TaskSwitchWorkCondition activeTargetWorkCondition;
@@ -158,8 +161,26 @@ public partial class TaskSwitchExperimentManager
             activeTargetTaskPattern = TaskSwitchTargetTaskPattern.Move1ToLiftUp;
             pilotFullCycle = PilotFullCycleFor(switchIndex);
         }
-        activeTargetWorkCondition=experimentWorkConditions.Find(c=>c.role=="Target" && c.index==switchIndex);
+        int targetRowIndex = shortPilotTargetOrder != null &&
+            switchIndex > 0 && switchIndex <= shortPilotTargetOrder.Length
+            ? shortPilotTargetOrder[switchIndex - 1] : switchIndex;
+        activeTargetWorkCondition = experimentWorkConditions.Find(c => c.role == "Target" && c.index == targetRowIndex);
     }
+    private int[] BuildShortPilotTargetOrder()
+    {
+        var order = new int[PilotRequiredSwitches];
+        for (int i = 0; i < order.Length; i++) order[i] = i + 1;
+        var random = new System.Random(pilotTargetOrderSeed);
+        for (int i = order.Length - 1; i > 0; i--)
+        {
+            int j = random.Next(i + 1);
+            int row = order[i];
+            order[i] = order[j];
+            order[j] = row;
+        }
+        return order;
+    }
+
     private bool LoadExperimentConditions()
     {
         try
@@ -193,6 +214,7 @@ public partial class TaskSwitchExperimentManager
             runSwitchScheduleCsv=scheduleFile; runWorkConditionsCsv=workFile;
             runUseSwitchScheduleCsv=scheduleEnabled; runCsvFilesLoaded=true;
             experimentWorkConditions=work;
+            shortPilotTargetOrder = pilotExperiment && pilotShortRun ? BuildShortPilotTargetOrder() : null;
             if(workFile!=null) sourceCondition.workPhase=CraneStatusManager.WorkPhase.Move1;
             scheduledSwitches.Clear();
             foreach(var e in schedule) scheduledSwitches.Add(new ScheduledSwitchEntry { switchIndex=e.switchIndex,sourceCycle=e.sourceCycle,sourcePhase=e.sourcePhase,
