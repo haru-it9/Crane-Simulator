@@ -81,8 +81,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField, Min(0.1f)] private float pilotMinimumRequestIntervalSeconds = 10f;
     [SerializeField, Min(0.1f)] private float pilotMaximumRequestIntervalSeconds = 20f;
 
-    private const int PilotRequiredSwitches = 12;
-    private const int PilotRequiredSourceCycles = 6;
+    [Tooltip("ON: Source 3サイクル・切替6回。OFF: Source 6サイクル・切替12回。")]
+    [SerializeField] private bool pilotShortRun;
+
+    private int PilotRequiredSourceCycles => pilotShortRun ? 3 : 6;
+    private int PilotRequiredSwitches => PilotRequiredSourceCycles * 2;
     [SerializeField] private int pilotRequestTimingSeed;
 
     private double pilotRequestDue = -1;
@@ -643,7 +646,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (controller != sourceCycleController || !IsPilotRequestSlot(phase, cycleNumber))
             return;
 
-        // The final request must return before cycle six can start placement.
+        // The final request must return before the last cycle can start placement.
         if (phase == CraneStatusManager.WorkPhase.LiftUp || IsPlacementPhase(phase) ||
             (cycleNumber == PilotRequiredSourceCycles && phase == CraneStatusManager.WorkPhase.Move2))
             controller.RequestHoldAfterCurrentPhase();
