@@ -407,6 +407,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         CheckCurrentLiftConfirmation(unit);
         bool showCurrentHighlight = !useCurrentRangeColoring && directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
         bool showAppropriateCurrent = useCurrentRangeColoring && directionEnabled && currentFeedbackActive && currentGuidance == "ReadyToRaise";
+        if (showAppropriateCurrent && currentLabelHighlighted)
+            ResetCurrentInputLabel("CurrentInRange");
         SetCurrentHighlight(showCurrentHighlight || showAppropriateCurrent ? 1f : 0f, showAppropriateCurrent);
         if (!showDirection)
         {
@@ -729,7 +731,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         Color appropriateColor = coordinateColorSource != null
             ? coordinateColorSource.AchievedValueColor : new Color(0.65f, 1f, 0.10f, 1f);
         Color highlightColor = appropriate ? appropriateColor : phaseText != null ? phaseText.color : Color.white;
-        if (currentLabelHighlighted && currentInputLabel != null)
+        if (!appropriate && currentLabelHighlighted && currentInputLabel != null)
         {
             strength = 1f;
             highlightColor = currentInputLabel.color;
