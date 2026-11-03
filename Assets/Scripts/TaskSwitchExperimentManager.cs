@@ -453,6 +453,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (countdownRemaining <= 0f)
         {
             EmitEvent("CountdownCompleted");
+            if (pilotExperiment) EmitEvent("SwitchTriggerSelected", "Trigger=Deadline;Policy=Countdown");
             SwitchControlToTarget("Countdown");
         }
     }
@@ -573,6 +574,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         StartSourceWorkPhaseMonitoring();
 
         EmitEvent("ExperimentStarted");
+        if (pilotExperiment)
+        {
+            string targetRows = shortPilotTargetOrder == null ? "Sequential" : string.Join(",", shortPilotTargetOrder);
+            EmitEvent("PilotRunConfigured", FormattableString.Invariant(
+                $"ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineSeconds={CountdownSeconds};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
+        }
         StartSecondarySubtask();
         EmitEvent("SourceOperationStarted");
     }
@@ -605,8 +612,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             EmitEvent(atBoundary ? "PilotRequestAdvancedAtBoundary" : "PilotRequestAdvancedAtPlacementDeadline",
                 $"Cycle={cycle};Phase={phase};RemainingSeconds={pilotRequestDue - now:F3}");
 
+        string trigger = atBoundary ? "HeldBoundary" :
+            pilotPlacementDeadlineReached ? "PlacementDeadline" : "Timer";
+        double timerOffset = now - pilotRequestDue;
         pilotRequestDue = -1;
-        RequestSwitchCore();
+        RequestSwitchCore(FormattableString.Invariant(
+            $"RequestTrigger={trigger};RequestTimerOffsetSeconds={timerOffset:F3};SourceSlotCycle={cycle};SourcePhase={phase};SourceStep={sourceWorkPhaseTracker?.CurrentStepId}"));
         return true;
     }
 
@@ -670,7 +681,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (!pilotExperiment) RequestSwitchCore();
     }
 
-    private void RequestSwitchCore()
+    private void RequestSwitchCore(string pilotRequestDetail = "")
     {
         if (!CanRequestSwitch)
         {
@@ -722,7 +733,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent(
             "SwitchRequested",
             pilotExperiment
-                ? $"SwitchIndex={currentSwitchIndex};PilotWork={(pilotFullCycle ? "FullCycle" : "OneMajorPhase")};PilotSupport={pilotDirectionDisplay};PilotDisplaySeconds={pilotDisplaySeconds};PilotOrder={pilotWorkOrder};PilotSeed={pilotOrderSeed}"
+                ? $"SwitchIndex={currentSwitchIndex};PilotWork={(pilotFullCycle ? "FullCycle" : "OneMajorPhase")};PilotSupport={pilotDirectionDisplay};PilotDisplaySeconds={pilotDisplaySeconds};PilotOrder={pilotWorkOrder};PilotSeed={pilotOrderSeed};TargetCsvIndex={activeTargetWorkCondition?.index};{pilotRequestDetail}"
                 : $"SwitchIndex={currentSwitchIndex}"
         );
 
@@ -976,6 +987,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (countdownRemaining <= 0f)
         {
             EmitEvent("CountdownCompleted");
+            if (pilotExperiment) EmitEvent("SwitchTriggerSelected", "Trigger=Deadline;Policy=Countdown");
             SwitchControlToTarget("Countdown");
         }
     }
