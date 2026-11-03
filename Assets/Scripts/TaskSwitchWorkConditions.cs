@@ -68,7 +68,7 @@ public static class TaskSwitchConditionCsv
         for(int i=0;i<result.Count;i++) if(result[i].switchIndex!=i+1) throw new FormatException("switchIndex must be unique and consecutive from 1");
         return result;
     }
-    public static List<TaskSwitchWorkCondition> ParseWork(string text,int sourceCycles)
+    public static List<TaskSwitchWorkCondition> ParseWork(string text,int sourceCycles, bool repeatSource = false)
     {
         var result=new List<TaskSwitchWorkCondition>();var keys=new HashSet<string>();
         foreach(var row in Rows(text))
@@ -80,11 +80,12 @@ public static class TaskSwitchConditionCsv
             var entry=new TaskSwitchWorkCondition { role=role,index=Positive(row,"index"),pickupX=Number(row,"pickupX"),pickupZ=Number(row,"pickupZ"),
                 placementX=Number(row,"placementX"),placementZ=Number(row,"placementZ"),pickupCount=Positive(row,"pickupCount"),placementCount=Positive(row,"placementCount") };
             if(entry.placementCount>entry.pickupCount) throw new FormatException("placementCount exceeds pickupCount");
-            if(role=="Source" && (entry.index>sourceCycles || (entry.index<sourceCycles && entry.placementCount!=entry.pickupCount)))
+            if(role=="Source" && ((!repeatSource && entry.index>sourceCycles) || ((repeatSource || entry.index<sourceCycles) && entry.placementCount!=entry.pickupCount)))
                 throw new FormatException("Source cycles before the last must place all picked boards before the next Move1");
             if(!keys.Add(role+":"+entry.index)) throw new FormatException("Duplicate work condition: " + role + ":" + entry.index);
             result.Add(entry);
         }
+        if (repeatSource) sourceCycles = Math.Max(sourceCycles, result.FindAll(c => c.role == "Source").Count);
         for(int i=1;i<=sourceCycles;i++) if(!keys.Contains("Source:"+i)) throw new FormatException("Missing Source condition: " + i);
         return result;
     }

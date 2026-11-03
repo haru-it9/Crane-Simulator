@@ -141,10 +141,16 @@ public class CraneWorkCycleController : MonoBehaviour
         CraneWorkTargetXSelection.First;
 
     private TaskSwitchWorkCondition[] experimentConditions;
+    private bool repeatExperimentConditions;
     private bool taskSegment;
     private CraneStatusManager.WorkPhase segmentEndPhase;
 
-    public void SetExperimentConditions(TaskSwitchWorkCondition[] conditions) { experimentConditions = conditions; if (conditions == null) taskSegment = false; }
+    public void SetExperimentConditions(TaskSwitchWorkCondition[] conditions, bool repeat = false)
+    {
+        experimentConditions = conditions;
+        repeatExperimentConditions = repeat;
+        if (conditions == null) taskSegment = false;
+    }
     public bool StartTaskSegment(CraneStatusManager.WorkPhase start, CraneStatusManager.WorkPhase end)
     {
         taskSegment = true; segmentEndPhase = end;
@@ -544,11 +550,12 @@ public class CraneWorkCycleController : MonoBehaviour
         {
             completedCycleCount++;
             CycleCompleted?.Invoke(this, completedCycleCount);
-
             Log(
                 $"CycleCompleted, Crane={GetCraneLabel()}, " +
                 $"Completed={completedCycleCount}/{totalCycleCount}"
             );
+
+            if (!isRunning) return;
 
             if (completedCycleCount >= totalCycleCount)
             {
@@ -754,8 +761,11 @@ public class CraneWorkCycleController : MonoBehaviour
             return false;
         }
 
-        TaskSwitchWorkCondition condition = experimentConditions != null && experimentConditions.Length >= CurrentCycleNumber
-            ? experimentConditions[CurrentCycleNumber-1] : null;
+        int conditionIndex = CurrentCycleNumber - 1;
+        if (repeatExperimentConditions && experimentConditions != null && experimentConditions.Length > 0)
+            conditionIndex %= experimentConditions.Length;
+        TaskSwitchWorkCondition condition = experimentConditions != null && conditionIndex < experimentConditions.Length
+            ? experimentConditions[conditionIndex] : null;
         if (condition != null)
         {
             bool pickup = phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.LiftUp;

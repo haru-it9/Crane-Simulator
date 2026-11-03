@@ -78,6 +78,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public PilotDirectionDisplay PilotSupport => pilotDirectionDisplay;
     public float PilotDisplaySeconds => pilotDisplaySeconds;
 
+    [SerializeField, Min(0.1f)] private float pilotMinimumRequestIntervalSeconds = 10f;
+    [SerializeField, Min(0.1f)] private float pilotMaximumRequestIntervalSeconds = 20f;
+
+    private const int PilotRequiredSwitches = 12;
+    private const int PilotRequiredSourceCycles = 6;
+    private double pilotRequestDue = -1;
     private bool pilotFullCycle;
     private string PilotWorkLabel => pilotFullCycle ? "1サイクル" : "1大フェーズ";
     private CraneStatusManager.WorkPhase TargetEndPhase => !pilotExperiment
@@ -274,7 +280,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private int completedSwitchCount;
 
     public string SwitchScheduleCsvText => EffectiveSwitchScheduleCsv != null ? EffectiveSwitchScheduleCsv.text : "";
-    public int SourceTotalCycleCount => sourceTotalCycleCount;
+    public int SourceTotalCycleCount => pilotExperiment ? PilotRequiredSourceCycles : sourceTotalCycleCount;
     public float CountdownSeconds => pilotExperiment ? pilotSwitchDeadlineSeconds : switchMethod == TaskSwitchMethod.CountdownOperatorInitiated
         ? operatorSwitchDeadlineSeconds : countdownSeconds;
     public float OperatorSwitchDeadlineSeconds => operatorSwitchDeadlineSeconds;
@@ -288,6 +294,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public bool TargetRunsFullCycle => pilotExperiment && pilotFullCycle;
     public bool CanRequestSwitch =>
         !ExperimentPauseManager.IsPaused &&
+        (!pilotExperiment || (completedSwitchCount < PilotRequiredSwitches && !pendingOperationInputUnlock)) &&
         (currentState == TaskSwitchExperimentState.OperatingSource ||
          currentState == TaskSwitchExperimentState.OperatingReturnedSource);
 
@@ -349,6 +356,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         UpdateSecondarySubtask();
         if (ExperimentPauseManager.IsPaused) return;
         UpdatePendingOperationInputUnlock();
+        if (pilotExperiment && UpdatePilotRequestTimer()) return;
         // Resolve the deadline before a simultaneous confirmation press. Public UI
         // callbacks perform the same check, so expiration never counts as early choice.
         if (TryCompleteOperatorDeadline()) return;
@@ -460,13 +468,21 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             Debug.LogError("予備実験では Countdown または CountdownOperatorInitiated を選択してください。", this);
             return;
         }
+        if (pilotExperiment && (sourceCycleController == null || !useRealWorkPhaseBoundary ||
+            !(pilotMinimumRequestIntervalSeconds > 0f) ||
+            !(pilotMaximumRequestIntervalSeconds >= pilotMinimumRequestIntervalSeconds) ||
+            float.IsInfinity(pilotMaximumRequestIntervalSeconds)))
+        {
+            Debug.LogError("予備実験にはSourceサイクル監視と正しい要請間隔の範囲が必要です。", this);
+            return;
+        }
         if (!LoadExperimentConditions()) return;
         ApplyTargetCycleStartCondition();
 
         if (sourceCycleController != null)
         {
             sourceCycleController.SetTotalCycleCount(
-                sourceTotalCycleCount
+                pilotExperiment ? int.MaxValue : sourceTotalCycleCount
             );
         }
 
@@ -491,9 +507,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         scheduledSwitchDueRealtime = 0f;
         scheduledSwitchDelaySeconds = 0f;
         currentSwitchIndex = 0;
+        pilotRequestDue = -1;
         completedSwitchCount = 0;
         EmitEvent("SwitchScheduleLoaded", $"Count={scheduledSwitches.Count};File={(runSwitchScheduleCsv!=null?runSwitchScheduleCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
-        EmitEvent("WorkConditionsLoaded", $"Count={experimentWorkConditions.Count};SourceCycles={sourceTotalCycleCount};File={(runWorkConditionsCsv!=null?runWorkConditionsCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
+        EmitEvent("WorkConditionsLoaded", $"Count={experimentWorkConditions.Count};SourceCycles={SourceTotalCycleCount};File={(runWorkConditionsCsv!=null?runWorkConditionsCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
         pendingOperationInputUnlock = false;
         confirmationAcceptedUntilRealtime = 0f;
         HideAutomaticOperationObjects();
@@ -552,7 +569,42 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent("SourceOperationStarted");
     }
 
+    private bool UpdatePilotRequestTimer()
+    {
+        if (!CanRequestSwitch) return false;
+        double now = ExperimentPauseManager.ActiveRealtime;
+        if (pilotRequestDue < 0)
+        {
+            float interval = UnityEngine.Random.Range(
+                pilotMinimumRequestIntervalSeconds, pilotMaximumRequestIntervalSeconds);
+            pilotRequestDue = now + interval;
+            EmitEvent("PilotRequestTimerStarted", $"IntervalSeconds={interval:F3}");
+        }
+        if (now < pilotRequestDue) return false;
+        pilotRequestDue = -1;
+        RequestSwitchCore();
+        return true;
+    }
+
+    private void TryCompletePilotExperiment()
+    {
+        if (pilotExperiment && completedSwitchCount >= PilotRequiredSwitches &&
+            sourceCycleController != null &&
+            sourceCycleController.CompletedCycleCount >= PilotRequiredSourceCycles)
+            CompleteExperiment();
+    }
+
+    private void HandleSourceCycleCompleted(CraneWorkCycleController controller, int completedCycles)
+    {
+        if (controller == sourceCycleController) TryCompletePilotExperiment();
+    }
+
     public void RequestSwitch()
+    {
+        if (!pilotExperiment) RequestSwitchCore();
+    }
+
+    private void RequestSwitchCore()
     {
         if (!CanRequestSwitch)
         {
@@ -562,7 +614,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        int nextSwitchIndex = currentSwitchIndex + 1;
+        int nextSwitchIndex = (pilotExperiment ? completedSwitchCount : currentSwitchIndex) + 1;
+        if (pilotExperiment) pilotRequestDue = -1;
 
         // 手動要求またはCSVタイマー発火のどちらでも、
         // 進行中の予約タイマーをここで終了します。
@@ -717,7 +770,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent(
             "ExperimentCompleted",
             $"Requested={currentSwitchIndex};" +
-            $"Completed={completedSwitchCount}"
+            $"Completed={completedSwitchCount}" +
+            (pilotExperiment ? $";SourceCycles={sourceCycleController.CompletedCycleCount}" : "")
         );
         SetState(TaskSwitchExperimentState.Completed);
         HideTransitionPanels();
@@ -1794,6 +1848,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             "SwitchCompleted",
             $"SwitchIndex={currentSwitchIndex}"
         );
+        TryCompletePilotExperiment();
     }
 
     private void RecoverAfterFailedTargetSelection(string detail)
@@ -2114,6 +2169,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             sourceCycleController.AllCyclesCompleted +=
                 HandleSourceAllCyclesCompleted;
+            sourceCycleController.CycleCompleted += HandleSourceCycleCompleted;
             sourceCycleSubscribed = true;
         }
 
@@ -2141,6 +2197,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             sourceCycleController.AllCyclesCompleted -=
                 HandleSourceAllCyclesCompleted;
+            sourceCycleController.CycleCompleted -= HandleSourceCycleCompleted;
         }
 
         if (sourceSchedulePhaseSubscribed &&

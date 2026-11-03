@@ -33,12 +33,12 @@ public partial class TaskSwitchExperimentManager
     private bool runUseSwitchScheduleCsv, runCsvFilesLoaded;
     private bool HasActiveRunCsvFiles => runCsvFilesLoaded &&
         currentState != TaskSwitchExperimentState.Idle && currentState != TaskSwitchExperimentState.Completed;
-    private TextAsset EffectiveSwitchScheduleCsv => HasActiveRunCsvFiles ? runSwitchScheduleCsv :
+    private TextAsset EffectiveSwitchScheduleCsv => pilotExperiment ? null : HasActiveRunCsvFiles ? runSwitchScheduleCsv :
         useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.switchScheduleCsv : switchScheduleCsv;
     private TextAsset EffectiveWorkConditionsCsv => HasActiveRunCsvFiles ? runWorkConditionsCsv :
         useSwitchMethodCsvPairs ? SelectedMethodCsvPair?.workConditionsCsv : workConditionsCsv;
-    private bool ShouldUseSwitchScheduleCsv => HasActiveRunCsvFiles ? runUseSwitchScheduleCsv :
-        useSwitchMethodCsvPairs || useSwitchScheduleCsv;
+    private bool ShouldUseSwitchScheduleCsv => !pilotExperiment && (HasActiveRunCsvFiles ? runUseSwitchScheduleCsv :
+        useSwitchMethodCsvPairs || useSwitchScheduleCsv);
     public string WorkConditionsCsvText => EffectiveWorkConditionsCsv != null ? EffectiveWorkConditionsCsv.text : "";
     public string ActiveTargetWorkConditionJson => activeTargetWorkCondition != null ? JsonUtility.ToJson(activeTargetWorkCondition) : "";
     public TaskSwitchTargetTaskPattern ActiveTargetTaskPattern => activeTargetTaskPattern;
@@ -102,7 +102,12 @@ public partial class TaskSwitchExperimentManager
         }
     }
 
-    private TaskSwitchWorkCondition SourceWorkCondition(int cycle) => experimentWorkConditions.Find(c=>c.role=="Source" && c.index==cycle);
+    private int pilotSourceRows;
+    private TaskSwitchWorkCondition SourceWorkCondition(int cycle)
+    {
+        int index = pilotExperiment && pilotSourceRows > 0 ? (cycle - 1) % pilotSourceRows + 1 : cycle;
+        return experimentWorkConditions.Find(c => c.role == "Source" && c.index == index);
+    }
     private void SelectTargetCondition(int switchIndex)
     {
         var entry=scheduledSwitches.Find(e=>e.switchIndex==switchIndex);
@@ -120,18 +125,23 @@ public partial class TaskSwitchExperimentManager
         {
             // Resolve from Inspector for this start, not from the previous run's snapshot.
             var pair = SelectedMethodCsvPair;
-            if(useSwitchMethodCsvPairs && (pair==null || pair.switchScheduleCsv==null || pair.workConditionsCsv==null))
+            if(useSwitchMethodCsvPairs && (pair==null || (!pilotExperiment && pair.switchScheduleCsv==null) || pair.workConditionsCsv==null))
                 throw new FormatException($"{switchMethod}: SwitchMethod別設定のSwitch Schedule CSVとWork Conditions CSVを両方登録してください。");
-            TextAsset scheduleFile = useSwitchMethodCsvPairs ? pair.switchScheduleCsv : switchScheduleCsv;
+            TextAsset scheduleFile = pilotExperiment ? null : useSwitchMethodCsvPairs ? pair.switchScheduleCsv : switchScheduleCsv;
             TextAsset workFile = useSwitchMethodCsvPairs ? pair.workConditionsCsv : workConditionsCsv;
-            bool scheduleEnabled = useSwitchMethodCsvPairs || useSwitchScheduleCsv;
+            bool scheduleEnabled = !pilotExperiment && (useSwitchMethodCsvPairs || useSwitchScheduleCsv);
             var schedule=scheduleEnabled && scheduleFile!=null
                 ? TaskSwitchConditionCsv.ParseSchedule(scheduleFile.text,targetTaskPattern,sourceTotalCycleCount)
                 : new List<TaskSwitchScheduleRow>();
-            if (pilotExperiment && schedule.Count > 0 &&
-                (schedule.Count % 2 != 0 || schedule.Exists(e => e.switchIndex > schedule.Count)))
-                throw new FormatException("予備実験の切替スケジュールは、連続した切替番号で偶数件を指定してください。");
-            var work=workFile!=null ? TaskSwitchConditionCsv.ParseWork(workFile.text,sourceTotalCycleCount) : new List<TaskSwitchWorkCondition>();
+            var work=workFile!=null ? TaskSwitchConditionCsv.ParseWork(workFile.text, SourceTotalCycleCount, pilotExperiment) : new List<TaskSwitchWorkCondition>();
+            pilotSourceRows = pilotExperiment ? work.FindAll(c => c.role == "Source").Count : 0;
+            if (pilotExperiment)
+            {
+                if (workFile == null) throw new FormatException("予備実験には Work Conditions CSV が必要です。");
+                for (int i = 1; i <= PilotRequiredSwitches; i++)
+                    if (!work.Exists(c => c.role == "Target" && c.index == i))
+                        throw new FormatException("Missing Target work condition: " + i);
+            }
             if(workFile!=null)
             {
                 foreach(var e in schedule) if(!work.Exists(c=>c.role=="Target" && c.index==e.switchIndex)) throw new FormatException("Missing Target work condition: " + e.switchIndex);
@@ -147,7 +157,7 @@ public partial class TaskSwitchExperimentManager
             foreach(var e in schedule) scheduledSwitches.Add(new ScheduledSwitchEntry { switchIndex=e.switchIndex,sourceCycle=e.sourceCycle,sourcePhase=e.sourcePhase,
                 minimumDelaySeconds=e.minimumDelaySeconds,maximumDelaySeconds=e.maximumDelaySeconds,targetTaskPattern=e.targetTaskPattern });
             SelectTargetCondition(1);
-            if(sourceCycleController!=null) sourceCycleController.SetExperimentConditions(work.FindAll(c=>c.role=="Source").ToArray());
+            if(sourceCycleController!=null) sourceCycleController.SetExperimentConditions(work.FindAll(c=>c.role=="Source").ToArray(), pilotExperiment);
             return true;
         }
         catch(Exception e) { Debug.LogError("TaskSwitch CSV: " + e.Message,this);return false; }
