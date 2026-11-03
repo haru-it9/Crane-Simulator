@@ -62,7 +62,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [Min(0f)]
     private float operatorSwitchDeadlineSeconds = 10f;
 
-    public enum PilotDirectionDisplay { None, Temporary, Continuous }
+    public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary }
     public enum PilotWorkOrder { Alternate, ShuffledPairs }
 
     [Header("予備実験")]
@@ -1386,6 +1386,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         int cycleNumber
     )
     {
+        if (controller == sourceCycleController)
+            NotifyPilotSupportPhaseStarted(phase, cycleNumber);
+
         if (!ShouldUseSwitchScheduleCsv ||
             controller != sourceCycleController ||
             scheduledSwitches.Count == 0)
@@ -1559,11 +1562,25 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         );
     }
 
+    private void NotifyPilotSupportPhaseStarted(CraneStatusManager.WorkPhase phase, int cycleNumber)
+    {
+        if (!pilotExperiment || pilotDirectionDisplay != PilotDirectionDisplay.MovementPhaseTemporary)
+            return;
+
+        bool isMovement = phase == CraneStatusManager.WorkPhase.Move1 ||
+            phase == CraneStatusManager.WorkPhase.Move2;
+        EmitEvent(isMovement ? "PilotMovementPhaseStarted" : "PilotNonMovementPhaseStarted",
+            $"Phase={phase};Cycle={cycleNumber}");
+    }
+
     private void HandleTargetPhaseStarted(
         CraneWorkCycleController controller,
         CraneStatusManager.WorkPhase phase,
         int cycleNumber)
     {
+        if (controller == targetCycleController)
+            NotifyPilotSupportPhaseStarted(phase, cycleNumber);
+
         if (!pilotExperiment || controller != targetCycleController ||
             currentState != TaskSwitchExperimentState.OperatingTarget || phase != TargetEndPhase)
             return;

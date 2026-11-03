@@ -205,6 +205,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         switch (data.eventName)
         {
+            case "PilotMovementPhaseStarted": ShowMovementPhase(); break;
+            case "PilotNonMovementPhaseStarted": HideArrows(data.eventName); break;
             case "TargetDisplaySwitched": Show(true); break;
             case "SourceDisplayRestored": Show(false); break;
             case "TargetOperationStarted":
@@ -225,6 +227,27 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             case "TargetOperationStartFailed":
             case "SourceReturnFailed": Hide(data.eventName); break;
         }
+    }
+
+    private void ShowMovementPhase()
+    {
+        if (supportRoot == null || operationManager == null || !operationManager.IsTaskSwitchExperimentMode)
+            return;
+
+        HideArrows("MovementPhaseStarted");
+        BindSelectedCrane();
+        if (selectedCrane == null) return;
+
+        targetSide = experimentManager.CurrentState == TaskSwitchExperimentState.OperatingTarget;
+        awaitingConfirmation = false;
+        previewStep = null;
+        lastPresentation = string.Empty;
+        chevronCountsCaptured = false;
+        arrowTimerStarted = false;
+        currentFeedbackActive = true;
+        visible = true;
+        supportRoot.SetActive(true);
+        StartArrowTimer("MovementPhaseStarted");
     }
 
     private void Show(bool isTarget)
@@ -250,7 +273,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentHighlightLatched = hasCurrentLiftSample = false;
         currentLabelDecisionPending = true;
         visible = !experimentManager.IsPilotExperiment ||
-            experimentManager.PilotSupport != TaskSwitchExperimentManager.PilotDirectionDisplay.None;
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary ||
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
         supportRoot.SetActive(true);
         Record(experimentManager.IsPilotExperiment ? "Prepared" : "Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
             ";Content=" + supportContent + ";DurationSeconds=" +
@@ -566,7 +590,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private float EffectiveFadeSeconds => Mathf.Min(Mathf.Max(0.1f, EffectiveDisplaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
     private float WindowOpacity => Mathf.Clamp01((float)(hideAt - ExperimentPauseManager.ActiveRealtime) / EffectiveFadeSeconds);
 
-    private void StartArrowTimer()
+    private void StartArrowTimer(string anchor = "InputUnlocked")
     {
         if (!visible || arrowTimerStarted || awaitingConfirmation || operationManager == null ||
             operationManager.CurrentCraneInstance != selectedCrane) return;
@@ -575,7 +599,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
         hideAt = continuous ? double.PositiveInfinity :
             ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, EffectiveDisplaySeconds);
-        Record("ArrowTimerStarted", "Anchor=InputUnlocked;Role=" + (targetSide ? "Target" : "Source") +
+        Record("ArrowTimerStarted", "Anchor=" + anchor + ";Role=" + (targetSide ? "Target" : "Source") +
             ";DurationSeconds=" + (continuous ? "Continuous" : EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture)));
         RefreshPresentation();
     }
