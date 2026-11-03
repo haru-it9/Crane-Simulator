@@ -79,6 +79,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private bool subscribed, visible, targetSide, awaitingConfirmation;
     private double hideAt;
     private bool arrowTimerStarted;
+    private bool verticalOnlySwitchCue;
     private bool currentHighlightWindowActive;
     private bool currentFeedbackActive;
     private bool currentHighlightLatched, hasCurrentLiftSample;
@@ -206,7 +207,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         switch (data.eventName)
         {
             case "PilotMovementPhaseStarted": ShowMovementPhase(); break;
-            case "PilotNonMovementPhaseStarted": HideArrows(data.eventName); break;
+            case "PilotNonMovementPhaseStarted":
+                if (!verticalOnlySwitchCue || arrowTimerStarted) HideArrows(data.eventName);
+                break;
             case "TargetDisplaySwitched": Show(true); break;
             case "SourceDisplayRestored": Show(false); break;
             case "TargetOperationStarted":
@@ -235,6 +238,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             return;
 
         HideArrows("MovementPhaseStarted");
+        verticalOnlySwitchCue = false;
         BindSelectedCrane();
         if (selectedCrane == null) return;
 
@@ -272,7 +276,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         currentFeedbackActive = true;
         currentHighlightLatched = hasCurrentLiftSample = false;
         currentLabelDecisionPending = true;
-        visible = !experimentManager.IsPilotExperiment ||
+        verticalOnlySwitchCue = experimentManager.IsPilotExperiment &&
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.MovementPhaseTemporary;
+        visible = !experimentManager.IsPilotExperiment || verticalOnlySwitchCue ||
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary ||
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
         supportRoot.SetActive(true);
@@ -406,11 +412,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
         }
-        SetArrow(leftFade, leftXArrow, showDirection ? movement.x : 0f,
+        bool showHorizontal = showDirection && !verticalOnlySwitchCue;
+        SetArrow(leftFade, leftXArrow, showHorizontal ? movement.x : 0f,
             positiveXPointsUp, true, xCount);
         SetArrow(rightYFade, rightYArrow, showDirection ? movement.y : 0f,
             positiveYPointsUp, true, yCount);
-        SetArrow(rightZFade, rightZArrow, showDirection ? movement.z : 0f,
+        SetArrow(rightZFade, rightZArrow, showHorizontal ? movement.z : 0f,
             positiveZPointsRight, false, zCount);
         if (rightYLabel != null && movement.y != 0f && showDirection)
         {
@@ -422,9 +429,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";X=" + movement.x + ";Y=" + movement.y + ";Z=" + movement.z +
             ";Content=" + supportContent + ";GoalAvailable=" + hasGoal +
             ";DirectionPresentation=" + directionPresentation +
-            ";ChevronsX=" + DisplayedCount(showDirection, movement.x, xCount) +
+            ";ChevronsX=" + DisplayedCount(showHorizontal, movement.x, xCount) +
             ";ChevronsY=" + DisplayedCount(showDirection, movement.y, yCount) +
-            ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
+            ";ChevronsZ=" + DisplayedCount(showHorizontal, movement.z, zCount) +
             ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
             ";CurrentGuidance=" + currentGuidance +
             ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
@@ -507,6 +514,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         float progress = Mathf.Clamp01((float)(ExperimentPauseManager.ActiveRealtime - currentLabelFadeStarted) /
             Mathf.Clamp(currentInputLabelFadeSeconds, 0.5f, 1f));
         currentInputLabel.color = Color.Lerp(currentLabelFadeColor, Color.white, progress);
+        SetCurrentHighlight(0f);
         if (progress >= 1f) ResetCurrentInputLabel("ControllerInputStarted");
     }
 
@@ -721,6 +729,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         Color appropriateColor = coordinateColorSource != null
             ? coordinateColorSource.AchievedValueColor : new Color(0.65f, 1f, 0.10f, 1f);
         Color highlightColor = appropriate ? appropriateColor : phaseText != null ? phaseText.color : Color.white;
+        if (currentLabelHighlighted && currentInputLabel != null)
+        {
+            strength = 1f;
+            highlightColor = currentInputLabel.color;
+        }
         foreach (LifMagAccumValueText display in currentValueDisplays)
             if (display != null) display.SetCognitiveSupportHighlight(strength, highlightColor);
     }
