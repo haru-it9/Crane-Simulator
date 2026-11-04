@@ -318,6 +318,13 @@ static class FlowTests
             int errors=Debug.Errors;
             r.Manager.StartExperiment();
             Require(r.Manager.CurrentState==TaskSwitchExperimentState.Idle && Debug.Errors>errors && !r.Op.IsTaskSwitchExperimentMode,"missing later pickup stock did not abort start: "+pattern);
+            r.Registry.cranes[0].BoardGenerator.MissingPickupZ=null;
+            var first=rows.Find(row=>row.role=="Source" && row.index==1);
+            r.Registry.cranes[0].BoardGenerator.LimitedPickupZ=first.pickupZ;
+            r.Registry.cranes[0].BoardGenerator.AvailablePickupCount=first.pickupCount;
+            errors=Debug.Errors;r.Manager.StartExperiment();
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.Idle && Debug.Errors>errors,
+                "stock for the optional fourth pickup was not reserved before start: "+pattern);
         }
         Console.WriteLine("PASS: all 6 pilot presets select their CSV; later missing Source stock is rejected before operation starts");
     }
@@ -333,7 +340,7 @@ static class FlowTests
             Set(r.Manager,"pilotMinimumRequestIntervalSeconds",10000f);
             Set(r.Manager,"pilotMaximumRequestIntervalSeconds",10000f);
             r.Manager.StartExperiment();
-            Require(r.Cycle(0).TotalCycleCount==3,"short pilot Source must have exactly three cycles");
+            Require(r.Cycle(0).TotalCycleCount==4,"short pilot must reserve one optional pickup extension");
             for(int index=1;index<=6;index++)
             {
                 bool last=index==6;
@@ -377,7 +384,13 @@ static class FlowTests
                 }
                 if(last && r.Cycle(0).CompletedCycleCount==3)
                 {
-                    Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"last return did not finish an already completed Source");
+                    if(r.Manager.CurrentState!=TaskSwitchExperimentState.Completed)
+                    {
+                        Require(r.Cycle(0).CurrentCycleNumber==4,"unfinished Source was not the optional extension");
+                        if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1)r.Complete(0);
+                        r.Attach(0,1);r.Complete(0);
+                    }
+                    Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"last return did not complete Source or its extension");
                     break;
                 }
                 if(index%2==1)
@@ -396,10 +409,10 @@ static class FlowTests
                 }
             }
             Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Cycle(0).CompletedCycleCount==3 &&
-                r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place && !r.Cycle(0).IsRunning,"pilot ended outside exactly three full source cycles");
+                (r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place || r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) && !r.Cycle(0).IsRunning,"pilot ended outside three full source cycles and an optional pickup");
             Require(r.Events.FindAll(e=>e=="ExperimentCompleted").Count==1,"duplicate pilot completion");
         }
-        Console.WriteLine("PASS: all 6 short pilot presets, early/automatic switching and delayed final return, no distribution hold, six returns and exactly three full Source cycles ending at placement");
+        Console.WriteLine("PASS: all 6 short pilot presets, early/automatic switching and delayed final return, no distribution hold, six returns and three full Source cycles with optional pickup extension");
     }
 
     static void CheckPilotSourceContinuity()
@@ -414,29 +427,178 @@ static class FlowTests
         Require(!r.Cycle(0).IsWaitingAtBoundary && !(bool)Get(r.Cycle(0),"holdAfterCurrentPhase"),"countdown held a completed LiftUp");
         Require(r.Cycle(0).ContinueAfterBoundary() && r.Target(0).targetX==-4 && r.Target(0).targetZ==0,"countdown did not update the next movement goal");
         Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"next Source phase cancelled the countdown");
-        // Fast Source / long countdown: allow all three cycles to finish first.
+        // The pending countdown can outlast cycle 3. Continue through Move1
+        // and LiftUp of cycle 4; never truncate time or start its Move2.
         r.Complete(0);r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
         for(int cycle=2;cycle<=3;cycle++)
         {
             r.Complete(0);r.Attach(0,cycle==2?2:1);r.Complete(0);r.Complete(0);
             r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
         }
-        Require(r.Cycle(0).CompletedCycleCount==3 && !r.Cycle(0).IsRunning && r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"Source work was held or experiment ended before switching");
+        Require(r.Cycle(0).CompletedCycleCount==3 && r.Cycle(0).IsRunning &&
+            r.Cycle(0).CurrentCycleNumber==4 && r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1 &&
+            r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"Source did not extend into cycle 4 with its countdown intact");
+        Require(r.Target(0).targetX==4 && r.Target(0).targetZ==-2,"extension did not reuse the first Source CSV goal");
+        r.Complete(0);r.Attach(0,1);r.Complete(0);
+        Require(r.Cycle(0).CompletedCycleCount==3 && !r.Cycle(0).IsRunning &&
+            r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp &&
+            r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"extension entered Move2 or shortened the countdown");
         for(int index=1;index<=6;index++)
         {
-            Time.realtimeSinceStartupAsDouble+=10;r.Update();r.Manager.ConfirmTargetTask();r.Update();
+            double requestDue=(double)Get(r.Manager,"operatorDeadlineActiveRealtime");
+            Time.realtimeSinceStartupAsDouble=requestDue-.001;r.Update();
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"extension truncated the switch deadline");
+            Time.realtimeSinceStartupAsDouble=requestDue;r.Update();
+            FinishPilotTargetAndReturn(r);
+            Require(r.Manager.CompletedSwitchCount==index && r.Cycle(0).CompletedCycleCount==3 && !r.Cycle(0).IsRunning,
+                "extension return restarted Source or lost a switch");
+            if(index<6)
+            {
+                r.Update();double due=(double)Get(r.Manager,"pilotRequestDue");
+                Time.realtimeSinceStartupAsDouble=due;r.Update();
+            }
+        }
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Events.Contains("PilotSourceExtensionCompleted"),"extended pilot did not finish six returns");
+        r.Manager.ExitExperimentMode();r.Manager.StartExperiment();
+        Require(r.Cycle(0).CompletedCycleCount==0 && !(bool)Get(r.Manager,"pilotSourceExtensionStarted") &&
+            !(bool)Get(r.Manager,"pilotSourceExtensionCompleted"),"restart retained the previous extension state");
+        r.Manager.ExitExperimentMode();
+        Console.WriteLine("PASS: normal goals advance during countdown; a fast Source continues into cycle 4, ends at LiftUp, honors every full countdown and completes six returns without a fourth full cycle");
+    }
+
+    static void FinishPilotTargetAndReturn(Rig r)
+    {
+        r.Manager.ConfirmTargetTask();r.Update();
+        var work=(TaskSwitchWorkCondition)Get(r.Manager,"activeTargetWorkCondition");
+        for(int phase=0;r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && phase<4;phase++)
+        {
+            if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(1,work.pickupCount);
+            if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Place) r.Registry.cranes[1].LifMagSystem.AttachedBoards.Clear();
+            r.Complete(1);
+        }
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForSourceConfirmation,"Target failed to return");
+        r.Manager.ConfirmTargetTask();r.Update();
+    }
+
+    static void CheckPilotRandomRequestsAndTerminalLimit()
+    {
+        ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.PauseOffsetSeconds=0;Input.buttons.Clear();
+        var phases=new HashSet<CraneStatusManager.WorkPhase>();
+        for(int seed=0;seed<64;seed++)
+        {
+            Time.realtimeSinceStartupAsDouble=0;
+            var r=new Rig(TaskSwitchMethod.OperatorInitiated);
+            Set(r.Manager,"pilotExperiment",true);Set(r.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
+            Set(r.Manager,"pilotRequestTimingSeed",seed);
+            r.Manager.StartExperiment();r.Update();
+            double due=(double)Get(r.Manager,"pilotRequestDue");
+            Require(due>=10 && due<=20,"random request outside configured interval");
+            for(int tick=1;tick<=81 && r.Manager.CurrentSwitchIndex==0;tick++)
+            {
+                Time.realtimeSinceStartupAsDouble=tick*.25;
+                if(tick%12==0)
+                {
+                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(0,r.Cycle(0).CurrentCycleNumber==2?2:1);
+                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place) r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();
+                    r.Complete(0);
+                }
+                r.Update();
+                if(Time.realtimeSinceStartupAsDouble<due) Require(r.Manager.CurrentSwitchIndex==0,"phase boundary advanced an unexpired random timer");
+            }
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"random request did not fire");
+            Require(Time.realtimeSinceStartupAsDouble>=due && !r.Events.Contains("PilotRequestAdvanced"),"request was promoted at a boundary");
+            phases.Add(r.Cycle(0).CurrentPhase);
+            r.Manager.ExitExperimentMode();
+        }
+        Require(phases.Count==4,"random timing failed to cover all four major phases across seeds");
+        // The second request is allowed in Move1 as well, rather than waiting for Move2.
+        Time.realtimeSinceStartupAsDouble=0;
+        var samePhase=new Rig(TaskSwitchMethod.OperatorInitiated);
+        Set(samePhase.Manager,"pilotExperiment",true);Set(samePhase.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
+        Set(samePhase.Manager,"pilotMinimumRequestIntervalSeconds",2f);Set(samePhase.Manager,"pilotMaximumRequestIntervalSeconds",2f);
+        samePhase.Manager.StartExperiment();samePhase.Update();
+        Time.realtimeSinceStartupAsDouble=2;samePhase.Update();FinishPilotTargetAndReturn(samePhase);samePhase.Update();
+        double secondDue=(double)Get(samePhase.Manager,"pilotRequestDue");
+        Require(secondDue>2,"second timer did not start in Move1");
+        Time.realtimeSinceStartupAsDouble=secondDue;samePhase.Update();
+        Require(samePhase.Manager.CurrentSwitchIndex==2 && samePhase.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1,"second request was restricted to Move2 or placement");
+        FinishPilotTargetAndReturn(samePhase);samePhase.Update();
+        Require(samePhase.Manager.CompletedSwitchCount==2 && (double)Get(samePhase.Manager,"pilotRequestDue")<0,"third request flooded the first Source cycle");
+        // All six presets: the sixth request spans the third cycle's end.
+        // Return in either Move1 or LiftUp of the extension, then finish that pickup.
+        for(int preset=1;preset<=6;preset++) for(int returnPhase=0;returnPhase<2;returnPhase++)
+        {
+            Time.realtimeSinceStartupAsDouble=0;Input.buttons.Clear();
+            var r=new Rig(TaskSwitchMethod.OperatorInitiated);var events=new List<TaskSwitchEventData>();r.Manager.ExperimentEventOccurred+=events.Add;
+            Set(r.Manager,"pilotExperiment",true);Set(r.Manager,"pilotCondition",(TaskSwitchExperimentManager.PilotCondition)preset);
+            Set(r.Manager,"pilotMinimumRequestIntervalSeconds",10000f);Set(r.Manager,"pilotMaximumRequestIntervalSeconds",10000f);
+            r.Manager.StartExperiment();
+            for(int cycle=1;cycle<=2;cycle++)
+            {
+                r.Complete(0);r.Attach(0,cycle==2?2:1);r.Complete(0);r.Complete(0);
+                r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
+            }
+            Set(r.Manager,"completedSwitchCount",5);Set(r.Manager,"currentSwitchIndex",5);
+            r.Complete(0);r.Attach(0,1);r.Complete(0);r.Complete(0); // Last Place.
+            if(preset!=4) typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(r.Manager,new object[]{"Test"});
+            r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0); // Fourth Move1.
+            Require(r.Cycle(0).CurrentCycleNumber==4 && r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1 &&
+                r.Cycle(0).IsRunning,"third cycle stopped before the optional pickup");
+            if(returnPhase==1) r.Complete(0);
+            if(preset==4)
+            {
+                typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(r.Manager,new object[]{"Test"});
+                // Exercise voluntary switching before the announced boundary.
+            }
+            else
+            {
+                double due=(double)Get(r.Manager,"operatorDeadlineActiveRealtime");
+                Time.realtimeSinceStartupAsDouble=due-.001;r.Update();
+                Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"cycle completion shortened a configured countdown");
+                Time.realtimeSinceStartupAsDouble=due;r.Update();
+                Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation,"deadline did not switch during extension");
+                ExperimentPauseManager.IsPaused=true;r.Manager.ConfirmTargetTask();r.Update();
+                Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation,"Pause accepted extension confirmation");
+                ExperimentPauseManager.IsPaused=false;
+            }
+            Input.buttons["JoyStick2RedButton"]=true;r.Manager.ConfirmTargetTask();r.Update();
+            Require(r.Op.IsOperationInputLocked,"held confirmation unlocked extension Target input");
+            Input.buttons.Clear();r.Update();
             var work=(TaskSwitchWorkCondition)Get(r.Manager,"activeTargetWorkCondition");
             for(int phase=0;r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && phase<4;phase++)
             {
-                if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(1,work.pickupCount);
-                if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Place) r.Registry.cranes[1].LifMagSystem.AttachedBoards.Clear();
+                if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp)r.Attach(1,work.pickupCount);
+                if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Place)r.Registry.cranes[1].LifMagSystem.AttachedBoards.Clear();
                 r.Complete(1);
             }
             r.Manager.ConfirmTargetTask();r.Update();
-            Require(r.Manager.CompletedSwitchCount==index && r.Cycle(0).CompletedCycleCount==3 && !r.Cycle(0).IsRunning,"catch-up requests restarted the completed Source or lost a switch");
+            Require(r.Manager.CompletedSwitchCount==6 && r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource &&
+                r.Cycle(0).IsRunning && !r.Cycle(0).IsPaused &&
+                r.Cycle(0).CurrentPhase==(returnPhase==0?CraneStatusManager.WorkPhase.Move1:CraneStatusManager.WorkPhase.LiftUp),"sixth Target could not resume the extension at its original phase");
+            if(returnPhase==0)r.Complete(0);r.Attach(0,1);r.Complete(0);
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Cycle(0).CompletedCycleCount==3 &&
+                r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp && !r.Cycle(0).IsRunning,"extension did not finish at LiftUp after six returns");
+            Require(!events.Exists(e=>e.eventName=="PilotFinalPlacementDeadline"),"terminal countdown cutoff survived");
         }
-        Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"six catch-up returns did not finish the experiment");
-        Console.WriteLine("PASS: LiftUp-to-Move2 goal advances during countdown; no Source distribution holds; fast Source completes exactly 3 cycles and pending requests still finish exactly 6 switches");
+        Time.realtimeSinceStartupAsDouble=0;
+        var boundary=new Rig(TaskSwitchMethod.OperatorInitiated);
+        Set(boundary.Manager,"pilotExperiment",true);Set(boundary.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition4_AnnouncedBoundary_Temporary);
+        boundary.Manager.StartExperiment();
+        Set(boundary.Manager,"completedSwitchCount",5);Set(boundary.Manager,"currentSwitchIndex",5);
+        for(int cycle=1;cycle<=3;cycle++)
+        {
+            boundary.Complete(0);boundary.Attach(0,cycle==2?2:1);boundary.Complete(0);boundary.Complete(0);
+            boundary.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();boundary.Complete(0);
+        }
+        boundary.Complete(0);boundary.Attach(0,1);
+        typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(boundary.Manager,new object[]{"Test"});
+        boundary.Complete(0);
+        Require(boundary.Manager.CurrentState==TaskSwitchExperimentState.WaitingForConfirmation && !boundary.Cycle(0).IsRunning,
+            "announced boundary did not switch at the extension's LiftUp completion");
+        FinishPilotTargetAndReturn(boundary);
+        Require(boundary.Manager.CurrentState==TaskSwitchExperimentState.Completed && boundary.Manager.CompletedSwitchCount==6,
+            "announced-boundary final return did not close the completed extension");
+        Console.WriteLine("PASS: 64 seeds cover all four request phases without boundary promotion; second request can occur in Move1; six presets preserve full deadlines and resume cycle-4 Move1/LiftUp, including Pause and held confirmation");
     }
 
     static void CheckPlacementPlanSnapshot()
@@ -538,6 +700,7 @@ static class FlowTests
         CheckShortPilotCompletion();
         CheckPlacementPlanSnapshot();
         CheckPilotSourceContinuity();
+        CheckPilotRandomRequestsAndTerminalLimit();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

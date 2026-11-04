@@ -156,10 +156,14 @@ OperatorSwitchAvailableとOperatorSwitchConfirmationPressedで要請後の判断
 | Condition5 Countdown7s None | カウントダウン＋主導 | 7秒 | なし | PilotWorkConditionsPattern5.csv |
 | Condition6 Countdown7s Continuous | カウントダウン＋主導 | 7秒 | 常時提示 | PilotWorkConditionsPattern6.csv |
 
-全条件とも **Sourceを配置完了までちょうど3サイクル実施し、切替6回を完了して終了** します。4サイクル目には進みません。切替回数はTargetからの復帰確認が完了した時点で加算します。
-要請分散のために吊上げ完了・最終Move2・配置完了の境界で元作業を保持しません。カウントダウン中も通常どおり次フェーズ・次目標へ進みます。元作業が先に3サイクル完了した場合は、未完了の切替先作業・復帰確認を終えて終了し、元作業を再開しません。旧6サイクル12切替モードの下限判定は維持します。
+基本は **Sourceを配置完了まで3サイクル実施し、切替6回を完了して終了** します。切替回数はTargetからの復帰確認が完了した時点で加算します。
+カウントダウンは設定された3／7／10秒を維持し、元作業の進捗によって打ち切りません。期限前の切替は従来どおり作業者が赤ボタンで選択した場合だけです。
 
-要請は各サイクルの前半・後半に1回ずつを目安に分散し、猶予中に枠を通過した場合は後続フェーズで発生させます。元作業を停止させないため、操作速度によって各サイクルの実際の要請回数は変わります。遅れた要請と元作業完了後の要請はログの`RequestTrigger`・`NominalSlotCycle`・`SourceSlotCycle`で区別できます。予告式フェーズ境界方式の、切替のための本来の境界停止は維持します。
+3サイクル完了時に切替が残っている場合は、4サイクル目のMove1→LiftUp完了まで延長します。4サイクル目の目標と枚数はSource CSVの先頭行を再使用し、開始前検査で追加の板枚数も確保します。中断した場合は、その移動・吊上げから復帰して続行できます。4サイクル目のMove2・Placeには進まず、完全サイクル数は3のままです。延長吊上げが先に終わっても、未満了のカウントダウンは打ち切らず、残りの切替・復帰確認が終わってから終了します。旧6サイクル12切替モードの下限判定は維持します。
+
+要請は **Pilot Minimum Request Interval Seconds～Pilot Maximum Request Interval Seconds**（既定10～20秒）のランダムタイマーで発生します。フェーズ・ステップ境界での前倒しと、2回目をMove2以降に限定する処理はありません。タイマーは大フェーズをまたいで継続し、切替先での作業・復帰後の入力解除待ちが終わってから次のタイマーを開始します。各サイクルで名目上2枠ずつ解放して序盤への集中を抑えますが、遅れた枠は後続サイクルでも使えるため、各サイクルの実際の回数は固定しません。**Pilot Request Timing Seed** が同じなら同じ切替番号の抽選値を再現します。
+
+`SwitchRequested`の`RequestTrigger=RandomTimer`・`RequestTimerOffsetSeconds`・`NominalSlotCycle`・`SourceSlotCycle`に実際の発生条件を記録します。延長の有無は`PilotSourceExtensionScheduled`・`PilotSourceExtensionCompleted`と`ExperimentCompleted`の`ExtensionStarted`／`ExtensionCompleted`で判別できます。要請分散のために元作業や目標更新を止めません。予告式フェーズ境界方式の、切替のための本来の境界停止は維持します。
 
 Targetは吊上げ1フェーズと1サイクルを交互に各3回実施します。**Pilot Long First** がOFFなら短→長、ONなら長→短です。
 TargetのCSV行は従来どおり **Pilot Target Order Seed** によって1～6を重複なしで並べ替えます。作業の短長とCSV行の選択は独立です。

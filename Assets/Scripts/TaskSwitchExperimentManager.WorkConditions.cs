@@ -245,6 +245,11 @@ public partial class TaskSwitchExperimentManager
                 foreach (var row in experimentWorkConditions)
                     if (row.role == "Source" && row.pickupX == work.pickupX && row.pickupZ == work.pickupZ)
                         required += row.pickupCount;
+                // Reserve the extra pickup used when six switches outlast the
+                // nominal three cycles. The repeated CSV row supplies its goal.
+                var extension = pilotShortRun ? SourceWorkCondition(PilotRequiredSourceCycles + 1) : null;
+                if (extension != null && extension.pickupX == work.pickupX && extension.pickupZ == work.pickupZ)
+                    required += extension.pickupCount;
             }
             float weight; int count, spawn;
             if (generator != null && generator.TryGetPickupTargetWeightKg(
