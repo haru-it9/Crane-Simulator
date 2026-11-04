@@ -497,6 +497,7 @@ static class FlowTests
             Set(r.Manager,"pilotExperiment",true);Set(r.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
             Set(r.Manager,"pilotRequestTimingSeed",seed);
             Set(r.Manager,"pilotMinimumWindowRequestDelaySeconds",15f); // Prior serialized preset value.
+            Set(r.Manager,"pilotMaximumWindowRequestDelaySeconds",20f);
             var requestWindows=new List<int>();
             r.Manager.ExperimentEventOccurred+=e=>
             {
@@ -507,14 +508,15 @@ static class FlowTests
                 requestWindows.Add(window);
                 var starts=(double[])Get(r.Manager,"pilotRequestWindowStarts");
                 double elapsed=(double)Get(r.Manager,"pilotRequestClock")-starts[window];
-                Require(elapsed>=0 && elapsed<=20.25,"request was outside the first 20 Source seconds of its two-phase window");
+                Require(elapsed>=0 && elapsed<=15.25,"request was outside the first 15 Source seconds of its two-phase window");
                 if(elapsed<15)requestsBefore15++;
                 phases.Add(phase);
                 Require(!r.Tracker(0).IsMajorPhaseCompleted,"request anchored at a phase-completion boundary");
             };
             r.Manager.StartExperiment();float phaseSeconds=0;
-            Require((float)Get(r.Manager,"pilotMinimumWindowRequestDelaySeconds")==0,
-                "serialized 15-second lower bound survived preset application");
+            Require((float)Get(r.Manager,"pilotMinimumWindowRequestDelaySeconds")==0 &&
+                (float)Get(r.Manager,"pilotMaximumWindowRequestDelaySeconds")==15,
+                "preset did not update the saved request range to 0-15 seconds");
             for(int tick=1;tick<=1200 && r.Manager.CurrentState!=TaskSwitchExperimentState.Completed;tick++)
             {
                 Time.realtimeSinceStartupAsDouble=tick*.25;
@@ -677,7 +679,7 @@ static class FlowTests
         FinishPilotTargetAndReturn(boundary);
         Require(boundary.Manager.CurrentState==TaskSwitchExperimentState.Completed && boundary.Manager.CompletedSwitchCount==6,
             "announced-boundary final return did not close the completed extension");
-        Console.WriteLine("PASS: 64 seeds each issue exactly one request per two-phase window and six total; 0-20 Source seconds from each window start, including before 15 seconds and preset migration; pending-switch anchors, Target/Pause/input-lock exclusion, late carryover; six presets preserve deadlines and extension return");
+        Console.WriteLine("PASS: 64 seeds each issue exactly one request per two-phase window and six total; 0-15 Source seconds from each window start, including before 15 seconds and preset migration; pending-switch anchors, Target/Pause/input-lock exclusion, late carryover; six presets preserve deadlines and extension return");
     }
 
     static void CheckPlacementPlanSnapshot()

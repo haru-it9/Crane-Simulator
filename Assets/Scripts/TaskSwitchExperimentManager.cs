@@ -122,7 +122,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         pilotWorkOrder = PilotWorkOrder.Alternate;
         // Apply the corrected range to existing serialized preset selections too.
         pilotMinimumWindowRequestDelaySeconds = 0f;
-        pilotMaximumWindowRequestDelaySeconds = 20f;
+        pilotMaximumWindowRequestDelaySeconds = 15f;
     }
 
     private void OnValidate()
@@ -136,7 +136,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField, Min(0.1f)] private float pilotMaximumRequestIntervalSeconds = 20f;
     [Tooltip("3サイクル6切替: 各2フェーズ区間の開始から要請までの最小秒数。切替先・確認待ち・Pauseは除外。")]
     [SerializeField, Min(0f)] private float pilotMinimumWindowRequestDelaySeconds = 0f;
-    [SerializeField, Min(0f)] private float pilotMaximumWindowRequestDelaySeconds = 20f;
+    [SerializeField, Min(0f)] private float pilotMaximumWindowRequestDelaySeconds = 15f;
 
     [Tooltip("ON: Source 3サイクル・切替6回。切替が残る場合は4サイクル目の吊上げ完了まで延長。OFF: Source 6サイクル・切替12回。")]
     [SerializeField] private bool pilotShortRun;
