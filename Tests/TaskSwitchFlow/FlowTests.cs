@@ -339,8 +339,9 @@ static class FlowTests
                 bool last=index==6;
                 if(last)
                 {
-                    r.Tracker(0).Complete(); // The existing final Move2 guard holds before placement.
-                    Require(r.Cycle(0).IsWaitingAtBoundary && r.Cycle(0).CompletedCycleCount==2,"final request lost its pre-placement hold");
+                    r.Tracker(0).Complete();
+                    Require(!r.Cycle(0).IsWaitingAtBoundary && r.Cycle(0).CompletedCycleCount==2,"pilot distribution held the final Move2 boundary");
+                    Require(r.Cycle(0).ContinueAfterBoundary() && r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place,"last placement did not advance before the final request");
                 }
                 typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(r.Manager,new object[]{"Test"});
                 if(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && automatic==1)
@@ -374,6 +375,11 @@ static class FlowTests
                     Require(r.Events.Contains("SourceFinalReturnConfirmed") && r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"finished Source was resumed into a fourth cycle");
                     break;
                 }
+                if(last && r.Cycle(0).CompletedCycleCount==3)
+                {
+                    Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"last return did not finish an already completed Source");
+                    break;
+                }
                 if(index%2==1)
                 {
                     for(int phase=0;r.Cycle(0).CurrentPhase!=CraneStatusManager.WorkPhase.Move2 && phase<2;phase++)
@@ -393,7 +399,44 @@ static class FlowTests
                 r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place && !r.Cycle(0).IsRunning,"pilot ended outside exactly three full source cycles");
             Require(r.Events.FindAll(e=>e=="ExperimentCompleted").Count==1,"duplicate pilot completion");
         }
-        Console.WriteLine("PASS: all 6 short pilot presets, early/automatic switching and delayed final return, six returns, final pre-placement hold and exactly three full Source cycles ending at placement");
+        Console.WriteLine("PASS: all 6 short pilot presets, early/automatic switching and delayed final return, no distribution hold, six returns and exactly three full Source cycles ending at placement");
+    }
+
+    static void CheckPilotSourceContinuity()
+    {
+        Time.realtimeSinceStartupAsDouble=0;Input.buttons.Clear();
+        var r=new Rig(TaskSwitchMethod.OperatorInitiated);
+        Set(r.Manager,"pilotExperiment",true);
+        Set(r.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition2_Countdown7s_Temporary);
+        r.Manager.StartExperiment();r.Complete(0); // Source LiftUp.
+        typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(r.Manager,new object[]{"Test"});
+        r.Attach(0,1);r.Tracker(0).Complete();
+        Require(!r.Cycle(0).IsWaitingAtBoundary && !(bool)Get(r.Cycle(0),"holdAfterCurrentPhase"),"countdown held a completed LiftUp");
+        Require(r.Cycle(0).ContinueAfterBoundary() && r.Target(0).targetX==-4 && r.Target(0).targetZ==0,"countdown did not update the next movement goal");
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"next Source phase cancelled the countdown");
+        // Fast Source / long countdown: allow all three cycles to finish first.
+        r.Complete(0);r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
+        for(int cycle=2;cycle<=3;cycle++)
+        {
+            r.Complete(0);r.Attach(0,cycle==2?2:1);r.Complete(0);r.Complete(0);
+            r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
+        }
+        Require(r.Cycle(0).CompletedCycleCount==3 && !r.Cycle(0).IsRunning && r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"Source work was held or experiment ended before switching");
+        for(int index=1;index<=6;index++)
+        {
+            Time.realtimeSinceStartupAsDouble+=10;r.Update();r.Manager.ConfirmTargetTask();r.Update();
+            var work=(TaskSwitchWorkCondition)Get(r.Manager,"activeTargetWorkCondition");
+            for(int phase=0;r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && phase<4;phase++)
+            {
+                if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(1,work.pickupCount);
+                if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Place) r.Registry.cranes[1].LifMagSystem.AttachedBoards.Clear();
+                r.Complete(1);
+            }
+            r.Manager.ConfirmTargetTask();r.Update();
+            Require(r.Manager.CompletedSwitchCount==index && r.Cycle(0).CompletedCycleCount==3 && !r.Cycle(0).IsRunning,"catch-up requests restarted the completed Source or lost a switch");
+        }
+        Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"six catch-up returns did not finish the experiment");
+        Console.WriteLine("PASS: LiftUp-to-Move2 goal advances during countdown; no Source distribution holds; fast Source completes exactly 3 cycles and pending requests still finish exactly 6 switches");
     }
 
     static void CheckPlacementPlanSnapshot()
@@ -494,6 +537,7 @@ static class FlowTests
         CheckPilotPresets(args[0]);
         CheckShortPilotCompletion();
         CheckPlacementPlanSnapshot();
+        CheckPilotSourceContinuity();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

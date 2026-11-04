@@ -352,7 +352,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         Vector3 movement = position != null && tracker != null
             ? TaskSwitchSupportGuidance.RequiredMovement(step, position.position,
                 hasGoal, goalX, goalZ, unit == null || unit.IsDownwardMovementBlockedByTouchdown,
-                hasY, localY) : Vector3.zero;
+                hasY, localY, ContinuousPilotArrows) : Vector3.zero;
 
         bool currentRangeExpanded;
         string currentGuidance = EvaluateCurrentGuidance(phase, pendingPhase, out currentRangeExpanded);

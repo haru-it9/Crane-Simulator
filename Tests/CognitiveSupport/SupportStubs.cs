@@ -163,6 +163,10 @@ public class CraneOperationManager
 public static class ExperimentPauseManager { public static bool IsPaused;public static double ActiveRealtime; }
 public class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
 {
+    public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary }
+    public bool IsPilotExperiment;
+    public PilotDirectionDisplay PilotSupport;
+    public float PilotDisplaySeconds=2;
     public TaskSwitchExperimentState CurrentState=TaskSwitchExperimentState.WaitingForConfirmation;
     public TaskSwitchCraneCondition TargetCondition=new TaskSwitchCraneCondition(),SourceCondition=new TaskSwitchCraneCondition();
     public bool HasPreview=true;public float GoalX=2,GoalZ=-2;

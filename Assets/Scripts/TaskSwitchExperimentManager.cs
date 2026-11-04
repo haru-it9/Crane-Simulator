@@ -140,6 +140,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private double pilotRequestDue = -1;
     private bool pilotPlacementDeadlineReached;
+    private bool pilotPhaseDeadlineReached;
     private bool pilotFullCycle;
     private bool PilotLiftOnly => pilotExperiment && !pilotFullCycle;
     private string PilotWorkLabel => pilotFullCycle ? "1サイクル" : "吊上";
@@ -570,6 +571,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         currentSwitchIndex = 0;
         pilotRequestDue = -1;
         pilotPlacementDeadlineReached = false;
+        pilotPhaseDeadlineReached = false;
         completedSwitchCount = 0;
         EmitEvent("SwitchScheduleLoaded", $"Count={scheduledSwitches.Count};File={(runSwitchScheduleCsv!=null?runSwitchScheduleCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
         EmitEvent("WorkConditionsLoaded", $"Count={experimentWorkConditions.Count};SourceCycles={SourceTotalCycleCount};File={(runWorkConditionsCsv!=null?runWorkConditionsCsv.name:"")};BySwitchMethod={useSwitchMethodCsvPairs}");
@@ -632,7 +634,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             string targetRows = shortPilotTargetOrder == null ? "Sequential" : string.Join(",", shortPilotTargetOrder);
             EmitEvent("PilotRunConfigured", FormattableString.Invariant(
-                $"PilotCondition={pilotCondition};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
+                $"PilotCondition={pilotCondition};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};RequestDistribution=CycleSlotsWithoutHolds;WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
         }
         StartSecondarySubtask();
         EmitEvent("SourceOperationStarted");
@@ -640,8 +642,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool UpdatePilotRequestTimer()
     {
-        if (!CanRequestSwitch || sourceCycleController == null || !sourceCycleController.IsRunning)
+        if (!CanRequestSwitch || sourceCycleController == null)
             return false;
+        bool sourceFinished = !sourceCycleController.IsRunning &&
+            sourceCycleController.CompletedCycleCount >= PilotRequiredSourceCycles;
+        if (!sourceCycleController.IsRunning && !sourceFinished) return false;
 
         var phase = sourceCycleController.CurrentPhase;
         bool atBoundary = sourceCycleController.IsWaitingAtBoundary;
@@ -649,6 +654,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         // A completed placement increments the cycle count before the held boundary.
         if (atBoundary && IsPlacementPhase(phase)) cycle--;
         if (!IsPilotRequestSlot(phase, cycle)) return false;
+        int nominalCycle = completedSwitchCount / 2 + 1;
+        bool lateSlot = cycle > nominalCycle || (completedSwitchCount % 2 == 0 &&
+            (phase == CraneStatusManager.WorkPhase.Move2 || IsPlacementPhase(phase)));
 
         double now = ExperimentPauseManager.ActiveRealtime;
         if (pilotRequestDue < 0)
@@ -661,17 +669,19 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
                 $"Cycle={cycle};Slot={completedSwitchCount + 1};IntervalSeconds={interval:F3};Seed={pilotRequestTimingSeed}");
         }
 
-        if (now < pilotRequestDue && !atBoundary && !pilotPlacementDeadlineReached) return false;
+        if (now < pilotRequestDue && !atBoundary && !pilotPlacementDeadlineReached &&
+            !pilotPhaseDeadlineReached && !lateSlot && !sourceFinished) return false;
         if (now < pilotRequestDue)
-            EmitEvent(atBoundary ? "PilotRequestAdvancedAtBoundary" : "PilotRequestAdvancedAtPlacementDeadline",
+            EmitEvent("PilotRequestAdvanced",
                 $"Cycle={cycle};Phase={phase};RemainingSeconds={pilotRequestDue - now:F3}");
 
-        string trigger = atBoundary ? "HeldBoundary" :
+        string trigger = sourceFinished ? "SourceCompleted" : lateSlot ? "LateSlot" :
+            pilotPhaseDeadlineReached ? "PhaseDeadline" : atBoundary ? "HeldBoundary" :
             pilotPlacementDeadlineReached ? "PlacementDeadline" : "Timer";
         double timerOffset = now - pilotRequestDue;
         pilotRequestDue = -1;
         RequestSwitchCore(FormattableString.Invariant(
-            $"RequestTrigger={trigger};RequestTimerOffsetSeconds={timerOffset:F3};SourceSlotCycle={cycle};SourcePhase={phase};SourceStep={sourceWorkPhaseTracker?.CurrentStepId}"));
+            $"RequestTrigger={trigger};RequestTimerOffsetSeconds={timerOffset:F3};SourceSlotCycle={cycle};NominalSlotCycle={nominalCycle};SourcePhase={phase};SourceStep={sourceWorkPhaseTracker?.CurrentStepId}"));
         return true;
     }
 
@@ -683,21 +693,23 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool IsPilotRequestSlot(CraneStatusManager.WorkPhase phase, int cycleNumber)
     {
-        if (!pilotExperiment || completedSwitchCount >= PilotRequiredSwitches ||
-            cycleNumber != completedSwitchCount / 2 + 1)
+        int nominalCycle = completedSwitchCount / 2 + 1;
+        if (!pilotExperiment || completedSwitchCount >= PilotRequiredSwitches || cycleNumber < nominalCycle)
             return false;
 
-        if (completedSwitchCount % 2 == 0)
-            return phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.LiftUp;
+        if (cycleNumber > nominalCycle || (sourceCycleController != null &&
+            sourceCycleController.CompletedCycleCount >= PilotRequiredSourceCycles)) return true;
+        // The first request can catch up later in its cycle instead of holding
+        // LiftUp. The second normally starts in Move2 or placement.
+        if (completedSwitchCount % 2 == 0) return true;
 
-        return phase == CraneStatusManager.WorkPhase.Move2 ||
-            (cycleNumber < PilotRequiredSourceCycles && IsPlacementPhase(phase));
+        return phase == CraneStatusManager.WorkPhase.Move2 || IsPlacementPhase(phase);
     }
 
     private void HandleSourcePilotStepCompleted(
         CraneWorkPhaseTracker tracker, CraneStatusManager.WorkPhase phase, string stepId)
     {
-        if (tracker == sourceWorkPhaseTracker && sourceCycleController != null &&
+        if (CanRequestSwitch && tracker == sourceWorkPhaseTracker && sourceCycleController != null &&
             IsPlacementPhase(phase) && IsPilotRequestSlot(phase, sourceCycleController.CurrentCycleNumber) &&
             (stepId == "Place.PlacementLowering" || stepId == "PlaceToTrack.PlacementLowering"))
             pilotPlacementDeadlineReached = true;
@@ -708,13 +720,14 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         CraneStatusManager.WorkPhase phase,
         int cycleNumber)
     {
-        if (controller != sourceCycleController || !IsPilotRequestSlot(phase, cycleNumber))
+        if (!CanRequestSwitch || controller != sourceCycleController || !IsPilotRequestSlot(phase, cycleNumber))
             return;
 
-        // The final request must return before the last cycle can start placement.
+        // Advance the request, never hold the Source to distribute requests.
+        // A pending countdown must allow the next phase and its new goal.
         if (phase == CraneStatusManager.WorkPhase.LiftUp || IsPlacementPhase(phase) ||
             (cycleNumber == PilotRequiredSourceCycles && phase == CraneStatusManager.WorkPhase.Move2))
-            controller.RequestHoldAfterCurrentPhase();
+            pilotPhaseDeadlineReached = true;
     }
 
     private void TryCompletePilotExperiment()
@@ -748,6 +761,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
         int nextSwitchIndex = (pilotExperiment ? completedSwitchCount : currentSwitchIndex) + 1;
         if (pilotExperiment) pilotRequestDue = -1;
+        pilotPhaseDeadlineReached = false;
+        pilotPlacementDeadlineReached = false;
 
         // 手動要求またはCSVタイマー発火のどちらでも、
         // 進行中の予約タイマーをここで終了します。
@@ -2054,6 +2069,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             $"SwitchIndex={currentSwitchIndex}"
         );
         pilotPlacementDeadlineReached = false;
+        pilotPhaseDeadlineReached = false;
         TryCompletePilotExperiment();
     }
 

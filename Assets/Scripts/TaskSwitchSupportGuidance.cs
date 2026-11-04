@@ -78,7 +78,8 @@ public static class TaskSwitchSupportGuidance
     public static Vector3 RequiredMovement(
         CraneWorkStepDefinition step, Vector3 current,
         bool hasGoal, float goalX, float goalZ,
-        bool loweringBlocked, bool hasLocalY, float localY)
+        bool loweringBlocked, bool hasLocalY, float localY,
+        bool continuousTravel = false)
     {
         if (step == null || step.completionConditions == null) return Vector3.zero;
         CraneWorkConditionDefinition position = null, height = null;
@@ -99,9 +100,11 @@ public static class TaskSwitchSupportGuidance
         {
             if (!hasGoal || !IsFinite(goalX) || !IsFinite(goalZ) ||
                 !IsFinite(current.x) || !IsFinite(current.z)) return Vector3.zero;
+            bool exactTravel = continuousTravel && (step.majorPhase == CraneStatusManager.WorkPhase.Move1 ||
+                step.majorPhase == CraneStatusManager.WorkPhase.Move2);
             Vector3 movement = new Vector3(
-                Direction(goalX - current.x, position.threshold), 0f,
-                Direction(goalZ - current.z, position.secondaryThreshold));
+                Direction(goalX - current.x, exactTravel ? 0f : position.threshold), 0f,
+                Direction(goalZ - current.z, exactTravel ? 0f : position.secondaryThreshold));
             if (movement.x != 0f || movement.z != 0f) return movement;
         }
 

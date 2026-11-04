@@ -580,7 +580,7 @@ public static class SupportTests
         magnet.CurrentElectricCurrentA=30;magnet.IsElectricCurrentInputReady=true;
         Input.SetAxis(magnet.CurrentSliderAxis,.6f);
         ExperimentPauseManager.ActiveRealtime=2000;Call(support,"OnEnable");manager.Raise("TargetDisplaySwitched");
-        Check(SameColor(currentHeading.color,phase.color)&&SameColor(currentText.color,Color.white),"Switch-time current adjustment colors only the heading");
+        Check(SameColor(currentHeading.color,phase.color)&&SameColor(currentText.color,phase.color),"Switch-time current adjustment colors the heading and numeric current");
         Call(support,"LateUpdate");
         Check(!Flag(support,"currentLabelFading"),"A nonzero slider held from the previous crane is not new controller movement");
         magnet.AcceptCurrent(31);Call(support,"LateUpdate");
@@ -658,6 +658,38 @@ public static class SupportTests
             manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelInputStarted:")&&s.Contains("Anchor=ControllerSliderMovement"))&&
             manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelFadeStarted:")&&s.Contains("Anchor=ControllerSliderMovementPlusDelay"))&&
             manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelHidden:")&&s.Contains("Reason=ControllerInputStarted")),"Heading logs distinguish raw input, delayed fade and completion");
+        Call(support,"OnDisable");
+        // Continuous: normal work, both movement tolerances, goal crossing,
+        // phase changes, a long elapsed time, and no invented command at exact arrival.
+        manager.IsPilotExperiment=true;manager.PilotSupport=TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
+        manager.CurrentState=TaskSwitchExperimentState.OperatingSource;
+        Set(support,"supportContent",TaskSwitchSupportContent.InputDirectionOnly);
+        Set(support,"positiveXPointsUp",true);Set(support,"positiveZPointsRight",false);
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1;
+        tracker.CurrentStepDefinition=Step("Move1.PickupCoarseMove");tracker.GoalX=.2f;tracker.GoalZ=-.2f;
+        crane.InformationTarget.position=Vector3.zero;cycle.HasPendingNextPhase=false;
+        ExperimentPauseManager.ActiveRealtime=3000;Call(support,"OnEnable");manager.Raise("SourceOperationStarted");Call(support,"LateUpdate");
+        Check(left.gameObject.activeSelf&&rz.gameObject.activeSelf&&Alpha(left)==1&&Alpha(rz)==1,
+            "Continuous stays fully visible inside the coarse movement tolerance");
+        tracker.CurrentStepDefinition=Step("Move1.PickupFineAlign");tracker.GoalX=.01f;tracker.GoalZ=-.01f;
+        ExperimentPauseManager.ActiveRealtime=6000;Call(support,"LateUpdate");
+        Check(Requested(support,"leftFade")&&Requested(support,"rightZFade")&&Alpha(left)==1&&Alpha(rz)==1,
+            "Continuous stays visible inside the fine tolerance and has no display timeout");
+        Check(la.rectTransform.localEulerAngles.z==0&&za.rectTransform.localEulerAngles.z==-90,
+            "Continuous points toward the true target inside tolerance");
+        crane.InformationTarget.position=new Vector3(.02f,0,-.02f);Call(support,"LateUpdate");
+        Check(la.rectTransform.localEulerAngles.z==180&&za.rectTransform.localEulerAngles.z==90&&Alpha(left)==1,
+            "Crossing the true target reverses the Continuous direction without fading");
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move2;tracker.CurrentStepDefinition=Step("Move2.DestinationFineAlign");
+        tracker.GoalX=-.01f;tracker.GoalZ=.01f;crane.InformationTarget.position=Vector3.zero;
+        manager.Raise("PilotMajorPhaseStarted");Call(support,"LateUpdate");
+        Check(Requested(support,"leftFade")&&Requested(support,"rightZFade")&&la.rectTransform.localEulerAngles.z==180&&za.rectTransform.localEulerAngles.z==90,
+            "Continuous follows each new movement phase and its goal");
+        crane.InformationTarget.position=new Vector3(-.01f,0,.01f);Call(support,"LateUpdate");
+        Check(!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),"Exact arrival has no false direction");
+        crane.InformationTarget.position=Vector3.zero;manager.PilotSupport=TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary;
+        manager.Raise("PilotMajorPhaseStarted");Call(support,"LateUpdate");
+        Check(!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),"Temporary retains its original movement tolerances");
         Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
