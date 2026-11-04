@@ -320,6 +320,13 @@ public class CraneOperationManager : MonoBehaviour
         UpdateCraneButtonVisibility();
     }
 
+    private void LateUpdate()
+    {
+        // PlanChanged runs before ConfigurePhase at a cycle transition. Reconcile
+        // the visible target after all phase changes, even while input is locked.
+        if (currentCraneIndex >= 0) UpdateSelectedCraneWeightTargetInformation();
+    }
+
     private void FixedUpdate()
     {
         if (!SimulatorStartManager.IsOperationEnabled || ExperimentPauseManager.IsPaused) return;
@@ -1049,9 +1056,13 @@ public class CraneOperationManager : MonoBehaviour
                 out float targetWeightKg
             ))
         {
+            targetInformationDisplay.ClearWeightTarget();
             return;
         }
 
+        if (targetInformationDisplay.HasCurrentWeightTarget &&
+            Mathf.Approximately(targetInformationDisplay.CurrentTargetWeightTon * 1000f, targetWeightKg))
+            return;
         targetInformationDisplay.ShowWeightTargetKg(targetWeightKg);
 
         Debug.Log(

@@ -602,7 +602,7 @@ public class CraneWorkCycleController : MonoBehaviour
         CraneStatusManager.WorkPhase restartPhase =
             CraneStatusManager.WorkPhase.LiftUp;
 
-        if (!ApplyTargetForPhase(restartPhase) && requireValidTarget)
+        if (!ApplyTargetForPhase(restartPhase, true) && requireValidTarget)
         {
             Debug.LogError(
                 $"CraneWorkCycle: {GetCraneLabel()}の重量逸脱後に" +
@@ -753,7 +753,8 @@ public class CraneWorkCycleController : MonoBehaviour
     }
 
     private bool ApplyTargetForPhase(
-        CraneStatusManager.WorkPhase phase
+        CraneStatusManager.WorkPhase phase,
+        bool forcePickupRefresh = false
     )
     {
         if (targetManager == null)
@@ -768,12 +769,16 @@ public class CraneWorkCycleController : MonoBehaviour
             ? experimentConditions[conditionIndex] : null;
         if (condition != null)
         {
+            if (loadPlanManager == null) return false;
             bool pickup = phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.LiftUp;
+            // TargetChanged can refresh the load plan synchronously. Set this
+            // cycle's counts first, and discard the previous placement's 0kg plan.
+            loadPlanManager.SetExperimentBoardCounts(condition.pickupCount, condition.placementCount);
+            if (phase == CraneStatusManager.WorkPhase.Move1) loadPlanManager.ClearPlacementRuntimeState();
             targetManager.SetFixedTarget(pickup ? condition.pickupX : condition.placementX, pickup ? condition.pickupZ : condition.placementZ,
                 -1, pickup ? CraneWorkTargetKind.Pickup : CraneWorkTargetKind.NormalPlacement, CraneWorkTargetSource.ExperimentCondition);
-            if (loadPlanManager == null) return false;
-            loadPlanManager.SetExperimentBoardCounts(condition.pickupCount, condition.placementCount);
-            if (pickup) return loadPlanManager.RefreshPickupTargetFromCurrentTarget();
+            if (pickup) return loadPlanManager.RefreshPickupTargetFromCurrentTarget(
+                forcePickupRefresh || phase == CraneStatusManager.WorkPhase.Move1);
             return loadPlanManager.PreparePlacementPlan(craneInstance.LifMagSystem.GetAttachedTotalWeightKgForDisplay());
         }
 

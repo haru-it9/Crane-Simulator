@@ -597,7 +597,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (initializeScenariosOnStartExperiment)
         {
             if (!PrepareCondition(sourceCondition, sourcePhaseTracker) ||
-                !PrepareCondition(targetCondition, targetPhaseTracker))
+                !PrepareCondition(targetCondition, targetPhaseTracker) ||
+                !ValidatePilotWorkAvailability())
             {
                 craneOperationManager.EndTaskSwitchExperimentMode();
                 ClearPreparedScenarios();

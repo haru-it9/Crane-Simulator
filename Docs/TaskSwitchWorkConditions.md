@@ -178,6 +178,21 @@ Customに切り替えただけでは以前の値を復元しないため、必�
 `events.csv` の `PilotRunConfigured` に `PilotCondition`、`SwitchMethod`、`DeadlineApplies` と、実際の秒数・支援・CSV・Target順序・短長順を記録します。
 条件4は `DeadlineApplies=False` で識別できます。`SwitchTriggerSelected` のOperator／Deadline／PhaseBoundaryによる切替原因の記録も維持します。
 
+### 配置後の目標重量更新と開始前確認
+
+実験CSVの枚数を設定してから次の目標座標を通知し、新しいMove1では前サイクルの配置計画を破棄して吸着目標を再取得します。
+同じ吊上げの途中では、吸着・移動によって置場の板が減っても目標重量を再計算しません。次サイクルのMove1と重量逸脱後の再取得時には更新します。
+目標重量表示はイベント通知に加え、LateUpdateで現在フェーズの共通重量計画へ同期します。重量一致による緑判定も同じ計画を参照します。
+配置後に保持すべき重量が0kgなら0.00 tを表示し、一致時は緑になります。取得できない目標は有効な0kgと区別し、`-- t`を表示します。
+
+6条件のプリセットでは、開始シナリオの生成後にSource全行とTarget全候補の置場・板枚数を検査します。
+Sourceで同じ置場を繰り返し使う場合は合計必要枚数、Targetは要請ごとの再初期化を前提とした候補ごとの枚数を確認します。
+不足時はCSV名・役割・行番号・座標・必要枚数をConsoleへ表示して開始を中止します。Customは従来の検証方法を維持します。
+重量そのものはWorkConditionsの枚数とBoardGeneratorのBoardSizeData CSVにある各板の`boardWeightKg`から決まります。
+
+`bash Tests/TaskSwitchFlow/run.sh` に、6プリセットのCSV選択・将来の置場不足の開始前検出・6パターンを各3サイクル実施した重量更新・有効な0kgの一致・未設定表示の回帰検証を追加しています。
+`bash Tests/TaskSwitchFlow/run_weight_targets.sh` で重量更新と表示の検証だけを実行できます。Unityのカメラ・物理・実機入力は代替APIによるテスト範囲外です。
+
 ## 検証範囲
 
 Tests/TaskSwitchFlow/run.shは実際のManager・CycleController・LoadPlanManagerを代替Unity APIで動かし、2パターン、CSV解析、5サイクル、復帰座標の保持、事前吸着・部分配置重量、作業者主導の継続・1押下切替・押下解除待ち、Pause、既存3手法、CSV要請の自動発生を検証します。LifMagSystem本体とCraneUnitの実際の吸着メソッドを使い、複数板の下面整列・厚みの積み重ね・非一様な親の縮尺と板のピボットずれへの対応・Rigidbody固定、必要電流を下回った際の下層からの解除とイベント、通常板の解除制限、70A/10Aの境界値、閾値前の吸着抑止、Pause・確認ロックを検証します。BoardGeneratorの実際の選択メソッドを切り出して、上側からの枚数・重量、板不足、移動済みの板を確認します。Tests/TaskSwitchLogging/run.shで12ファイル・再集計・Pause・視線・サブタスクの回帰を確認します。Unity Editorの実描画・衝突・物理挙動と実機入力は別途確認してください。

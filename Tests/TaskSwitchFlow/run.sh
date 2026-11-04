@@ -3,12 +3,12 @@ set -eu
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 output="$(mktemp -d)"
 trap 'rm -rf "$output"' EXIT
-"${MCS:-mcs}" -out:"$output/test.exe" "$root/Assets/Scripts/TaskSwitchExperimentTypes.cs" \
+"${MCS:-mcs}" -define:TASK_SWITCH_FLOW -out:"$output/test.exe" "$root/Assets/Scripts/TaskSwitchExperimentTypes.cs" \
     "$root/Assets/Scripts/TaskSwitchWorkConditions.cs" "$root/Assets/Scripts/TaskSwitchExperimentManager.cs" \
     "$root/Assets/Scripts/TaskSwitchExperimentManager.WorkConditions.cs" "$root/Assets/Scripts/CraneWorkTargetTypes.cs" \
     "$root/Assets/Scripts/CraneWorkCycleController.cs" "$root/Assets/Scripts/CraneWorkLoadPlanManager.cs" \
     "$root/Tests/TaskSwitchFlow/UnityFlowStubs.cs" "$root/Tests/TaskSwitchFlow/FlowTests.cs"
-"${MONO:-mono}" "$output/test.exe"
+"${MONO:-mono}" "$output/test.exe" "$root"
 python3 "$root/Tests/TaskSwitchFlow/prepare_board_selection_test.py" "$output"
 "${MCS:-mcs}" -out:"$output/boards.exe" "$output/BoardUnityStubs.cs" "$output/BoardSelectionProduction.cs" "$root/Tests/TaskSwitchFlow/BoardSelectionTests.cs"
 "${MONO:-mono}" "$output/boards.exe"
@@ -22,3 +22,4 @@ python3 "$root/Tests/TaskSwitchFlow/prepare_movement_boundary_test.py" "$output"
     "$output/MovementDispatchProduction.cs" "$root/Tests/TaskSwitchFlow/MovementBoundaryStubs.cs" \
     "$root/Tests/TaskSwitchFlow/MovementBoundaryTests.cs"
 "${MONO:-mono}" "$output/movement.exe"
+bash "$root/Tests/TaskSwitchFlow/run_weight_targets.sh"

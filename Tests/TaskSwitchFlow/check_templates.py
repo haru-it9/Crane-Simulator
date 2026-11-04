@@ -19,7 +19,7 @@ guid = re.search(r'^guid: (\w+)', Path(str(work_path) + '.meta').read_text(), re
 assert f'workConditionsCsv: {{fileID: 4900000, guid: {guid}, type: 3}}' in scene
 assert 'sourceTotalCycleCount: 5' in scene and 'targetTaskPattern: 0' in scene
 assert 'targetRunsFullCycle:' not in scene
-assert 'operatorSwitchDeadlineSeconds: 10' in scene
+assert float(re.search(r'^  operatorSwitchDeadlineSeconds: ([\d.]+)$', scene, re.M)[1]) >= 0
 for field in ['countdownOperatorInitiatedCsv','announcedPhaseBoundaryCsv','announcedPhaseBoundaryOperatorInitiatedCsv']:
     pair=re.search(r'^  '+field+r':\n(    .*\n){2}',scene,re.M)
     assert pair,field

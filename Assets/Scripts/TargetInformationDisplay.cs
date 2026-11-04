@@ -69,6 +69,7 @@ public class TargetInformationDisplay : MonoBehaviour
     public float CurrentTargetX { get; private set; }
     public float CurrentTargetZ { get; private set; }
     public float CurrentTargetWeightTon { get; private set; }
+    public bool HasCurrentWeightTarget { get; private set; }
 
     private void Start()
     {
@@ -155,6 +156,7 @@ public class TargetInformationDisplay : MonoBehaviour
         CurrentTargetX = data.targetX;
         CurrentTargetZ = data.targetZ;
         CurrentTargetWeightTon = data.targetWeight;
+        HasCurrentWeightTarget = true;
 
         foreach (TargetTextSet textSet in GetTextSets())
         {
@@ -213,6 +215,7 @@ public class TargetInformationDisplay : MonoBehaviour
     /// </summary>
     public void ShowWeightTargetKg(float targetWeightKg)
     {
+        HasCurrentWeightTarget = true;
         CurrentTargetWeightTon =
             Mathf.Max(0f, targetWeightKg) / 1000f;
 
@@ -225,6 +228,13 @@ public class TargetInformationDisplay : MonoBehaviour
                     weightUnit;
             }
         }
+    }
+
+    public void ClearWeightTarget()
+    {
+        HasCurrentWeightTarget = false;
+        foreach (TargetTextSet textSet in GetTextSets())
+            if (textSet.targetWeightText != null) textSet.targetWeightText.text = "-- t";
     }
 
     private IEnumerable<TargetTextSet> GetTextSets()

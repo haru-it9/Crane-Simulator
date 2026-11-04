@@ -65,14 +65,18 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     private bool placementPlanPrepared;
     private int? experimentPickupCount, experimentPlacementCount;
     private int experimentRemainingBoardCount;
+    private bool hasPreparedExperimentPickup;
+    private float preparedPickupX, preparedPickupZ;
+    private int preparedPickupCount;
     public bool IsPickupBoardCountSatisfied(int attachedCount) => !experimentPickupCount.HasValue || attachedCount == experimentPickupCount.Value;
     public bool IsPlacementBoardCountSatisfied(int attachedCount) => !experimentPlacementCount.HasValue || (placementPlanPrepared && attachedCount == experimentRemainingBoardCount);
 
     public void SetExperimentBoardCounts(int pickupCount, int placementCount)
     {
+        if (experimentPickupCount != pickupCount) hasPreparedExperimentPickup = false;
         experimentPickupCount=pickupCount; experimentPlacementCount=placementCount;
     }
-    public void ClearExperimentBoardCounts() { experimentPickupCount=experimentPlacementCount=null; }
+    public void ClearExperimentBoardCounts() { experimentPickupCount=experimentPlacementCount=null; hasPreparedExperimentPickup=false; }
 
     public float PickupTargetWeightKg => pickupTargetWeightKg;
     public float PlannedReleaseWeightKg => plannedReleaseWeightKg;
@@ -116,7 +120,7 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
         }
     }
 
-    public bool RefreshPickupTargetFromCurrentTarget()
+    public bool RefreshPickupTargetFromCurrentTarget(bool forceRefresh = false)
     {
         ResolveReferences();
 
@@ -135,14 +139,32 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
             return false;
         }
 
+        // Keep the selected plates' target stable while approaching/lifting them.
+        // A new Move1 explicitly refreshes even when it revisits the same stack.
+        if (!forceRefresh && experimentPickupCount.HasValue && hasPreparedExperimentPickup &&
+            preparedPickupCount == experimentPickupCount.Value &&
+            Mathf.Approximately(preparedPickupX, target.targetX) &&
+            Mathf.Approximately(preparedPickupZ, target.targetZ) && HasPickupTarget)
+            return true;
+
         float csvTargetWeightKg;int pickupCount,spawnIndex;
         bool found = experimentPickupCount.HasValue
             ? boardGenerator.TryGetPickupTargetWeightKg(target.targetX,target.targetZ,experimentPickupCount.Value,out csvTargetWeightKg,out pickupCount,out spawnIndex)
             : boardGenerator.TryGetPickupTargetWeightKg(target.targetX,target.targetZ,out csvTargetWeightKg,out pickupCount,out spawnIndex);
-        if (!found) return false;
+        if (!found)
+        {
+            hasPreparedExperimentPickup = false;
+            pickupTargetWeightKg = 0f;
+            NotifyPlanChanged();
+            return false;
+        }
 
         pickupTargetWeightKg =
             Mathf.Max(0f, csvTargetWeightKg);
+        hasPreparedExperimentPickup = experimentPickupCount.HasValue;
+        preparedPickupX = target.targetX;
+        preparedPickupZ = target.targetZ;
+        preparedPickupCount = pickupCount;
         NotifyPlanChanged();
 
         Debug.Log(
@@ -211,6 +233,7 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
 
     public void SetPickupTargetWeightKg(float targetWeightKg)
     {
+        hasPreparedExperimentPickup = false;
         pickupTargetWeightKg = Mathf.Max(0f, targetWeightKg);
         NotifyPlanChanged();
     }

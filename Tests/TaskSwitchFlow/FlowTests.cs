@@ -296,7 +296,33 @@ static class FlowTests
         Require(!held.Op.IsOperationInputLocked && held.Events.FindAll(e=>e=="SourceInputUnlocked").Count==1,"neutral return controls did not unlock exactly once");
         Console.WriteLine("PASS: source return validation, Move1/Move2 fine-alignment restoration and goal/count preservation, failure lock/retry, tracker-only fallback and neutral movement/spread release gate with Pause/UI hint");
     }
-    public static void Main()
+    static void CheckPilotPresets(string root)
+    {
+        for(int pattern=1;pattern<=6;pattern++)
+        {
+            string name="PilotWorkConditionsPattern"+pattern;
+            string csv=System.IO.File.ReadAllText(System.IO.Path.Combine(root,"Assets/Resources/"+name+".csv"));
+            Resources.Assets[name]=new TextAsset(csv) {name=name};
+            var r=new Rig(TaskSwitchMethod.OperatorInitiated);
+            Set(r.Manager,"pilotExperiment",true);
+            Set(r.Manager,"pilotCondition",(TaskSwitchExperimentManager.PilotCondition)pattern);
+            r.Manager.StartExperiment();
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource,"pilot preset/preflight rejected valid CSV: "+pattern);
+            Require(r.Manager.SourceTotalCycleCount==3 && r.Manager.WorkConditionsCsvText==csv,"pilot preset used wrong work CSV/count: "+pattern);
+            r.Manager.ExitExperimentMode();
+            // The initial stock is valid, but a later Source row is missing.
+            // This must fail before operation starts, rather than after placement.
+            var rows=TaskSwitchConditionCsv.ParseWork(csv,3);
+            var later=rows.Find(row=>row.role=="Source" && row.index==2);
+            r.Registry.cranes[0].BoardGenerator.MissingPickupZ=later.pickupZ;
+            int errors=Debug.Errors;
+            r.Manager.StartExperiment();
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.Idle && Debug.Errors>errors && !r.Op.IsTaskSwitchExperimentMode,"missing later pickup stock did not abort start: "+pattern);
+        }
+        Console.WriteLine("PASS: all 6 pilot presets select their CSV; later missing Source stock is rejected before operation starts");
+    }
+
+    public static void Main(string[] args)
     {
         CheckCognitiveSupportGoalPreview();
         CultureInfo.CurrentCulture=CultureInfo.GetCultureInfo("fr-FR");
@@ -365,6 +391,7 @@ static class FlowTests
         CheckSwitchMethodCsvPairs();
         CheckHybridSwitches();
         CheckSourceReturnValidation();
+        CheckPilotPresets(args[0]);
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

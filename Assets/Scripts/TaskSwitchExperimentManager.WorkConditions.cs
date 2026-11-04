@@ -229,6 +229,32 @@ public partial class TaskSwitchExperimentManager
         }
         catch(Exception e) { Debug.LogError("TaskSwitch CSV: " + e.Message,this);return false; }
     }
+    private bool ValidatePilotWorkAvailability()
+    {
+        if (!pilotExperiment || pilotCondition == PilotCondition.Custom) return true;
+        foreach (var work in experimentWorkConditions)
+        {
+            bool source = work.role == "Source";
+            var crane = craneRegistry.GetCraneByRuntimeIndex(source ? sourceCondition.craneIndex : targetCondition.craneIndex);
+            var generator = crane != null ? crane.BoardGenerator : null;
+            int required = work.pickupCount;
+            // Source stocks persist; Target stocks are reset for every request.
+            if (source)
+            {
+                required = 0;
+                foreach (var row in experimentWorkConditions)
+                    if (row.role == "Source" && row.pickupX == work.pickupX && row.pickupZ == work.pickupZ)
+                        required += row.pickupCount;
+            }
+            float weight; int count, spawn;
+            if (generator != null && generator.TryGetPickupTargetWeightKg(
+                work.pickupX, work.pickupZ, required, out weight, out count, out spawn)) continue;
+            Debug.LogError($"Pilot CSV {runWorkConditionsCsv?.name}: {work.role},{work.index} の置場({work.pickupX},{work.pickupZ})に必要な板{required}枚を確認できません。開始を中止します。", this);
+            return false;
+        }
+        return true;
+    }
+
     private static void ApplyCsvTarget(CraneWorkTargetManager manager,CraneStatusManager.WorkPhase phase,TaskSwitchWorkCondition condition)
     {
         bool pickup=phase==CraneStatusManager.WorkPhase.Move1 || phase==CraneStatusManager.WorkPhase.LiftUp;
