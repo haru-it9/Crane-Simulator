@@ -156,7 +156,8 @@ OperatorSwitchAvailableとOperatorSwitchConfirmationPressedで要請後の判断
 | Condition5 Countdown7s None | カウントダウン＋主導 | 7秒 | なし | PilotWorkConditionsPattern5.csv |
 | Condition6 Countdown7s Continuous | カウントダウン＋主導 | 7秒 | 常時提示 | PilotWorkConditionsPattern6.csv |
 
-全条件とも **Source 3サイクル以上・切替6回を両方満たして終了** します。切替回数はTargetからの復帰確認が完了した時点で加算します。
+全条件とも **Sourceを配置完了までちょうど3サイクル実施し、切替6回を完了して終了** します。4サイクル目には進みません。切替回数はTargetからの復帰確認が完了した時点で加算します。
+最後の要請が未完了なら最終Move2の境界で保持し、切替先から復帰して最後の配置を行います。元作業が既に3サイクル完了している場合は、最後の復帰確認だけを受け付け、元作業を再開しません。旧6サイクル12切替モードの下限判定は維持します。
 Targetは吊上げ1フェーズと1サイクルを交互に各3回実施します。**Pilot Long First** がOFFなら短→長、ONなら長→短です。
 TargetのCSV行は従来どおり **Pilot Target Order Seed** によって1～6を重複なしで並べ替えます。作業の短長とCSV行の選択は独立です。
 

@@ -543,7 +543,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (sourceCycleController != null)
         {
             sourceCycleController.SetTotalCycleCount(
-                pilotExperiment ? int.MaxValue : sourceTotalCycleCount
+                pilotExperiment ? (pilotShortRun ? PilotRequiredSourceCycles : int.MaxValue) : sourceTotalCycleCount
             );
         }
 
@@ -721,7 +721,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     {
         if (pilotExperiment && completedSwitchCount >= PilotRequiredSwitches &&
             sourceCycleController != null &&
-            sourceCycleController.CompletedCycleCount >= PilotRequiredSourceCycles)
+            sourceCycleController.CompletedCycleCount >= PilotRequiredSourceCycles &&
+            (!pilotShortRun || IsPlacementPhase(sourceCycleController.CurrentPhase)))
             CompleteExperiment();
     }
 
@@ -1780,8 +1781,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent(
             "SourceAllCyclesCompleted",
             $"CompletedCycles={completedCycles};" +
-            $"TargetCycles={sourceTotalCycleCount}"
+            $"TargetCycles={SourceTotalCycleCount}"
         );
+        if (pilotExperiment)
+        {
+            TryCompletePilotExperiment();
+            return;
+        }
         CompleteExperiment();
     }
 
@@ -2019,7 +2025,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
-        if (!TryResumeSourceWorkAfterReturn(out string resumeDetail))
+        // If the final placement finished while the last switch was pending,
+        // confirm the return without starting a fourth Source cycle.
+        bool sourceAlreadyComplete = pilotExperiment && pilotShortRun && sourceCycleController != null &&
+            sourceCycleController.CompletedCycleCount >= PilotRequiredSourceCycles;
+        string resumeDetail = "SourceCyclesAlreadyCompleted";
+        if (!sourceAlreadyComplete && !TryResumeSourceWorkAfterReturn(out resumeDetail))
         {
             pendingOperationInputUnlock = false;
             confirmationAcceptedUntilRealtime = 0f;
@@ -2035,7 +2046,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         );
         SetState(TaskSwitchExperimentState.OperatingSource);
         EmitEvent(
-            "SourceOperationResumed",
+            sourceAlreadyComplete ? "SourceFinalReturnConfirmed" : "SourceOperationResumed",
             $"SwitchIndex={currentSwitchIndex};{resumeDetail}"
         );
         EmitEvent(

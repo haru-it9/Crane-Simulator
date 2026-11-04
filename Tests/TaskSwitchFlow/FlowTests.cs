@@ -322,6 +322,80 @@ static class FlowTests
         Console.WriteLine("PASS: all 6 pilot presets select their CSV; later missing Source stock is rejected before operation starts");
     }
 
+    static void CheckShortPilotCompletion()
+    {
+        for(int preset=1;preset<=6;preset++) for(int automatic=0;automatic<3;automatic++)
+        {
+            Time.realtimeSinceStartupAsDouble=0;Input.buttons.Clear();
+            var r=new Rig(TaskSwitchMethod.OperatorInitiated);
+            Set(r.Manager,"pilotExperiment",true);
+            Set(r.Manager,"pilotCondition",(TaskSwitchExperimentManager.PilotCondition)preset);
+            Set(r.Manager,"pilotMinimumRequestIntervalSeconds",10000f);
+            Set(r.Manager,"pilotMaximumRequestIntervalSeconds",10000f);
+            r.Manager.StartExperiment();
+            Require(r.Cycle(0).TotalCycleCount==3,"short pilot Source must have exactly three cycles");
+            for(int index=1;index<=6;index++)
+            {
+                bool last=index==6;
+                if(last)
+                {
+                    r.Tracker(0).Complete(); // The existing final Move2 guard holds before placement.
+                    Require(r.Cycle(0).IsWaitingAtBoundary && r.Cycle(0).CompletedCycleCount==2,"final request lost its pre-placement hold");
+                }
+                typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(r.Manager,new object[]{"Test"});
+                if(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown && automatic==1)
+                {
+                    Time.realtimeSinceStartupAsDouble+=r.Manager.CountdownSeconds+1;r.Update();
+                }
+                else if(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForPhaseBoundary && automatic==1)
+                    r.Tracker(0).Complete();
+                r.Manager.ConfirmTargetTask();r.Update();
+                Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget,"pilot target did not start");
+                var work=(TaskSwitchWorkCondition)Get(r.Manager,"activeTargetWorkCondition");
+                for(int step=0;r.Manager.CurrentState==TaskSwitchExperimentState.OperatingTarget && step<4;step++)
+                {
+                    if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(1,work.pickupCount);
+                    if(r.Cycle(1).CurrentPhase==CraneStatusManager.WorkPhase.Place) r.Registry.cranes[1].LifMagSystem.AttachedBoards.Clear();
+                    r.Complete(1);
+                }
+                Require(r.Manager.CurrentState==TaskSwitchExperimentState.WaitingForSourceConfirmation,"pilot target did not return");
+                if(last && automatic==2)
+                {
+                    // Exercise a delayed last return after Source has already finished.
+                    r.Cycle(0).StopCycleAndTracker();
+                    Set(r.Cycle(0),"completedCycleCount",3);
+                    Set(r.Cycle(0),"currentPhase",CraneStatusManager.WorkPhase.Place);
+                    r.Tracker(0).ConfigurePhase(CraneStatusManager.WorkPhase.Place,false);
+                }
+                r.Manager.ConfirmTargetTask();r.Update();
+                Require(r.Manager.CompletedSwitchCount==index,"pilot switch count");
+                if(last && automatic==2)
+                {
+                    Require(r.Events.Contains("SourceFinalReturnConfirmed") && r.Manager.CurrentState==TaskSwitchExperimentState.Completed,"finished Source was resumed into a fourth cycle");
+                    break;
+                }
+                if(index%2==1)
+                {
+                    for(int phase=0;r.Cycle(0).CurrentPhase!=CraneStatusManager.WorkPhase.Move2 && phase<2;phase++)
+                    {
+                        if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(0,index==3?2:1);
+                        r.Complete(0);
+                    }
+                }
+                else
+                {
+                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move2) r.Complete(0);
+                    Require(r.Manager.CurrentState!=TaskSwitchExperimentState.Completed && r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place,"pilot ended before final placement");
+                    r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();r.Complete(0);
+                }
+            }
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Cycle(0).CompletedCycleCount==3 &&
+                r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place && !r.Cycle(0).IsRunning,"pilot ended outside exactly three full source cycles");
+            Require(r.Events.FindAll(e=>e=="ExperimentCompleted").Count==1,"duplicate pilot completion");
+        }
+        Console.WriteLine("PASS: all 6 short pilot presets, early/automatic switching and delayed final return, six returns, final pre-placement hold and exactly three full Source cycles ending at placement");
+    }
+
     public static void Main(string[] args)
     {
         CheckCognitiveSupportGoalPreview();
@@ -392,6 +466,7 @@ static class FlowTests
         CheckHybridSwitches();
         CheckSourceReturnValidation();
         CheckPilotPresets(args[0]);
+        CheckShortPilotCompletion();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }
