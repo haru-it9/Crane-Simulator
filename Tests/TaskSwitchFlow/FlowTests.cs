@@ -489,12 +489,14 @@ static class FlowTests
     {
         ExperimentPauseManager.IsPaused=false;ExperimentPauseManager.PauseOffsetSeconds=0;Input.buttons.Clear();
         var phases=new HashSet<CraneStatusManager.WorkPhase>();
+        int requestsBefore15=0;
         for(int seed=0;seed<64;seed++)
         {
             Time.realtimeSinceStartupAsDouble=0;
             var r=new Rig(TaskSwitchMethod.OperatorInitiated);
             Set(r.Manager,"pilotExperiment",true);Set(r.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
             Set(r.Manager,"pilotRequestTimingSeed",seed);
+            Set(r.Manager,"pilotMinimumWindowRequestDelaySeconds",15f); // Prior serialized preset value.
             var requestWindows=new List<int>();
             r.Manager.ExperimentEventOccurred+=e=>
             {
@@ -505,11 +507,14 @@ static class FlowTests
                 requestWindows.Add(window);
                 var starts=(double[])Get(r.Manager,"pilotRequestWindowStarts");
                 double elapsed=(double)Get(r.Manager,"pilotRequestClock")-starts[window];
-                Require(elapsed>=15 && elapsed<=20.25,"request was not 15-20 Source seconds after its two-phase entrance");
+                Require(elapsed>=0 && elapsed<=20.25,"request was outside the first 20 Source seconds of its two-phase window");
+                if(elapsed<15)requestsBefore15++;
                 phases.Add(phase);
                 Require(!r.Tracker(0).IsMajorPhaseCompleted,"request anchored at a phase-completion boundary");
             };
             r.Manager.StartExperiment();float phaseSeconds=0;
+            Require((float)Get(r.Manager,"pilotMinimumWindowRequestDelaySeconds")==0,
+                "serialized 15-second lower bound survived preset application");
             for(int tick=1;tick<=1200 && r.Manager.CurrentState!=TaskSwitchExperimentState.Completed;tick++)
             {
                 Time.realtimeSinceStartupAsDouble=tick*.25;
@@ -539,11 +544,13 @@ static class FlowTests
             r.Manager.ExitExperimentMode();
         }
         Require(phases.Count==4,"window selection failed to cover all four major phases across seeds");
+        Require(requestsBefore15>0,"window timing retained a 15-second minimum");
         // Phase boundaries do not force an unexpired timer. If a window is crossed
         // faster than its delay, carry the same due time to the next phase.
         Time.realtimeSinceStartupAsDouble=0;
-        var fast=new Rig(TaskSwitchMethod.OperatorInitiated);
-        Set(fast.Manager,"pilotExperiment",true);Set(fast.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
+        var fast=new Rig(TaskSwitchMethod.CountdownOperatorInitiated);
+        Set(fast.Manager,"pilotExperiment",true);Set(fast.Manager,"pilotShortRun",true);
+        Set(fast.Manager,"pilotWorkConditionsCsv",Resources.Assets["PilotWorkConditionsPattern3"]);
         Set(fast.Manager,"pilotMinimumWindowRequestDelaySeconds",100f);Set(fast.Manager,"pilotMaximumWindowRequestDelaySeconds",100f);
         fast.Manager.StartExperiment();fast.Update();fast.Complete(0);fast.Update();
         double fastDue=(double)Get(fast.Manager,"pilotRequestDue");
@@ -553,6 +560,19 @@ static class FlowTests
         Time.realtimeSinceStartupAsDouble=fastDue-.001;fast.Update();Require(fast.Manager.CurrentSwitchIndex==0,"window timer fired early");
         Time.realtimeSinceStartupAsDouble=fastDue;fast.Update();Require(fast.Manager.CurrentSwitchIndex==1,"missed window lost its request");
         fast.Manager.ExitExperimentMode();
+        // Custom ranges may include zero; invalid negative ranges must still fail.
+        Time.realtimeSinceStartupAsDouble=0;
+        var immediate=new Rig(TaskSwitchMethod.CountdownOperatorInitiated);
+        Set(immediate.Manager,"pilotExperiment",true);Set(immediate.Manager,"pilotShortRun",true);
+        Set(immediate.Manager,"pilotWorkConditionsCsv",Resources.Assets["PilotWorkConditionsPattern3"]);
+        Set(immediate.Manager,"pilotMinimumWindowRequestDelaySeconds",0f);Set(immediate.Manager,"pilotMaximumWindowRequestDelaySeconds",0f);
+        immediate.Manager.StartExperiment();immediate.Update();
+        Require(immediate.Manager.CurrentSwitchIndex==1 && immediate.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,
+            "zero-delay window was rejected or postponed");
+        immediate.Manager.ExitExperimentMode();
+        Set(immediate.Manager,"pilotMinimumWindowRequestDelaySeconds",-1f);
+        int beforeErrors=Debug.Errors;immediate.Manager.StartExperiment();
+        Require(immediate.Manager.CurrentState==TaskSwitchExperimentState.Idle && Debug.Errors>beforeErrors,"negative window delay was accepted");
         // The next window can start during the preceding countdown. Its clock
         // excludes Target work, global pause, and held return-confirmation input.
         Time.realtimeSinceStartupAsDouble=0;
@@ -657,7 +677,7 @@ static class FlowTests
         FinishPilotTargetAndReturn(boundary);
         Require(boundary.Manager.CurrentState==TaskSwitchExperimentState.Completed && boundary.Manager.CompletedSwitchCount==6,
             "announced-boundary final return did not close the completed extension");
-        Console.WriteLine("PASS: 64 seeds each issue exactly one request per two-phase window and six total; 15-20 Source seconds from each window start; pending-switch anchors, Target/Pause/input-lock exclusion, late carryover; six presets preserve deadlines and extension return");
+        Console.WriteLine("PASS: 64 seeds each issue exactly one request per two-phase window and six total; 0-20 Source seconds from each window start, including before 15 seconds and preset migration; pending-switch anchors, Target/Pause/input-lock exclusion, late carryover; six presets preserve deadlines and extension return");
     }
 
     static void CheckPlacementPlanSnapshot()
