@@ -161,9 +161,13 @@ OperatorSwitchAvailableとOperatorSwitchConfirmationPressedで要請後の判断
 
 3サイクル完了時に切替が残っている場合は、4サイクル目のMove1→LiftUp完了まで延長します。4サイクル目の目標と枚数はSource CSVの先頭行を再使用し、開始前検査で追加の板枚数も確保します。中断した場合は、その移動・吊上げから復帰して続行できます。4サイクル目のMove2・Placeには進まず、完全サイクル数は3のままです。延長吊上げが先に終わっても、未満了のカウントダウンは打ち切らず、残りの切替・復帰確認が終わってから終了します。旧6サイクル12切替モードの下限判定は維持します。
 
-要請は **Pilot Minimum Request Interval Seconds～Pilot Maximum Request Interval Seconds**（既定10～20秒）のランダムタイマーで発生します。フェーズ・ステップ境界での前倒しと、2回目をMove2以降に限定する処理はありません。タイマーは大フェーズをまたいで継続し、切替先での作業・復帰後の入力解除待ちが終わってから次のタイマーを開始します。各サイクルで名目上2枠ずつ解放して序盤への集中を抑えますが、遅れた枠は後続サイクルでも使えるため、各サイクルの実際の回数は固定しません。**Pilot Request Timing Seed** が同じなら同じ切替番号の抽選値を再現します。
+3サイクル6切替では、各サイクルを **前半（Move1→LiftUp）・後半（Move2→Place）** の2区間に分け、各区間に1回、合計6回の要請枠を割り当てます。
+各区間の開始から **Pilot Minimum Window Request Delay Seconds～Pilot Maximum Window Request Delay Seconds**（既定15～20秒）の範囲で抽選した時点に要請します。前の切替が未完了でも、新しい区間に入った時点で開始時刻を保存します。切替先の作業・開始／復帰確認待ち・入力ロック・Pauseの時間は区間タイマーに含めず、元作業を進める時間を基準にします。
 
-`SwitchRequested`の`RequestTrigger=RandomTimer`・`RequestTimerOffsetSeconds`・`NominalSlotCycle`・`SourceSlotCycle`に実際の発生条件を記録します。延長の有無は`PilotSourceExtensionScheduled`・`PilotSourceExtensionCompleted`と`ExperimentCompleted`の`ExtensionStarted`／`ExtensionCompleted`で判別できます。要請分散のために元作業や目標更新を止めません。予告式フェーズ境界方式の、切替のための本来の境界停止は維持します。
+フェーズ境界での前倒し・タイマーの再抽選は行いません。操作が速く区間を先に通過した場合や、前の切替が続いている場合は枠を失わず、後から順に処理します。この場合、実際の発生区間は予定区間より後になることがあります。6回の復帰完了前には終了せず、必要なら上記の4サイクル目吊上げまで延長します。延長吊上げ完了後に未発行の枠が残る場合は、Source側での待機時間も進め、残りの要請と所定のカウントダウンを処理します。6回を超えて要請は出しません。
+
+**Pilot Request Timing Seed** が同じなら各区間の抽選値を再現します。旧6サイクル12切替では、従来の **Pilot Minimum Request Interval Seconds／Maximum Request Interval Seconds**（既定10～20秒）を使用します。
+`PilotRequestWindowStarted`に区間番号・サイクル・開始時点のSource時計・抽選秒数を記録します。`SwitchRequested`の`RequestTrigger=TwoPhaseWindow`・`RequestTimerOffsetSeconds`・`NominalSlotCycle`・`SourceSlotCycle`で予定と実際の要請を対応できます。延長の有無は`PilotSourceExtensionScheduled`・`PilotSourceExtensionCompleted`と`ExperimentCompleted`の`ExtensionStarted`／`ExtensionCompleted`で判別できます。要請分散のために元作業や目標更新を止めません。予告式フェーズ境界方式の、切替のための本来の境界停止は維持します。
 
 Targetは吊上げ1フェーズと1サイクルを交互に各3回実施します。**Pilot Long First** がOFFなら短→長、ONなら長→短です。
 TargetのCSV行は従来どおり **Pilot Target Order Seed** によって1～6を重複なしで並べ替えます。作業の短長とCSV行の選択は独立です。

@@ -454,8 +454,13 @@ static class FlowTests
                 "extension return restarted Source or lost a switch");
             if(index<6)
             {
-                r.Update();double due=(double)Get(r.Manager,"pilotRequestDue");
-                Time.realtimeSinceStartupAsDouble=due;r.Update();
+                r.Update();
+                if(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource)
+                {
+                    double due=(double)Get(r.Manager,"pilotRequestDue");
+                    double clock=(double)Get(r.Manager,"pilotRequestClock");
+                    Time.realtimeSinceStartupAsDouble+=Math.Max(0,due-clock)+.001;r.Update();
+                }
             }
         }
         Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Events.Contains("PilotSourceExtensionCompleted"),"extended pilot did not finish six returns");
@@ -490,40 +495,94 @@ static class FlowTests
             var r=new Rig(TaskSwitchMethod.OperatorInitiated);
             Set(r.Manager,"pilotExperiment",true);Set(r.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
             Set(r.Manager,"pilotRequestTimingSeed",seed);
-            r.Manager.StartExperiment();r.Update();
-            double due=(double)Get(r.Manager,"pilotRequestDue");
-            Require(due>=10 && due<=20,"random request outside configured interval");
-            for(int tick=1;tick<=81 && r.Manager.CurrentSwitchIndex==0;tick++)
+            var requestWindows=new List<int>();
+            r.Manager.ExperimentEventOccurred+=e=>
+            {
+                if(e.eventName!="SwitchRequested")return;
+                var phase=r.Cycle(0).CurrentPhase;
+                int offset=phase==CraneStatusManager.WorkPhase.Move1?0:phase==CraneStatusManager.WorkPhase.LiftUp?1:phase==CraneStatusManager.WorkPhase.Move2?2:3;
+                int window=(r.Cycle(0).CurrentCycleNumber-1)*2+offset/2;
+                requestWindows.Add(window);
+                var starts=(double[])Get(r.Manager,"pilotRequestWindowStarts");
+                double elapsed=(double)Get(r.Manager,"pilotRequestClock")-starts[window];
+                Require(elapsed>=15 && elapsed<=20.25,"request was not 15-20 Source seconds after its two-phase entrance");
+                phases.Add(phase);
+                Require(!r.Tracker(0).IsMajorPhaseCompleted,"request anchored at a phase-completion boundary");
+            };
+            r.Manager.StartExperiment();float phaseSeconds=0;
+            for(int tick=1;tick<=1200 && r.Manager.CurrentState!=TaskSwitchExperimentState.Completed;tick++)
             {
                 Time.realtimeSinceStartupAsDouble=tick*.25;
-                if(tick%12==0)
-                {
-                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp) r.Attach(0,r.Cycle(0).CurrentCycleNumber==2?2:1);
-                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place) r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();
-                    r.Complete(0);
-                }
                 r.Update();
-                if(Time.realtimeSinceStartupAsDouble<due) Require(r.Manager.CurrentSwitchIndex==0,"phase boundary advanced an unexpired random timer");
+                if(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown)
+                {
+                    FinishPilotTargetAndReturn(r); // Voluntary early choice, no Source progress during Target.
+                    continue;
+                }
+                Require(r.Manager.CurrentState==TaskSwitchExperimentState.OperatingSource,"window experiment left Source unexpectedly");
+                phaseSeconds+=.25f;
+                bool travel=r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1 || r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move2;
+                float movementSeconds=seed%2==0?12:24;
+                float duration=travel?movementSeconds:30-movementSeconds;
+                if(phaseSeconds>=duration)
+                {
+                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.LiftUp)r.Attach(0,r.Cycle(0).CurrentCycleNumber==2?2:1);
+                    if(r.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Place)r.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();
+                    r.Complete(0);phaseSeconds=0;
+                }
             }
-            Require(r.Manager.CurrentState==TaskSwitchExperimentState.CountingDown,"random request did not fire");
-            Require(Time.realtimeSinceStartupAsDouble>=due && !r.Events.Contains("PilotRequestAdvanced"),"request was promoted at a boundary");
-            phases.Add(r.Cycle(0).CurrentPhase);
+            Require(r.Manager.CurrentState==TaskSwitchExperimentState.Completed && r.Manager.CompletedSwitchCount==6 &&
+                r.Cycle(0).CompletedCycleCount==3 && !(bool)Get(r.Manager,"pilotSourceExtensionStarted"),"window schedule did not complete six requests across three normal cycles");
+            Require(requestWindows.Count==6,"request schedule duplicated or lost an index");
+            for(int index=0;index<6;index++) Require(requestWindows[index]==index,"request did not occur once in its two-phase window");
+            Require(!r.Events.Contains("PilotRequestAdvanced"),"boundary promotion survived the window schedule");
             r.Manager.ExitExperimentMode();
         }
-        Require(phases.Count==4,"random timing failed to cover all four major phases across seeds");
-        // The second request is allowed in Move1 as well, rather than waiting for Move2.
+        Require(phases.Count==4,"window selection failed to cover all four major phases across seeds");
+        // Phase boundaries do not force an unexpired timer. If a window is crossed
+        // faster than its delay, carry the same due time to the next phase.
         Time.realtimeSinceStartupAsDouble=0;
-        var samePhase=new Rig(TaskSwitchMethod.OperatorInitiated);
-        Set(samePhase.Manager,"pilotExperiment",true);Set(samePhase.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
-        Set(samePhase.Manager,"pilotMinimumRequestIntervalSeconds",2f);Set(samePhase.Manager,"pilotMaximumRequestIntervalSeconds",2f);
-        samePhase.Manager.StartExperiment();samePhase.Update();
-        Time.realtimeSinceStartupAsDouble=2;samePhase.Update();FinishPilotTargetAndReturn(samePhase);samePhase.Update();
-        double secondDue=(double)Get(samePhase.Manager,"pilotRequestDue");
-        Require(secondDue>2,"second timer did not start in Move1");
-        Time.realtimeSinceStartupAsDouble=secondDue;samePhase.Update();
-        Require(samePhase.Manager.CurrentSwitchIndex==2 && samePhase.Cycle(0).CurrentPhase==CraneStatusManager.WorkPhase.Move1,"second request was restricted to Move2 or placement");
-        FinishPilotTargetAndReturn(samePhase);samePhase.Update();
-        Require(samePhase.Manager.CompletedSwitchCount==2 && (double)Get(samePhase.Manager,"pilotRequestDue")<0,"third request flooded the first Source cycle");
+        var fast=new Rig(TaskSwitchMethod.OperatorInitiated);
+        Set(fast.Manager,"pilotExperiment",true);Set(fast.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
+        Set(fast.Manager,"pilotMinimumWindowRequestDelaySeconds",100f);Set(fast.Manager,"pilotMaximumWindowRequestDelaySeconds",100f);
+        fast.Manager.StartExperiment();fast.Update();fast.Complete(0);fast.Update();
+        double fastDue=(double)Get(fast.Manager,"pilotRequestDue");
+        Require(fastDue==100,"window delay did not start at the window entrance");
+        fast.Attach(0,1);fast.Complete(0);fast.Update();
+        Require(fast.Manager.CurrentSwitchIndex==0 && (double)Get(fast.Manager,"pilotRequestDue")==fastDue,"phase boundary forced or reset a window request");
+        Time.realtimeSinceStartupAsDouble=fastDue-.001;fast.Update();Require(fast.Manager.CurrentSwitchIndex==0,"window timer fired early");
+        Time.realtimeSinceStartupAsDouble=fastDue;fast.Update();Require(fast.Manager.CurrentSwitchIndex==1,"missed window lost its request");
+        fast.Manager.ExitExperimentMode();
+        // The next window can start during the preceding countdown. Its clock
+        // excludes Target work, global pause, and held return-confirmation input.
+        Time.realtimeSinceStartupAsDouble=0;
+        var clockRig=new Rig(TaskSwitchMethod.OperatorInitiated);
+        Set(clockRig.Manager,"pilotExperiment",true);Set(clockRig.Manager,"pilotCondition",TaskSwitchExperimentManager.PilotCondition.Condition3_Countdown10s_Temporary);
+        clockRig.Manager.StartExperiment();clockRig.Update();
+        double firstDelay=((float[])Get(clockRig.Manager,"pilotRequestWindowDelays"))[0];
+        Time.realtimeSinceStartupAsDouble=firstDelay;clockRig.Update();
+        clockRig.Complete(0);clockRig.Attach(0,1);clockRig.Complete(0); // Second window begins while counting down.
+        var anchors=(double[])Get(clockRig.Manager,"pilotRequestWindowStarts");
+        Require(anchors[1]>=0 && anchors[1]<=firstDelay+.001,"next window was not anchored while the preceding switch was pending");
+        clockRig.Manager.ConfirmTargetTask();clockRig.Update();
+        double frozen=(double)Get(clockRig.Manager,"pilotRequestClock");
+        Time.realtimeSinceStartupAsDouble+=100;clockRig.Update();
+        Require(Math.Abs((double)Get(clockRig.Manager,"pilotRequestClock")-frozen)<.001,"Target work advanced a Source window timer");
+        clockRig.Attach(1,((TaskSwitchWorkCondition)Get(clockRig.Manager,"activeTargetWorkCondition")).pickupCount);clockRig.Complete(1);
+        Input.buttons["JoyStick2RedButton"]=true;clockRig.Manager.ConfirmTargetTask();clockRig.Update();
+        Time.realtimeSinceStartupAsDouble+=50;clockRig.Update();
+        Require(Math.Abs((double)Get(clockRig.Manager,"pilotRequestClock")-frozen)<.001,"held Source confirmation advanced a window timer");
+        Input.buttons.Clear();clockRig.Update();
+        ExperimentPauseManager.IsPaused=true;Time.realtimeSinceStartupAsDouble+=100;ExperimentPauseManager.PauseOffsetSeconds+=100;clockRig.Update();
+        ExperimentPauseManager.IsPaused=false;clockRig.Update();
+        Require(Math.Abs((double)Get(clockRig.Manager,"pilotRequestClock")-frozen)<.001,"global pause advanced a window timer");
+        double secondDelay=((float[])Get(clockRig.Manager,"pilotRequestWindowDelays"))[1];
+        double remaining=anchors[1]+secondDelay-frozen;
+        Time.realtimeSinceStartupAsDouble+=remaining-.001;clockRig.Update();
+        Require(clockRig.Manager.CurrentSwitchIndex==1,"second window request fired before its anchored due time");
+        Time.realtimeSinceStartupAsDouble+=.001;clockRig.Update();
+        Require(clockRig.Manager.CurrentSwitchIndex==2,"second window restarted its delay at return instead of preserving its anchor");
+        clockRig.Manager.ExitExperimentMode();ExperimentPauseManager.PauseOffsetSeconds=0;
         // All six presets: the sixth request spans the third cycle's end.
         // Return in either Move1 or LiftUp of the extension, then finish that pickup.
         for(int preset=1;preset<=6;preset++) for(int returnPhase=0;returnPhase<2;returnPhase++)
@@ -598,7 +657,7 @@ static class FlowTests
         FinishPilotTargetAndReturn(boundary);
         Require(boundary.Manager.CurrentState==TaskSwitchExperimentState.Completed && boundary.Manager.CompletedSwitchCount==6,
             "announced-boundary final return did not close the completed extension");
-        Console.WriteLine("PASS: 64 seeds cover all four request phases without boundary promotion; second request can occur in Move1; six presets preserve full deadlines and resume cycle-4 Move1/LiftUp, including Pause and held confirmation");
+        Console.WriteLine("PASS: 64 seeds each issue exactly one request per two-phase window and six total; 15-20 Source seconds from each window start; pending-switch anchors, Target/Pause/input-lock exclusion, late carryover; six presets preserve deadlines and extension return");
     }
 
     static void CheckPlacementPlanSnapshot()
