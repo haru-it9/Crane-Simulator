@@ -272,6 +272,7 @@ public partial class TaskSwitchExperimentManager
         List<GameObject> boards;float weight;int spawn;
         if(!generator.TryGetPickupBoards(work.pickupX,work.pickupZ,work.pickupCount,out boards,out weight,out spawn))
         { Debug.LogError($"CSV work {work.role}:{work.index}: not enough boards at pickup ({work.pickupX},{work.pickupZ})",this);return false; }
+        load.ClearPlacementRuntimeState();
         load.SetExperimentBoardCounts(work.pickupCount,work.placementCount);
         load.SetPickupTargetWeightKg(weight);
         if(condition==targetCondition && ActiveTargetTaskPattern==TaskSwitchTargetTaskPattern.Move2ToPlace)

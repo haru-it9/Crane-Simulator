@@ -67,6 +67,10 @@ static class MovementBoundaryTests
             for(int i=0;i<10;i++)r.Dispatch();
             Check(r.Crane.InformationTarget.position.x==stopped.x && r.Crane.InformationTarget.position.z==stopped.z,"late input moved completed source before switch/next phase");
             Check(r.Op.LastAcceptedMovement.x==0 && r.Op.LastAcceptedMovement.z==0,"logged accepted input did not reflect boundary hold");
+            Input.axes["y"]=-.9f;Input.axes["spread"]=.6f;r.Dispatch();
+            Check(r.Op.LastAcceptedMovement.y==0 && r.Crane.CraneUnit.LastMovement.y==0,"completed boundary accepted descent into the destination stack");
+            Check(r.Op.LastAcceptedSpread==0,"completed boundary accepted magnet spacing changes");
+            Check(r.Op.ReadMovementCommand().y!=0 && Input.GetAxis("spread")==.6f,"boundary hold removed the raw input evidence");
             Input.axes.Clear();r.Tick();Check(r.Completions==1,"completion emitted twice");
             r.Tracker.ConfigurePhase(phase==CraneStatusManager.WorkPhase.Move1?CraneStatusManager.WorkPhase.LiftUp:CraneStatusManager.WorkPhase.Place,true);
             Input.axes["x"]=.7f;r.Dispatch();

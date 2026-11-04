@@ -396,6 +396,32 @@ static class FlowTests
         Console.WriteLine("PASS: all 6 short pilot presets, early/automatic switching and delayed final return, six returns, final pre-placement hold and exactly three full Source cycles ending at placement");
     }
 
+    static void CheckPlacementPlanSnapshot()
+    {
+        var r=new Rig(TaskSwitchMethod.OperatorInitiated);
+        var crane=r.Registry.cranes[0];var plan=crane.GetComponent<CraneWorkLoadPlanManager>();
+        foreach(var board in crane.BoardGenerator.Boards) board.GetComponent<BoardInfo>().Weight=1766;
+        plan.SetExperimentBoardCounts(1,1);r.Attach(0,1);
+        Require(plan.PreparePlacementPlan(1766) && plan.TargetRemainingWeightKg==0,"initial full-placement goal");
+        // Reproduce the uploaded pattern-2 log: one transported plate, then
+        // three destination plates attached during the final boundary wait.
+        crane.LifMagSystem.AttachedBoards.AddRange(crane.BoardGenerator.Boards.GetRange(1,2));
+        var extra=new GameObject();extra.components[typeof(BoardInfo)]=new BoardInfo {Weight=1766};crane.LifMagSystem.AttachedBoards.Add(extra);
+        Require(plan.PreparePlacementPlan(7064) && plan.PlacementStartWeightKg==1766 && plan.TargetRemainingWeightKg==0,"Place entry changed the goal to retaining three extra plates");
+        Require(!plan.IsPlacementBoardCountSatisfied(3) && plan.IsPlacementBoardCountSatisfied(0),"held destination plates counted as completed placement");
+        crane.LifMagSystem.AttachedBoards.Clear();
+        Require(plan.PreparePlacementPlan(0) && plan.TargetRemainingWeightKg==0,"resume after release discarded the completed placement goal");
+
+        plan.SetExperimentBoardCounts(3,1);r.Attach(0,3);
+        Require(!plan.HasPlacementPlan && plan.PreparePlacementPlan(5298) && plan.TargetRemainingWeightKg==3532,"new partial-placement goal");
+        crane.LifMagSystem.AttachedBoards.RemoveAt(2);
+        Require(plan.PreparePlacementPlan(3532) && plan.TargetRemainingWeightKg==3532 && plan.IsPlacementBoardCountSatisfied(2),"partial placement was recomputed after release");
+
+        plan.SetExperimentBoardCounts(1,1);r.Attach(0,3);
+        Require(!plan.PreparePlacementPlan(5298) && !plan.HasPlacementPlan,"unexpected initial load silently created a nonzero full-placement goal");
+        Console.WriteLine("PASS: pattern-2 placement-plan replay (1 to 4 plates), fixed zero target, no completion with 3 retained plates, idempotent full/partial placement and unexpected-load rejection");
+    }
+
     public static void Main(string[] args)
     {
         CheckCognitiveSupportGoalPreview();
@@ -467,6 +493,7 @@ static class FlowTests
         CheckSourceReturnValidation();
         CheckPilotPresets(args[0]);
         CheckShortPilotCompletion();
+        CheckPlacementPlanSnapshot();
         Console.WriteLine("PASS: actual manager/cycle/load-plan integration, two segment patterns, real-board preload and partial placement weights, cumulative five source cycles, no target drift on return, operator source continuation/one-click/neutral guard, Pause, all legacy methods and automatic CSV request");
     }
 }

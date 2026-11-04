@@ -1569,15 +1569,15 @@ public class CraneOperationManager : MonoBehaviour
             mainYInput = 0f;
         }
 
-        // A completed Move phase can wait for the next phase or a task switch.
-        // Keep its achieved X/Z position throughout that gap; the next tracker
-        // configuration releases this hold. Other experiment/control modes are unchanged.
-        if (taskSwitchExperimentMode && selectedWorkPhaseTracker != null &&
-            selectedWorkPhaseTracker.IsMajorPhaseCompleted &&
-            (selectedWorkPhaseTracker.CurrentMajorPhase == CraneStatusManager.WorkPhase.Move1 ||
-             selectedWorkPhaseTracker.CurrentMajorPhase == CraneStatusManager.WorkPhase.Move2))
+        // A completed phase can wait for a request/deadline or the next phase.
+        // Hold all axes, including descent, so waiting cannot pick up destination
+        // plates before Place starts. Raw input remains available to the logger.
+        bool holdAtBoundary = taskSwitchExperimentMode && selectedWorkPhaseTracker != null &&
+            selectedWorkPhaseTracker.IsMajorPhaseCompleted;
+        if (holdAtBoundary)
         {
             mainXInput = 0f;
+            mainYInput = 0f;
             mainZInput = 0f;
         }
 
@@ -1585,7 +1585,7 @@ public class CraneOperationManager : MonoBehaviour
         CurrentCrane.MoveMainLifMagY(mainYInput);
         CurrentCrane.MoveMainCraneZ(mainZInput);
 
-        float spreadInput = Input.GetAxis(joyStick3MiniVertical); // ジョイスティック入力
+        float spreadInput = holdAtBoundary ? 0f : Input.GetAxis(joyStick3MiniVertical);
 
         LastAcceptedMovement = new Vector3(mainXInput, mainYInput, mainZInput);
         LastAcceptedSpread = spreadInput;

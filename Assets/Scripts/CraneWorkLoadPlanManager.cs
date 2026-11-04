@@ -73,8 +73,10 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
 
     public void SetExperimentBoardCounts(int pickupCount, int placementCount)
     {
+        bool changed = experimentPickupCount != pickupCount || experimentPlacementCount != placementCount;
         if (experimentPickupCount != pickupCount) hasPreparedExperimentPickup = false;
         experimentPickupCount=pickupCount; experimentPlacementCount=placementCount;
+        if (changed) ClearPlacementRuntimeState();
     }
     public void ClearExperimentBoardCounts() { experimentPickupCount=experimentPlacementCount=null; hasPreparedExperimentPickup=false; }
 
@@ -268,13 +270,19 @@ public class CraneWorkLoadPlanManager : MonoBehaviour
     /// </summary>
     public bool PreparePlacementPlan(float currentAttachedWeightKg)
     {
+        // Move2, Place and a resumed Place share one plan. Recomputing from the
+        // current load can turn accidental destination pickups into a goal.
+        if (experimentPlacementCount.HasValue && placementPlanPrepared) return true;
         placementStartWeightKg = Mathf.Max(0f, currentAttachedWeightKg);
 
         if (experimentPlacementCount.HasValue)
         {
             ResolveReferences();
             LifMagSystem magnet=craneInstance!=null ? craneInstance.LifMagSystem : null;
-            if(magnet==null || magnet.AttachedBoards.Count<experimentPlacementCount.Value) { placementPlanPrepared=false;return false; }
+            if(magnet==null || !experimentPickupCount.HasValue ||
+                magnet.AttachedBoards.Count != experimentPickupCount.Value ||
+                magnet.AttachedBoards.Count < experimentPlacementCount.Value)
+            { placementPlanPrepared=false;return false; }
             float release=0;
             // Current control releases LastAttachedBoard first, so sum that same order.
             for(int i=0;i<experimentPlacementCount.Value;i++)
