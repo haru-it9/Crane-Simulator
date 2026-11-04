@@ -1,0 +1,3 @@
+﻿session_id,participant_id,block_id,experiment_run_index,pause_interval_index,start_s,end_s,duration_s,start_observed,end_observed,outcome,start_switch_index,end_switch_index,start_crane_index,end_crane_index,start_state,end_state,start_phase,start_step,end_phase,end_step
+20261104T051034338Z_b46f00ecb2e141d3aafcaa2d167f472b,,,1,1,0.031791,3.269425,3.237634,0,1,Resumed,0,0,-1,-1,Idle,Idle,,,,
+20261104T051034338Z_b46f00ecb2e141d3aafcaa2d167f472b,,,1,2,372.210912,385.051125,12.840213,1,0,LoggingStoppedWhilePaused,6,6,0,0,OperatingSource,OperatingSource,Place,Place.PlacementLowering,Place,Place.PlacementLowering
