@@ -659,37 +659,63 @@ public static class SupportTests
             manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelFadeStarted:")&&s.Contains("Anchor=ControllerSliderMovementPlusDelay"))&&
             manager.Recorded.Exists(s=>s.StartsWith("CurrentInputLabelHidden:")&&s.Contains("Reason=ControllerInputStarted")),"Heading logs distinguish raw input, delayed fade and completion");
         Call(support,"OnDisable");
-        // Continuous: normal work, both movement tolerances, goal crossing,
-        // phase changes, a long elapsed time, and no invented command at exact arrival.
+        // Continuous uses the green-coordinate range, independently of the
+        // coarse/fine tracker step, and follows vertical phases without a new cue event.
         manager.IsPilotExperiment=true;manager.PilotSupport=TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
         manager.CurrentState=TaskSwitchExperimentState.OperatingSource;
         Set(support,"supportContent",TaskSwitchSupportContent.InputDirectionOnly);
         Set(support,"positiveXPointsUp",true);Set(support,"positiveZPointsRight",false);
+        Set(support,"coordinateColorSource",coordinateColors);coordinateColors.FineAlignTolerance=.05f;
         tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1;
         tracker.CurrentStepDefinition=Step("Move1.PickupCoarseMove");tracker.GoalX=.2f;tracker.GoalZ=-.2f;
         crane.InformationTarget.position=Vector3.zero;cycle.HasPendingNextPhase=false;
         ExperimentPauseManager.ActiveRealtime=3000;Call(support,"OnEnable");manager.Raise("SourceOperationStarted");Call(support,"LateUpdate");
         Check(left.gameObject.activeSelf&&rz.gameObject.activeSelf&&Alpha(left)==1&&Alpha(rz)==1,
-            "Continuous stays fully visible inside the coarse movement tolerance");
+            "Continuous remains visible inside coarse tolerance until the green-coordinate range");
+        tracker.GoalX=.05f;tracker.GoalZ=-.05f;Call(support,"LateUpdate");
+        Check(!left.gameObject.activeSelf&&!rz.gameObject.activeSelf,"Green-range boundary immediately hides both arrows without fading");
         tracker.CurrentStepDefinition=Step("Move1.PickupFineAlign");tracker.GoalX=.01f;tracker.GoalZ=-.01f;
         ExperimentPauseManager.ActiveRealtime=6000;Call(support,"LateUpdate");
-        Check(Requested(support,"leftFade")&&Requested(support,"rightZFade")&&Alpha(left)==1&&Alpha(rz)==1,
-            "Continuous stays visible inside the fine tolerance and has no display timeout");
-        Check(la.rectTransform.localEulerAngles.z==0&&za.rectTransform.localEulerAngles.z==-90,
-            "Continuous points toward the true target inside tolerance");
-        crane.InformationTarget.position=new Vector3(.02f,0,-.02f);Call(support,"LateUpdate");
-        Check(la.rectTransform.localEulerAngles.z==180&&za.rectTransform.localEulerAngles.z==90&&Alpha(left)==1,
-            "Crossing the true target reverses the Continuous direction without fading");
+        Check(!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),"Green fine alignment does not require exact coordinates");
+        tracker.GoalX=.051f;Call(support,"LateUpdate");
+        Check(Requested(support,"leftFade")&&!Requested(support,"rightZFade")&&Alpha(left)==1,
+            "Leaving the green range restores only the required axis with no display timeout");
+        crane.InformationTarget.position=new Vector3(.11f,0,0);Call(support,"LateUpdate");
+        Check(la.rectTransform.localEulerAngles.z==180&&Alpha(left)==1,"Crossing beyond the far green boundary reverses direction");
+        coordinateColors.FineAlignTolerance=.1f;crane.InformationTarget.position=Vector3.zero;tracker.GoalX=.08f;
+        Call(support,"LateUpdate");Check(!Requested(support,"leftFade"),"Continuous shares a customized coordinate-display tolerance");
+        tracker.GoalX=.101f;Call(support,"LateUpdate");Check(Requested(support,"leftFade"),"Customized range does not hide an out-of-range axis");
+        Set(support,"coordinateColorSource",null);tracker.GoalX=.05f;Call(support,"LateUpdate");
+        Check(!Requested(support,"leftFade"),"Missing coordinate display falls back to the default green range");
+        Set(support,"coordinateColorSource",coordinateColors);coordinateColors.FineAlignTolerance=.05f;
+        tracker.GoalX=tracker.GoalZ=0;crane.InformationTarget.position=Vector3.zero;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.LiftUp;tracker.CurrentStepDefinition=Step("LiftUp.PickupLowering");
+        crane.CraneUnit.LocalY=-3;crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&verticalLabel.text=="下降"&&!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),
+            "Move1-to-LiftUp switches from travel to lowering without a new presentation event");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;tracker.CurrentStepDefinition=Step("LiftUp.LoadAcquisition");
+        magnet.CurrentElectricCurrentA=50;load.Weight=5000;load.HasWeight=true;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&verticalLabel.text=="上昇","Ready pickup current displays raising guidance");
+        tracker.CurrentStepDefinition=Step("LiftUp.LoadedRaising");magnet.CurrentElectricCurrentA=20;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade"),"Continuous raising still requires appropriate current");
+        magnet.CurrentElectricCurrentA=50;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&verticalLabel.text=="上昇","Appropriate current restores raising guidance");
         tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move2;tracker.CurrentStepDefinition=Step("Move2.DestinationFineAlign");
-        tracker.GoalX=-.01f;tracker.GoalZ=.01f;crane.InformationTarget.position=Vector3.zero;
+        tracker.GoalX=-.2f;tracker.GoalZ=.2f;Call(support,"LateUpdate");
+        Check(Requested(support,"leftFade")&&Requested(support,"rightZFade")&&!Requested(support,"rightYFade"),"LiftUp-to-Move2 restores travel guidance");
+        tracker.GoalX=tracker.GoalZ=0;tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Place;
+        tracker.CurrentStepDefinition=Step("Place.PlacementLowering");crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=false;
+        Call(support,"LateUpdate");Check(Requested(support,"rightYFade")&&verticalLabel.text=="下降","Move2-to-Place displays lowering guidance");
+        crane.CraneUnit.IsDownwardMovementBlockedByTouchdown=true;tracker.CurrentStepDefinition=Step("Place.LoadRelease");
+        load.HasRemainingWeight=true;load.RemainingWeight=0;magnet.CurrentElectricCurrentA=0;Call(support,"LateUpdate");
+        Check(Requested(support,"rightYFade")&&verticalLabel.text=="上昇","Placement after current release displays raising guidance");
+        crane.CraneUnit.LocalY=-1.66f;Call(support,"LateUpdate");
+        Check(!Requested(support,"rightYFade"),"Reaching the raising height ends vertical guidance");
+        manager.PilotSupport=TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary;
+        tracker.CurrentMajorPhase=CraneStatusManager.WorkPhase.Move1;tracker.CurrentStepDefinition=Step("Move1.PickupCoarseMove");tracker.GoalX=.2f;
         manager.Raise("PilotMajorPhaseStarted");Call(support,"LateUpdate");
-        Check(Requested(support,"leftFade")&&Requested(support,"rightZFade")&&la.rectTransform.localEulerAngles.z==180&&za.rectTransform.localEulerAngles.z==90,
-            "Continuous follows each new movement phase and its goal");
-        crane.InformationTarget.position=new Vector3(-.01f,0,.01f);Call(support,"LateUpdate");
-        Check(!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),"Exact arrival has no false direction");
-        crane.InformationTarget.position=Vector3.zero;manager.PilotSupport=TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary;
-        manager.Raise("PilotMajorPhaseStarted");Call(support,"LateUpdate");
-        Check(!Requested(support,"leftFade")&&!Requested(support,"rightZFade"),"Temporary retains its original movement tolerances");
+        Check(!Requested(support,"leftFade"),"Temporary retains its original coarse-step tolerance");
         Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }

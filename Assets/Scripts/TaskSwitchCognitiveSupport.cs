@@ -63,7 +63,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     [Header("電流の適正範囲")]
     [Tooltip("ON: 適正電流のみ座標と同じ緑色にし、切替時のフェーズ色による強調は行いません。OFF: 従来の着床開始時の強調。")]
     [SerializeField] private bool useCurrentRangeColoring = true;
-    [Tooltip("座標の目標範囲内の緑色を共有します。未指定ならシーン内のCraneInformationDisplayを自動取得します。")]
+    [Tooltip("座標の目標範囲内の緑色と、Continuous移動矢印の許容範囲を共有します。未指定ならシーン内のCraneInformationDisplayを自動取得します。")]
     [SerializeField] private CraneInformationDisplay coordinateColorSource;
     [Tooltip("保持板の下面から板山・台までの距離がこの値以上なら、電流上限をMAXまで許容します。ワールド座標単位。")]
     [SerializeField, Min(0.01f)] private float currentRangeClearance = 0.1f;
@@ -349,10 +349,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         CraneUnit unit = selectedCrane.CraneUnit;
         float localY = 0f;
         bool hasY = unit != null && unit.TryGetMainLifMagLocalY(out localY);
+        float travelTolerance = ContinuousPilotArrows
+            ? Mathf.Max(0f, coordinateColorSource != null ? coordinateColorSource.FineAlignTolerance : 0.05f)
+            : -1f;
         Vector3 movement = position != null && tracker != null
             ? TaskSwitchSupportGuidance.RequiredMovement(step, position.position,
                 hasGoal, goalX, goalZ, unit == null || unit.IsDownwardMovementBlockedByTouchdown,
-                hasY, localY, ContinuousPilotArrows) : Vector3.zero;
+                hasY, localY, travelTolerance) : Vector3.zero;
 
         bool currentRangeExpanded;
         string currentGuidance = EvaluateCurrentGuidance(phase, pendingPhase, out currentRangeExpanded);
