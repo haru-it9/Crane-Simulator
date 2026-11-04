@@ -64,9 +64,21 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary }
     public enum PilotWorkOrder { Alternate, ShuffledPairs }
+    public enum PilotCondition
+    {
+        Custom = 0,
+        Condition1_Countdown3s_Temporary = 1,
+        Condition2_Countdown7s_Temporary = 2,
+        Condition3_Countdown10s_Temporary = 3,
+        Condition4_AnnouncedBoundary_Temporary = 4,
+        Condition5_Countdown7s_None = 5,
+        Condition6_Countdown7s_Continuous = 6
+    }
 
     [Header("予備実験")]
     [SerializeField] private bool pilotExperiment;
+    [Tooltip("今回の6条件を選択。手法・猶予時間・矢印・3サイクル6切替・短長交互・作業CSVを自動設定します。Customは従来の手動設定です。変更は実験終了後に行ってください。")]
+    [SerializeField] private PilotCondition pilotCondition = PilotCondition.Custom;
     [SerializeField] private PilotDirectionDisplay pilotDirectionDisplay = PilotDirectionDisplay.None;
     [SerializeField, Min(0.1f)] private float pilotDisplaySeconds = 2f;
     [SerializeField, Min(0f)] private float pilotSwitchDeadlineSeconds = 7f;
@@ -77,6 +89,44 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public bool IsPilotExperiment => pilotExperiment;
     public PilotDirectionDisplay PilotSupport => pilotDirectionDisplay;
     public float PilotDisplaySeconds => pilotDisplaySeconds;
+
+    private void ApplyPilotCondition()
+    {
+        if (!pilotExperiment || pilotCondition == PilotCondition.Custom) return;
+        switch (pilotCondition)
+        {
+            case PilotCondition.Condition1_Countdown3s_Temporary:
+            case PilotCondition.Condition2_Countdown7s_Temporary:
+            case PilotCondition.Condition3_Countdown10s_Temporary:
+                switchMethod = TaskSwitchMethod.CountdownOperatorInitiated;
+                pilotSwitchDeadlineSeconds = pilotCondition == PilotCondition.Condition1_Countdown3s_Temporary
+                    ? 3f : pilotCondition == PilotCondition.Condition3_Countdown10s_Temporary ? 10f : 7f;
+                pilotDirectionDisplay = PilotDirectionDisplay.Temporary;
+                break;
+            case PilotCondition.Condition4_AnnouncedBoundary_Temporary:
+                switchMethod = TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated;
+                pilotSwitchDeadlineSeconds = 0f; // This policy has no time deadline.
+                pilotDirectionDisplay = PilotDirectionDisplay.Temporary;
+                break;
+            case PilotCondition.Condition5_Countdown7s_None:
+            case PilotCondition.Condition6_Countdown7s_Continuous:
+                switchMethod = TaskSwitchMethod.CountdownOperatorInitiated;
+                pilotSwitchDeadlineSeconds = 7f;
+                pilotDirectionDisplay = pilotCondition == PilotCondition.Condition5_Countdown7s_None
+                    ? PilotDirectionDisplay.None : PilotDirectionDisplay.Continuous;
+                break;
+            default:
+                return;
+        }
+        pilotShortRun = true;
+        pilotWorkOrder = PilotWorkOrder.Alternate;
+    }
+
+    private void OnValidate()
+    {
+        if (currentState == TaskSwitchExperimentState.Idle || currentState == TaskSwitchExperimentState.Completed)
+            ApplyPilotCondition();
+    }
 
     [SerializeField, Min(0.1f)] private float pilotMinimumRequestIntervalSeconds = 10f;
     [SerializeField, Min(0.1f)] private float pilotMaximumRequestIntervalSeconds = 20f;
@@ -315,6 +365,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void Awake()
     {
+        ApplyPilotCondition();
         InitializeSecondaryTaskUi();
         FindReferences();
         ResolveConfirmationButtonReferences();
@@ -464,6 +515,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public void StartExperiment()
     {
         if (ExperimentPauseManager.IsPaused) return;
+        ApplyPilotCondition();
         FindReferences();
         ResolveWorkPhaseTrackers();
         ResolveCycleControllers();
@@ -471,9 +523,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         SubscribeToCycleEvents();
 
         if (pilotExperiment && switchMethod != TaskSwitchMethod.Countdown &&
-            switchMethod != TaskSwitchMethod.CountdownOperatorInitiated)
+            switchMethod != TaskSwitchMethod.CountdownOperatorInitiated &&
+            switchMethod != TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated)
         {
-            Debug.LogError("予備実験では Countdown または CountdownOperatorInitiated を選択してください。", this);
+            Debug.LogError("予備実験では Countdown / CountdownOperatorInitiated / AnnouncedPhaseBoundaryOperatorInitiated を選択してください。", this);
             return;
         }
         if (pilotExperiment && (sourceCycleController == null || !useRealWorkPhaseBoundary ||
@@ -578,7 +631,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             string targetRows = shortPilotTargetOrder == null ? "Sequential" : string.Join(",", shortPilotTargetOrder);
             EmitEvent("PilotRunConfigured", FormattableString.Invariant(
-                $"ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineSeconds={CountdownSeconds};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
+                $"PilotCondition={pilotCondition};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
         }
         StartSecondarySubtask();
         EmitEvent("SourceOperationStarted");

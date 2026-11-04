@@ -141,6 +141,43 @@ Task Switch実験中は、移動完了の通知後、次フェーズまたは切
 
 OperatorSwitchAvailableとOperatorSwitchConfirmationPressedで要請後の判断待ちを区別できます。switch_summaryのrequest_sからsource_suspended_sまでが、作業者主導で切り替えるまでの待ち時間です。従来の計時・再集計との互換のためTargetWorkCycleCompletedというイベント名は残し、detailにCompletedSegments・Pattern・EndPhaseを記録します。切替先のcycle_summaryの1行は今回の2フェーズ作業の完了を意味し、切替元の完全サイクルとは区別して分析してください。target_runs_full_cycle列は0になります。
 
+## 今回の予備検証：6条件の設定
+
+`TaskSwitchExperimentManager` の **Pilot Experiment** をONにし、**Pilot Condition** で条件を選択します。
+手法・猶予時間・矢印・短縮実験・短長交互をInspectorの変更時と実験開始時に自動設定します。
+実験中は変更せず、終了してから次の条件を選択してください。
+
+| Pilot Condition | 切替方式 | 猶予 | 矢印 | 作業CSV |
+| --- | --- | --- | --- | --- |
+| Condition1 Countdown3s Temporary | カウントダウン＋主導 | 3秒 | 一時提示 | PilotWorkConditionsPattern1.csv |
+| Condition2 Countdown7s Temporary | カウントダウン＋主導 | 7秒 | 一時提示 | PilotWorkConditionsPattern2.csv |
+| Condition3 Countdown10s Temporary | カウントダウン＋主導 | 10秒 | 一時提示 | PilotWorkConditionsPattern3.csv |
+| Condition4 AnnouncedBoundary Temporary | 予告式フェーズ境界＋主導 | 現大フェーズ終了まで | 一時提示 | PilotWorkConditionsPattern4.csv |
+| Condition5 Countdown7s None | カウントダウン＋主導 | 7秒 | なし | PilotWorkConditionsPattern5.csv |
+| Condition6 Countdown7s Continuous | カウントダウン＋主導 | 7秒 | 常時提示 | PilotWorkConditionsPattern6.csv |
+
+全条件とも **Source 3サイクル以上・切替6回を両方満たして終了** します。切替回数はTargetからの復帰確認が完了した時点で加算します。
+Targetは吊上げ1フェーズと1サイクルを交互に各3回実施します。**Pilot Long First** がOFFなら短→長、ONなら長→短です。
+TargetのCSV行は従来どおり **Pilot Target Order Seed** によって1～6を重複なしで並べ替えます。作業の短長とCSV行の選択は独立です。
+
+一時提示は従来のTemporary／MovementPhaseTemporaryと同じく、各大フェーズ開始と切替・復帰時に必要な移動・上昇／下降方向を提示します。
+**Pilot Display Seconds**（初期値2秒）を共通で使用します。常時提示は既存仕様どおり必要な入力方向を更新し続け、距離によるフェードを行いません。
+電流表示・適正範囲の緑優先、復帰予告、要請の分散、Pauseの扱いは既存仕様を使用します。
+
+条件4は秒数による打切りを行いません。**Pilot Switch Deadline Seconds** の0は未使用を意味し、即時切替ではありません。
+**Switch Method** はAnnounced Phase Boundary Operator Initiatedに自動設定され、赤ボタンで前倒しでき、押さなければ現在の大フェーズ終了時に切り替えます。
+自動切替後の開始確認と、前倒し時の1押下での開始は既存の融合切替仕様を維持します。
+
+各作業CSVは `Assets/Resources/PilotWorkConditionsPattern1.csv` ～ `6.csv` です。今回の条件番号と同じ番号を使用します。
+Source行が元作業のサイクル別目標、Target行が切替先の候補目標です。新条件では自動選択のCSVを優先し、**Pilot Work Conditions Csv** は使用しません。
+既存シーンはCustomのまま読み込むため、今回の実験ではPilot Conditionを条件1～6のいずれかに変更してください。
+
+**Custom** を選ぶと従来の手動設定に戻り、6サイクル12切替、Shuffled Pairs、既存のCSV自動割当や任意のPilot Work Conditions Csvも引き続き使えます。
+Customに切り替えただけでは以前の値を復元しないため、必要な値を手動設定してください。Pilot ExperimentがOFFの通常実験には6条件の自動設定を適用しません。
+
+`events.csv` の `PilotRunConfigured` に `PilotCondition`、`SwitchMethod`、`DeadlineApplies` と、実際の秒数・支援・CSV・Target順序・短長順を記録します。
+条件4は `DeadlineApplies=False` で識別できます。`SwitchTriggerSelected` のOperator／Deadline／PhaseBoundaryによる切替原因の記録も維持します。
+
 ## 検証範囲
 
 Tests/TaskSwitchFlow/run.shは実際のManager・CycleController・LoadPlanManagerを代替Unity APIで動かし、2パターン、CSV解析、5サイクル、復帰座標の保持、事前吸着・部分配置重量、作業者主導の継続・1押下切替・押下解除待ち、Pause、既存3手法、CSV要請の自動発生を検証します。LifMagSystem本体とCraneUnitの実際の吸着メソッドを使い、複数板の下面整列・厚みの積み重ね・非一様な親の縮尺と板のピボットずれへの対応・Rigidbody固定、必要電流を下回った際の下層からの解除とイベント、通常板の解除制限、70A/10Aの境界値、閾値前の吸着抑止、Pause・確認ロックを検証します。BoardGeneratorの実際の選択メソッドを切り出して、上側からの枚数・重量、板不足、移動済みの板を確認します。Tests/TaskSwitchLogging/run.shで12ファイル・再集計・Pause・視線・サブタスクの回帰を確認します。Unity Editorの実描画・衝突・物理挙動と実機入力は別途確認してください。

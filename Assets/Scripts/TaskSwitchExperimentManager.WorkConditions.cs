@@ -56,6 +56,10 @@ public partial class TaskSwitchExperimentManager
     private int GetShortPilotWorkPattern()
     {
         if (!pilotShortRun) return 0;
+        if ((int)pilotCondition >= 1 && (int)pilotCondition <= 6)
+            return (int)pilotCondition;
+
+        // Custom retains the previous automatic CSV mapping.
         if (Mathf.Approximately(pilotSwitchDeadlineSeconds, 7f))
         {
             if (switchMethod == TaskSwitchMethod.Countdown &&
