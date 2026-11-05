@@ -29962,14 +29962,17 @@ MonoBehaviour:
   countdownSeconds: 5
   operatorSwitchDeadlineSeconds: 7
   pilotExperiment: 1
-  pilotDirectionDisplay: 2
+  pilotCondition: 1
+  pilotDirectionDisplay: 1
   pilotDisplaySeconds: 2
-  pilotSwitchDeadlineSeconds: 7
-  pilotWorkOrder: 1
+  pilotSwitchDeadlineSeconds: 3
+  pilotWorkOrder: 0
   pilotLongFirst: 0
   pilotOrderSeed: 0
   pilotMinimumRequestIntervalSeconds: 10
   pilotMaximumRequestIntervalSeconds: 20
+  pilotMinimumWindowRequestDelaySeconds: 0
+  pilotMaximumWindowRequestDelaySeconds: 15
   pilotShortRun: 1
   pilotRequestTimingSeed: 0
   sourceTotalCycleCount: 5
