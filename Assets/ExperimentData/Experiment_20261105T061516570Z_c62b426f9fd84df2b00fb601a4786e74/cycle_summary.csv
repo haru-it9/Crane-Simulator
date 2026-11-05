@@ -1,0 +1,4 @@
+﻿session_id,participant_id,block_id,experiment_run_index,cycle_instance_id,crane_index,cycle_number,switch_index_at_start,first_phase,outcome,start_s,end_s,elapsed_s,monitoring_s,control_available_s,global_pause_s,steps_completed,weight_invalidations,current_drop_events,rollbacks,duration_sampled_until_s
+20261105T061516570Z_c62b426f9fd84df2b00fb601a4786e74,,,1,2,1,1,1,LiftUp,Completed,18.998236,34.541074,15.542837,15.481622,15.233163,0.000000,3,0,0,0,34.479859
+20261105T061516570Z_c62b426f9fd84df2b00fb601a4786e74,,,1,1,0,1,0,Move1,Incomplete,3.397166,67.721952,64.324785,37.948602,37.845727,0.000000,5,0,0,0,67.636859
+20261105T061516570Z_c62b426f9fd84df2b00fb601a4786e74,,,1,3,1,1,2,Move1,Incomplete,58.884936,67.722093,8.837156,8.751922,8.651941,0.000000,0,0,0,0,67.636859

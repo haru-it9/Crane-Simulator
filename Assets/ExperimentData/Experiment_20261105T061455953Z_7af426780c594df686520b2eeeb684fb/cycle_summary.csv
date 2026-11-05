@@ -1,0 +1,1 @@
+﻿session_id,participant_id,block_id,experiment_run_index,cycle_instance_id,crane_index,cycle_number,switch_index_at_start,first_phase,outcome,start_s,end_s,elapsed_s,monitoring_s,control_available_s,global_pause_s,steps_completed,weight_invalidations,current_drop_events,rollbacks,duration_sampled_until_s
