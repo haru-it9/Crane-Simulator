@@ -1,0 +1,2 @@
+﻿session_id,participant_id,block_id,experiment_run_index,pause_interval_index,start_s,end_s,duration_s,start_observed,end_observed,outcome,start_switch_index,end_switch_index,start_crane_index,end_crane_index,start_state,end_state,start_phase,start_step,end_phase,end_step
+20261105T111016898Z_6da86e5c22d7422385380b51a8f79499,,,1,1,0.035735,9.692781,9.657046,0,1,Resumed,0,0,-1,-1,Idle,Idle,,,,
