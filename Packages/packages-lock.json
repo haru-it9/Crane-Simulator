@@ -8,7 +8,7 @@
       "url": "https://packages.unity.com"
     },
     "com.tobii.gaming.sdk": {
-      "version": "file:C:/Users/harui/Downloads/TobiiUnitySDK_5.0.0.3",
+      "version": "file:C:/Users/sakin/Downloads/TobiiUnitySDK_5.0.0.3/TobiiUnitySDK_5.0.0.3",
       "depth": 0,
       "source": "local",
       "dependencies": {}
