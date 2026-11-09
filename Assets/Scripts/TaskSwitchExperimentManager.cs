@@ -62,7 +62,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [Min(0f)]
     private float operatorSwitchDeadlineSeconds = 10f;
 
-    public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary }
+    public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary, InputTriggeredFade }
     public enum PilotWorkOrder { Alternate, ShuffledPairs }
     public enum PilotCondition
     {
@@ -72,12 +72,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         Condition3_Countdown10s_Temporary = 3,
         Condition4_AnnouncedBoundary_Temporary = 4,
         Condition5_Countdown7s_None = 5,
-        Condition6_Countdown7s_Continuous = 6
+        Condition6_Countdown7s_Continuous = 6,
+        Condition7_Countdown7s_InputTriggeredFade = 7
     }
 
     [Header("予備実験")]
     [SerializeField] private bool pilotExperiment;
-    [Tooltip("今回の6条件を選択。手法・猶予時間・矢印・3サイクル6切替・短長交互・作業CSVを自動設定します。Customは従来の手動設定です。変更は実験終了後に行ってください。")]
+    [Tooltip("予備実験の条件を選択。手法・猶予時間・矢印・3サイクル6切替・短長交互・作業CSVを自動設定します。Customは従来の手動設定です。変更は実験終了後に行ってください。")]
     [SerializeField] private PilotCondition pilotCondition = PilotCondition.Custom;
     [SerializeField] private PilotDirectionDisplay pilotDirectionDisplay = PilotDirectionDisplay.None;
     [SerializeField, Min(0.1f)] private float pilotDisplaySeconds = 2f;
@@ -107,6 +108,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
                 switchMethod = TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated;
                 pilotSwitchDeadlineSeconds = 0f; // This policy has no time deadline.
                 pilotDirectionDisplay = PilotDirectionDisplay.Temporary;
+                break;
+            case PilotCondition.Condition7_Countdown7s_InputTriggeredFade:
+                switchMethod = TaskSwitchMethod.CountdownOperatorInitiated;
+                pilotSwitchDeadlineSeconds = 7f;
+                pilotDirectionDisplay = PilotDirectionDisplay.InputTriggeredFade;
                 break;
             case PilotCondition.Condition5_Countdown7s_None:
             case PilotCondition.Condition6_Countdown7s_Continuous:
@@ -1760,7 +1766,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private void NotifyPilotSupportPhaseStarted(CraneStatusManager.WorkPhase phase, int cycleNumber)
     {
         if (!pilotExperiment || (pilotDirectionDisplay != PilotDirectionDisplay.Temporary &&
-            pilotDirectionDisplay != PilotDirectionDisplay.MovementPhaseTemporary))
+            pilotDirectionDisplay != PilotDirectionDisplay.MovementPhaseTemporary &&
+            pilotDirectionDisplay != PilotDirectionDisplay.InputTriggeredFade))
             return;
 
         EmitEvent("PilotMajorPhaseStarted",
