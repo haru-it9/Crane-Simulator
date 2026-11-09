@@ -56,6 +56,8 @@ public partial class TaskSwitchExperimentManager
     private int GetShortPilotWorkPattern()
     {
         if (!pilotShortRun) return 0;
+        // Mode 7 changes only the arrow timing; share mode 2's 7-second work pattern.
+        if (pilotCondition == PilotCondition.Condition7_Countdown7s_InputTriggeredFade) return 2;
         if ((int)pilotCondition >= 1 && (int)pilotCondition <= 6)
             return (int)pilotCondition;
 
