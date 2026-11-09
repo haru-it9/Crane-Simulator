@@ -78,7 +78,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private bool subscribed, visible, targetSide, awaitingConfirmation;
     private double hideAt;
-    private bool arrowTimerStarted;
+    private bool arrowTimerStarted, inputFadeStarted, overrunCueShown;
+    private Vector3 lastRequiredMovement;
+    private CraneWorkStepDefinition overrunStep;
+    private float overrunGoalX, overrunGoalZ, overrunStartX, overrunStartZ;
+    private bool overrunTracking;
+    private bool InputTriggeredPilotArrows => experimentManager != null && experimentManager.IsPilotExperiment &&
+        experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.InputTriggeredFade;
     private bool ContinuousPilotArrows => experimentManager != null && experimentManager.IsPilotExperiment &&
         experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
     private bool currentHighlightWindowActive;
@@ -131,6 +137,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             experimentManager.ExperimentEventOccurred += HandleExperimentEvent;
             subscribed = true;
         }
+        if (operationManager != null)
+            operationManager.MovementInputAccepted += HandleMovementInputAccepted;
         leftFade = CreateFade(leftXGroup);
         rightYFade = CreateFade(rightYGroup);
         rightZFade = CreateFade(rightZGroup);
@@ -142,6 +150,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         Hide("Disabled");
         if (subscribed && experimentManager != null)
             experimentManager.ExperimentEventOccurred -= HandleExperimentEvent;
+        if (operationManager != null)
+            operationManager.MovementInputAccepted -= HandleMovementInputAccepted;
         subscribed = false;
     }
 
@@ -209,7 +219,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             case "PilotMajorPhaseStarted": ShowPhaseCue(); break;
             case "SourceOperationStarted":
-                if (ContinuousPilotArrows) ShowPhaseCue();
+                if (ContinuousPilotArrows || InputTriggeredPilotArrows) ShowPhaseCue("SourceOperationStarted");
                 break;
             case "TargetDisplaySwitched": Show(true); break;
             case "SourceDisplayRestored": Show(false); break;
@@ -233,7 +243,56 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
     }
 
-    private void ShowPhaseCue()
+    private void HandleMovementInputAccepted(CraneOperationManager manager, Vector3 movement, float spread)
+    {
+        if (!InputTriggeredPilotArrows || manager != operationManager ||
+            !arrowTimerStarted || awaitingConfirmation ||
+            manager.CurrentCraneInstance != selectedCrane || manager.IsOperationInputLocked ||
+            ExperimentPauseManager.IsPaused) return;
+        if ((movement.x == 0f && movement.y == 0f && movement.z == 0f) ||
+            (lastRequiredMovement.x == 0f && lastRequiredMovement.y == 0f && lastRequiredMovement.z == 0f)) return;
+
+        // An opposite or unneeded axis keeps the cue available; a corrected
+        // movement starts the fade. Accepted commands are sampled after input gates.
+        if (WrongAxis(movement.x, lastRequiredMovement.x) ||
+            WrongAxis(movement.y, lastRequiredMovement.y) ||
+            WrongAxis(movement.z, lastRequiredMovement.z))
+        {
+            ShowErrorCue("WrongDirection");
+            return;
+        }
+        if (!visible || inputFadeStarted) return;
+        inputFadeStarted = true;
+        hideAt = ExperimentPauseManager.ActiveRealtime + EffectiveFadeSeconds;
+        Record("ArrowFadeStarted", "Anchor=AcceptedMovement;Role=" + (targetSide ? "Target" : "Source") +
+            ";FadeSeconds=" + EffectiveFadeSeconds.ToString("F3", CultureInfo.InvariantCulture));
+    }
+
+    private static bool WrongAxis(float accepted, float required)
+    {
+        return accepted != 0f && (required == 0f || accepted * required < 0f);
+    }
+
+    private void ShowErrorCue(string reason)
+    {
+        if (!InputTriggeredPilotArrows || !arrowTimerStarted || awaitingConfirmation) return;
+        if (visible && !inputFadeStarted) return;
+        visible = true;
+        inputFadeStarted = false;
+        hideAt = double.PositiveInfinity;
+        if (supportRoot != null) supportRoot.SetActive(true);
+        ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
+        Record("ArrowReshown", "Reason=" + reason + ";Role=" + (targetSide ? "Target" : "Source"));
+    }
+
+    private void ResetInputFadeTracking()
+    {
+        inputFadeStarted = overrunCueShown = overrunTracking = false;
+        overrunStep = null;
+        lastRequiredMovement = Vector3.zero;
+    }
+
+    private void ShowPhaseCue(string anchor = "MajorPhaseStarted")
     {
         if (supportRoot == null || operationManager == null || !operationManager.IsTaskSwitchExperimentMode)
             return;
@@ -248,10 +307,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         lastPresentation = string.Empty;
         chevronCountsCaptured = false;
         arrowTimerStarted = false;
+        ResetInputFadeTracking();
         currentFeedbackActive = true;
         visible = true;
         supportRoot.SetActive(true);
-        StartArrowTimer(ContinuousPilotArrows ? "SourceOperationStarted" : "MajorPhaseStarted");
+        StartArrowTimer(anchor);
     }
 
     private void Show(bool isTarget)
@@ -268,6 +328,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         lastPresentation = string.Empty;
         hideAt = double.PositiveInfinity;
         arrowTimerStarted = false;
+        ResetInputFadeTracking();
         // Eligibility is a snapshot of confirmed touchdown at the actual display switch/return.
         // A touchdown reached later in this episode must not start current highlighting.
         bool touchdownAtSwitch = selectedCrane.CraneUnit != null &&
@@ -279,12 +340,14 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         visible = !experimentManager.IsPilotExperiment ||
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.MovementPhaseTemporary ||
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Temporary ||
-            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous ||
+            experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.InputTriggeredFade;
         supportRoot.SetActive(true);
         Record(experimentManager.IsPilotExperiment ? "Prepared" : "Shown", "Anchor=DisplaySwitch;Role=" + (targetSide ? "Target" : "Source") +
             ";Content=" + supportContent + ";DurationSeconds=" +
-            EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture) +
-            ";DurationAnchor=InputUnlocked;CurrentHighlightEnd=CorrectWeightRaised" +
+            (InputTriggeredPilotArrows ? "UntilAcceptedMovementThenFade" : EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture)) +
+            ";DurationAnchor=" + (InputTriggeredPilotArrows ? "AcceptedMovement" : "InputUnlocked") +
+            ";CurrentHighlightEnd=CorrectWeightRaised" +
             ";CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMax" +
             ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeClearance=" + currentRangeClearance.ToString(CultureInfo.InvariantCulture) +
@@ -393,6 +456,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             }
         }
 
+        lastRequiredMovement = movement;
+        CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position);
+
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
         bool showDirection = visible && (experimentManager.IsPilotExperiment
@@ -447,6 +513,48 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             lastPresentation = presentation;
             Record("Updated", presentation);
         }
+    }
+
+    private void CheckOverrunCue(CraneStatusManager.WorkPhase phase, CraneWorkStepDefinition step,
+        bool hasGoal, float goalX, float goalZ, Transform position)
+    {
+        if (!InputTriggeredPilotArrows || !arrowTimerStarted || awaitingConfirmation ||
+            !hasGoal || position == null || step == null ||
+            (phase != CraneStatusManager.WorkPhase.Move1 && phase != CraneStatusManager.WorkPhase.Move2))
+        {
+            overrunTracking = overrunCueShown = false;
+            return;
+        }
+
+        float x = position.position.x, z = position.position.z;
+        if (!overrunTracking || overrunStep != step || overrunGoalX != goalX || overrunGoalZ != goalZ)
+        {
+            overrunTracking = true;
+            overrunCueShown = false;
+            overrunStep = step;
+            overrunGoalX = goalX;
+            overrunGoalZ = goalZ;
+            overrunStartX = x;
+            overrunStartZ = z;
+        }
+        // The green-coordinate range defines arrival. Re-prompt only after
+        // crossing the goal or leaving that range, not while aligning inside it.
+        float tolerance = Mathf.Max(0f, coordinateColorSource != null
+            ? coordinateColorSource.FineAlignTolerance : 0.05f);
+        bool xOverrun = BeyondStartingSide(goalX - overrunStartX, goalX - x, tolerance);
+        bool zOverrun = BeyondStartingSide(goalZ - overrunStartZ, goalZ - z, tolerance);
+        if ((xOverrun || zOverrun) && !overrunCueShown)
+        {
+            overrunCueShown = true;
+            ShowErrorCue("Overrun");
+        }
+        else if (!xOverrun && !zOverrun) overrunCueShown = false;
+    }
+
+    private static bool BeyondStartingSide(float startError, float currentError, float tolerance)
+    {
+        if (Mathf.Abs(currentError) <= tolerance) return false;
+        return Mathf.Abs(startError) <= tolerance || startError * currentError < 0f;
     }
 
     private void CaptureCurrentInputLabel(bool needsCurrentOperation, string guidance)
@@ -608,10 +716,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         arrowTimerStarted = true;
         bool continuous = experimentManager.IsPilotExperiment &&
             experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.Continuous;
-        hideAt = continuous ? double.PositiveInfinity :
+        hideAt = continuous || InputTriggeredPilotArrows ? double.PositiveInfinity :
             ExperimentPauseManager.ActiveRealtime + Mathf.Max(0.1f, EffectiveDisplaySeconds);
         Record("ArrowTimerStarted", "Anchor=" + anchor + ";Role=" + (targetSide ? "Target" : "Source") +
-            ";DurationSeconds=" + (continuous ? "Continuous" : EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture)));
+            ";DurationSeconds=" + (continuous ? "Continuous" : InputTriggeredPilotArrows
+                ? "UntilAcceptedMovementThenFade" : EffectiveDisplaySeconds.ToString("F3", CultureInfo.InvariantCulture)));
+
         RefreshPresentation();
     }
 
@@ -696,6 +806,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         bool wasVisible = visible;
         visible = false;
+        if (reason == "Timeout") inputFadeStarted = false;
+        else ResetInputFadeTracking();
         if (supportRoot != null) supportRoot.SetActive(false);
         ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
         if (wasVisible) Record("Hidden", "Reason=" + reason);
