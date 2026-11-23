@@ -212,6 +212,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     // Each planned axis group draws once from each third of the 1–5 second range.
     private static readonly int[] pilotTimingDelayBands = { 0, 2, 0, 1, 2, 1 };
 
+    private const double PilotTimingFirstRequestMinimumSourceSeconds = 5.0;
     private float PilotWindowDelayMin => UsesUnguidedPilotFeedback ? 1f : pilotMinimumWindowRequestDelaySeconds;
     private float PilotWindowDelayMax => UsesUnguidedPilotFeedback ? 5f : pilotMaximumWindowRequestDelaySeconds;
 
@@ -822,6 +823,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             int window = completedSwitchCount;
             if (pilotRequestWindowStarts[window] < 0) return false;
             pilotRequestDue = pilotRequestWindowStarts[window] + pilotRequestWindowDelays[window];
+            if (UsesUnguidedPilotFeedback && window == 0)
+                pilotRequestDue = System.Math.Max(pilotRequestDue, PilotTimingFirstRequestMinimumSourceSeconds);
             now = pilotRequestClock;
         }
         else
