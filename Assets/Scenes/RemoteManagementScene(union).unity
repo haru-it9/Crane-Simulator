@@ -29940,7 +29940,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 4
+  switchMethod: 3
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29962,10 +29962,10 @@ MonoBehaviour:
   countdownSeconds: 5
   operatorSwitchDeadlineSeconds: 10
   pilotExperiment: 1
-  pilotCondition: 1
-  pilotDirectionDisplay: 1
+  pilotCondition: 13
+  pilotDirectionDisplay: 0
   pilotDisplaySeconds: 2
-  pilotSwitchDeadlineSeconds: 3
+  pilotSwitchDeadlineSeconds: 0
   pilotWorkOrder: 0
   pilotLongFirst: 0
   pilotOrderSeed: 0
@@ -29975,6 +29975,13 @@ MonoBehaviour:
   pilotMaximumWindowRequestDelaySeconds: 15
   pilotShortRun: 1
   pilotRequestTimingSeed: 0
+  pilotTimingRequestSteps:
+  - Move1.PickupCoarseMove
+  - Place.PostPlacementRaising
+  - LiftUp.PickupLowering
+  - Move2.DestinationCoarseMove
+  - Move1.PickupCoarseMove
+  - Place.PlacementLowering
   sourceTotalCycleCount: 5
   useSwitchScheduleCsv: 0
   switchScheduleCsv: {fileID: 4900000, guid: 9f0f9c3677f4e69488c5cfacfbe190dd, type: 3}
@@ -53284,6 +53291,7 @@ MonoBehaviour:
   achievedValueColor: {r: 0.65, g: 1, b: 0.1, a: 1}
   fineAlignTolerance: 0.05
   weightToleranceKg: 100
+  invalidDescentWarningText: {fileID: 0}
   boardDensity: 7850
   weightDisplayHeight: 0.2
   zeroWeightText: 0.00 t
