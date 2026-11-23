@@ -187,7 +187,14 @@ public partial class TaskSwitchExperimentManager
             order[i] = order[j];
             order[j] = row;
         }
-        return order;
+        if (!UsesUnguidedPilotFeedback) return order;
+
+        // A Williams design balances both position and adjacent patterns across six conditions.
+        int[] offsets = { 0, 1, 5, 2, 4, 3 };
+        int[] balancedOrder = new int[order.Length];
+        for (int i = 0; i < balancedOrder.Length; i++)
+            balancedOrder[i] = order[(PilotTimingConditionNumber - 1 + offsets[i]) % order.Length];
+        return balancedOrder;
     }
 
     private bool LoadExperimentConditions()

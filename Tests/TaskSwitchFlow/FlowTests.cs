@@ -308,7 +308,10 @@ static class FlowTests
             TaskSwitchMethod.Immediate, TaskSwitchMethod.OperatorInitiated
         };
         var countdowns = new[] {3f, 10f, 0f, 3f, 0f, 0f};
-        string commonTargetOrder = null;
+        var patternsByPosition = new HashSet<int>[6];
+        for (int i = 0; i < patternsByPosition.Length; i++)
+            patternsByPosition[i] = new HashSet<int>();
+        var adjacentPatterns = new HashSet<string>();
         for (int i = 0; i < methods.Length; i++)
         {
             var r = TimingRig(i);
@@ -317,9 +320,17 @@ static class FlowTests
                 "timing preset enabled guidance");
             Require(r.Manager.SwitchMethod == methods[i] && r.Manager.CountdownSeconds == countdowns[i] &&
                 r.Manager.WorkConditionsCsvText == csv, "timing preset used incorrect parameters");
-            string targetOrder = string.Join(",", (int[])Get(r.Manager,"shortPilotTargetOrder"));
-            if (i == 0) commonTargetOrder = targetOrder;
-            Require(targetOrder == commonTargetOrder && r.Registry.cranes[0].InformationTarget.position.y == -1.25f &&
+            Require(r.Manager.TargetRunsFullCycle, "timing preset must start with a full target cycle");
+            var targetOrder = (int[])Get(r.Manager,"shortPilotTargetOrder");
+            Require(new HashSet<int>(targetOrder).Count == 6, "a condition repeated a target pattern");
+            for (int position = 0; position < targetOrder.Length; position++)
+            {
+                Require(patternsByPosition[position].Add(targetOrder[position]), "target patterns were not balanced by position");
+                if (position > 0)
+                    Require(adjacentPatterns.Add($"{targetOrder[position - 1]}->{targetOrder[position]}"),
+                        "target patterns were not balanced by preceding pattern");
+            }
+            Require(r.Registry.cranes[0].InformationTarget.position.y == -1.25f &&
                 r.Registry.cranes[1].InformationTarget.position.y == -1.25f, "timing preset changed the planned workload");
 
             RequestPilotSwitch(r);
@@ -373,6 +384,18 @@ static class FlowTests
             }
             r.Manager.ExitExperimentMode();
         }
+
+        var scheduled = TimingRig(0);
+        scheduled.Tracker(0).AdvanceDetail("Move1.PickupCoarseMove");
+        Time.realtimeSinceStartupAsDouble = 0.99;
+        scheduled.Update();
+        Require(scheduled.Manager.CurrentSwitchIndex == 0, "detailed-phase request fired in less than one second");
+        Time.realtimeSinceStartupAsDouble = 5.01;
+        scheduled.Update();
+        Require(scheduled.Manager.CurrentSwitchIndex == 1 &&
+            scheduled.Manager.CurrentState == TaskSwitchExperimentState.CountingDown,
+            "detailed-phase request did not fire within five seconds");
+        scheduled.Manager.ExitExperimentMode();
 
         var single = TimingRig(3);
         single.Registry.cranes[0].InformationTarget.position = new Vector3(single.Target(0).targetX, -1.25f, 0);

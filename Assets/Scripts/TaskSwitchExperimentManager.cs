@@ -200,6 +200,20 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField] private int pilotRequestTimingSeed;
 
     private double pilotRequestDue = -1;
+    [Tooltip("Timing1〜6の要請6回の基準ステップID。各サイクルの前半・後半の順に指定します。")]
+    [SerializeField] private string[] pilotTimingRequestSteps =
+    {
+        "Move1.PickupCoarseMove", "Place.PostPlacementRaising",
+        "LiftUp.PickupLowering", "Move2.DestinationCoarseMove",
+        "Move1.PickupCoarseMove", "Place.PlacementLowering"
+    };
+
+    // Each planned axis group draws once from each third of the 1–5 second range.
+    private static readonly int[] pilotTimingDelayBands = { 0, 2, 0, 1, 2, 1 };
+
+    private float PilotWindowDelayMin => UsesUnguidedPilotFeedback ? 1f : pilotMinimumWindowRequestDelaySeconds;
+    private float PilotWindowDelayMax => UsesUnguidedPilotFeedback ? 5f : pilotMaximumWindowRequestDelaySeconds;
+
     private readonly double[] pilotRequestWindowStarts = new double[6];
     private readonly float[] pilotRequestWindowDelays = new float[6];
     private double pilotRequestClock;
@@ -218,6 +232,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool PilotFullCycleFor(int switchIndex)
     {
+        if (UsesUnguidedPilotFeedback) return true;
         int index = switchIndex - 1;
         bool longFirst = pilotWorkOrder == PilotWorkOrder.Alternate
             ? pilotLongFirst
@@ -599,8 +614,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             Debug.LogError("予備実験では Countdown / CountdownOperatorInitiated / AnnouncedPhaseBoundaryOperatorInitiated を選択してください。", this);
             return;
         }
-        float requestMinimum = pilotShortRun ? pilotMinimumWindowRequestDelaySeconds : pilotMinimumRequestIntervalSeconds;
-        float requestMaximum = pilotShortRun ? pilotMaximumWindowRequestDelaySeconds : pilotMaximumRequestIntervalSeconds;
+        float requestMinimum = pilotShortRun ? PilotWindowDelayMin : pilotMinimumRequestIntervalSeconds;
+        float requestMaximum = pilotShortRun ? PilotWindowDelayMax : pilotMaximumRequestIntervalSeconds;
         if (pilotExperiment && (sourceCycleController == null || !useRealWorkPhaseBoundary ||
             !(pilotShortRun ? requestMinimum >= 0f : requestMinimum > 0f) ||
             !(requestMaximum >= requestMinimum) || float.IsInfinity(requestMaximum)))
@@ -618,7 +633,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             );
         }
 
-        if (!ValidateConfiguration())
+        if (!ValidateConfiguration() || !ValidatePilotTimingRequestSteps())
         {
             return;
         }
@@ -647,8 +662,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             pilotRequestWindowStarts[window] = -1;
             var random = new System.Random(unchecked(pilotRequestTimingSeed + window * 397));
-            pilotRequestWindowDelays[window] = Mathf.Lerp(pilotMinimumWindowRequestDelaySeconds,
-                pilotMaximumWindowRequestDelaySeconds, (float)random.NextDouble());
+            float fraction = (float)random.NextDouble();
+            if (UsesUnguidedPilotFeedback)
+                fraction = (pilotTimingDelayBands[window] + fraction) / 3f;
+            pilotRequestWindowDelays[window] = Mathf.Lerp(PilotWindowDelayMin, PilotWindowDelayMax, fraction);
         }
         pilotSourceExtensionStarted = false;
         pilotSourceExtensionCompleted = false;
@@ -714,7 +731,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             string targetRows = shortPilotTargetOrder == null ? "Sequential" : string.Join(",", shortPilotTargetOrder);
             EmitEvent("PilotRunConfigured", FormattableString.Invariant(
-                $"PilotCondition={pilotCondition};TimingCondition={PilotTimingConditionNumber};NeutralCoordinateWeightAndCurrentText={UsesUnguidedPilotFeedback};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};DeadlineIfAlreadySingleAxis={switchMethod == TaskSwitchMethod.SingleAxisBoundary};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};RequestDistribution={(pilotShortRun ? "OneRequestPerTwoPhases" : "RandomIntervalsAcrossPhases")};RequestWindowDelayMin={pilotMinimumWindowRequestDelaySeconds};RequestWindowDelayMax={pilotMaximumWindowRequestDelaySeconds};SourceExtension={(UsesUnguidedPilotFeedback ? "FixedFourthPickup" : "FourthCycleThroughLiftUpIfSwitchesPending")};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
+                $"PilotCondition={pilotCondition};TimingCondition={PilotTimingConditionNumber};NeutralCoordinateWeightAndCurrentText={UsesUnguidedPilotFeedback};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};DeadlineIfAlreadySingleAxis={switchMethod == TaskSwitchMethod.SingleAxisBoundary};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};RequestDistribution={(pilotShortRun ? "OneRequestPerTwoPhases" : "RandomIntervalsAcrossPhases")};RequestWindowDelayMin={PilotWindowDelayMin};RequestWindowDelayMax={PilotWindowDelayMax};RequestAnchorSteps={(UsesUnguidedPilotFeedback ? string.Join(",", pilotTimingRequestSteps) : "")};SourceExtension={(UsesUnguidedPilotFeedback ? "FixedFourthPickup" : "FourthCycleThroughLiftUpIfSwitchesPending")};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
         }
         StartSecondarySubtask();
         EmitEvent("SourceOperationStarted");
@@ -742,11 +759,51 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (!pilotExperiment || !pilotShortRun || cycle < 1 || cycle > PilotRequiredSourceCycles ||
             (phase != CraneStatusManager.WorkPhase.Move1 && phase != CraneStatusManager.WorkPhase.Move2)) return;
         int window = (cycle - 1) * 2 + (phase == CraneStatusManager.WorkPhase.Move1 ? 0 : 1);
+        RecordPilotRequestAnchor(window, cycle, phase.ToString());
+    }
+
+    private bool ValidatePilotTimingRequestSteps()
+    {
+        if (!UsesUnguidedPilotFeedback) return true;
+        if (pilotTimingRequestSteps != null && pilotTimingRequestSteps.Length == PilotRequiredSwitches)
+        {
+            for (int window = 0; window < pilotTimingRequestSteps.Length; window++)
+            {
+                string step = pilotTimingRequestSteps[window];
+                bool valid = window % 2 == 0
+                    ? step == "Move1.PickupCoarseMove" || step == "Move1.PickupFineAlign" ||
+                      step == "LiftUp.PickupLowering" || step == "LiftUp.LoadAcquisition" || step == "LiftUp.LoadedRaising"
+                    : step == "Move2.DestinationCoarseMove" || step == "Move2.DestinationFineAlign" ||
+                      step == "Place.PlacementLowering" || step == "Place.LoadRelease" || step == "Place.PostPlacementRaising";
+                if (valid) continue;
+                Debug.LogError($"切替要請{window + 1}の詳細フェーズ指定が不正です。Step={step}", this);
+                return false;
+            }
+            return true;
+        }
+        Debug.LogError("Pilot Timing Request Stepsには6つの詳細フェーズを指定してください。", this);
+        return false;
+    }
+
+    private void HandlePilotRequestStepStarted(CraneWorkPhaseTracker tracker, CraneStatusManager.WorkPhase phase, string step)
+    {
+        if (!UsesUnguidedPilotFeedback || tracker != sourceWorkPhaseTracker ||
+            sourceCycleController == null || !sourceCycleController.IsRunning) return;
+        int cycle = sourceCycleController.CurrentCycleNumber;
+        if (cycle < 1 || cycle > PilotRequiredSourceCycles) return;
+        int window = (cycle - 1) * 2 + (phase == CraneStatusManager.WorkPhase.Move1 ||
+            phase == CraneStatusManager.WorkPhase.LiftUp ? 0 : 1);
+        if (step == pilotTimingRequestSteps[window])
+            RecordPilotRequestAnchor(window, cycle, step);
+    }
+
+    private void RecordPilotRequestAnchor(int window, int cycle, string step)
+    {
         if (pilotRequestWindowStarts[window] >= 0) return; // A rollback must not restart the clock.
         UpdatePilotRequestClock();
         pilotRequestWindowStarts[window] = pilotRequestClock;
         EmitEvent("PilotRequestWindowStarted", FormattableString.Invariant(
-            $"SwitchIndex={window + 1};WindowCycle={cycle};Window={(window % 2 == 0 ? "Move1LiftUp" : "Move2Place")};StartSourceClockSeconds={pilotRequestClock:F3};DelaySeconds={pilotRequestWindowDelays[window]:F3};Seed={pilotRequestTimingSeed}"));
+            $"SwitchIndex={window + 1};WindowCycle={cycle};AnchorStep={step};Window={(window % 2 == 0 ? "Move1LiftUp" : "Move2Place")};StartSourceClockSeconds={pilotRequestClock:F3};DelaySeconds={pilotRequestWindowDelays[window]:F3};Seed={pilotRequestTimingSeed}"));
     }
 
     private bool UpdatePilotRequestTimer()
@@ -761,7 +818,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (pilotShortRun)
         {
             int window = completedSwitchCount;
-            if (pilotRequestWindowStarts[window] < 0) return false;
+            if (pilotRequestWindowStarts[window] < 0)
+            {
+                if (!UsesUnguidedPilotFeedback || !pilotSourceExtensionCompleted) return false;
+                EmitEvent("PilotRequestAnchorMissed", $"SwitchIndex={window + 1};AnchorStep={pilotTimingRequestSteps[window]}");
+                RecordPilotRequestAnchor(window, nominalCycle, "SourceWorkEnded");
+            }
             pilotRequestDue = pilotRequestWindowStarts[window] + pilotRequestWindowDelays[window];
             now = pilotRequestClock;
         }
@@ -786,10 +848,17 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceWorkPhaseTracker.IsMajorPhaseCompleted || !sourceWorkPhaseTracker.IsMonitoring))
             return false;
 
+        string axisDetail = string.Empty;
+        if (UsesUnguidedPilotFeedback)
+        {
+            int horizontalAxes = ReadSourceHorizontalAxes();
+            int requiredAxes = SourceNeedsSingleAxis(horizontalAxes) ? 1 : horizontalAxes;
+            axisDetail = $";RequiredMovementAxes={requiredAxes};AnchorStep={pilotTimingRequestSteps[completedSwitchCount]}";
+        }
         double timerOffset = now - pilotRequestDue;
         pilotRequestDue = -1;
         RequestSwitchCore(FormattableString.Invariant(
-            $"RequestTrigger={(pilotShortRun ? "TwoPhaseWindow" : "RandomTimer")};RequestTimerOffsetSeconds={timerOffset:F3};SourceSlotCycle={cycle};NominalSlotCycle={nominalCycle};SourcePhase={sourceCycleController.CurrentPhase};SourceStep={sourceWorkPhaseTracker?.CurrentStepId}"));
+            $"RequestTrigger={(pilotShortRun ? "TwoPhaseWindow" : "RandomTimer")};RequestTimerOffsetSeconds={timerOffset:F3};SourceSlotCycle={cycle};NominalSlotCycle={nominalCycle};SourcePhase={sourceCycleController.CurrentPhase};SourceStep={sourceWorkPhaseTracker?.CurrentStepId}{axisDetail}"));
         return true;
     }
 
@@ -1600,6 +1669,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceWorkPhaseTracker.MajorPhaseCompleted +=
                 HandleSourceMajorPhaseCompleted;
             sourceWorkPhaseTracker.DetailBoundaryReached += HandleSourceDetailBoundary;
+            sourceWorkPhaseTracker.StepStarted += HandlePilotRequestStepStarted;
             realSourceBoundarySubscribed = true;
         }
 
@@ -1629,6 +1699,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceWorkPhaseTracker.MajorPhaseCompleted -=
                 HandleSourceMajorPhaseCompleted;
             sourceWorkPhaseTracker.DetailBoundaryReached -= HandleSourceDetailBoundary;
+            sourceWorkPhaseTracker.StepStarted -= HandlePilotRequestStepStarted;
         }
 
         if (legacySourceBoundarySubscribed &&
@@ -1658,7 +1729,10 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     {
         if (controller == sourceCycleController)
         {
-            RecordPilotRequestWindowStart(phase, cycleNumber);
+            if (UsesUnguidedPilotFeedback && sourceWorkPhaseTracker != null)
+                HandlePilotRequestStepStarted(sourceWorkPhaseTracker, phase, sourceWorkPhaseTracker.CurrentStepId);
+            else
+                RecordPilotRequestWindowStart(phase, cycleNumber);
             NotifyPilotSupportPhaseStarted(phase, cycleNumber);
             if (IsWaitingForPilotTimingBoundary && switchMethod == TaskSwitchMethod.SingleAxisBoundary)
             {
