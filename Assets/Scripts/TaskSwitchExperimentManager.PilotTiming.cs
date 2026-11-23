@@ -5,7 +5,7 @@ public partial class TaskSwitchExperimentManager
 {
     private int previousHorizontalAxes = -1;
 
-    private const float PilotTimingStartLocalY = -1.25f;
+    private const float PilotTimingStartLocalY = -1.56f;
 
     private bool SetPilotTimingStartPose(TaskSwitchCraneCondition condition, CraneInstance crane)
     {

@@ -330,8 +330,8 @@ static class FlowTests
                     Require(adjacentPatterns.Add($"{targetOrder[position - 1]}->{targetOrder[position]}"),
                         "target patterns were not balanced by preceding pattern");
             }
-            Require(r.Registry.cranes[0].InformationTarget.position.y == -1.25f &&
-                r.Registry.cranes[1].InformationTarget.position.y == -1.25f, "timing preset changed the planned workload");
+            Require(r.Registry.cranes[0].InformationTarget.position.y == -1.56f &&
+                r.Registry.cranes[1].InformationTarget.position.y == -1.56f, "timing preset changed the planned workload");
 
             RequestPilotSwitch(r);
             switch (i)
@@ -354,7 +354,7 @@ static class FlowTests
                     r.Tracker(0).AdvanceDetail("Move1.PickupFineAlign");
                     Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForPhaseBoundary,
                         "coarse-to-fine change alone triggered a switch");
-                    r.Registry.cranes[0].InformationTarget.position = new Vector3(r.Target(0).targetX, -1.25f, 0);
+                    r.Registry.cranes[0].InformationTarget.position = new Vector3(r.Target(0).targetX, -1.56f, 0);
                     r.Update();
                     Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation &&
                         r.Cycle(0).IsPaused && r.Tracker(0).CurrentStepId == "Move1.PickupFineAlign",
@@ -398,7 +398,7 @@ static class FlowTests
         scheduled.Manager.ExitExperimentMode();
 
         var single = TimingRig(3);
-        single.Registry.cranes[0].InformationTarget.position = new Vector3(single.Target(0).targetX, -1.25f, 0);
+        single.Registry.cranes[0].InformationTarget.position = new Vector3(single.Target(0).targetX, -1.56f, 0);
         RequestPilotSwitch(single);
         Require(single.Manager.CurrentState == TaskSwitchExperimentState.CountingDown &&
             single.Manager.CountdownRemaining == 3f, "already-one-axis request did not start the 3-second deadline");
