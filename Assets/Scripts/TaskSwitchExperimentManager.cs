@@ -222,8 +222,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     private bool pilotSourceExtensionStarted;
     private bool pilotSourceExtensionCompleted;
     private bool pilotFullCycle;
-    private bool PilotLiftOnly => pilotExperiment && !pilotFullCycle;
-    private string PilotWorkLabel => pilotFullCycle ? "1サイクル" : "吊上";
+    private bool PilotLiftOnly => pilotExperiment && !pilotFullCycle && !UsesUnguidedPilotFeedback;
+    private string PilotWorkLabel => UsesUnguidedPilotFeedback ? "移動・吊上" : pilotFullCycle ? "1サイクル" : "吊上";
     private CraneStatusManager.WorkPhase TargetEndPhase => !pilotExperiment
         ? TaskSwitchConditionCsv.EndPhase(ActiveTargetTaskPattern)
         : pilotFullCycle && targetCycleController != null
@@ -232,7 +232,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool PilotFullCycleFor(int switchIndex)
     {
-        if (UsesUnguidedPilotFeedback) return true;
+        if (UsesUnguidedPilotFeedback) return false;
         int index = switchIndex - 1;
         bool longFirst = pilotWorkOrder == PilotWorkOrder.Alternate
             ? pilotLongFirst
@@ -970,7 +970,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         EmitEvent(
             "SwitchRequested",
             pilotExperiment
-                ? $"SwitchIndex={currentSwitchIndex};PilotWork={(pilotFullCycle ? "FullCycle" : "OneMajorPhase")};PilotSupport={pilotDirectionDisplay};PilotDisplaySeconds={pilotDisplaySeconds};PilotOrder={pilotWorkOrder};PilotSeed={pilotOrderSeed};TargetCsvIndex={activeTargetWorkCondition?.index};{pilotRequestDetail}"
+                ? $"SwitchIndex={currentSwitchIndex};PilotWork={(UsesUnguidedPilotFeedback ? "Move1ToLiftUp" : pilotFullCycle ? "FullCycle" : "OneMajorPhase")};PilotSupport={pilotDirectionDisplay};PilotDisplaySeconds={pilotDisplaySeconds};PilotOrder={pilotWorkOrder};PilotSeed={pilotOrderSeed};TargetCsvIndex={activeTargetWorkCondition?.index};{pilotRequestDetail}"
                 : $"SwitchIndex={currentSwitchIndex}"
         );
 

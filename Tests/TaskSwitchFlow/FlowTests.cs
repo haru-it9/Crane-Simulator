@@ -320,7 +320,7 @@ static class FlowTests
                 "timing preset enabled guidance");
             Require(r.Manager.SwitchMethod == methods[i] && r.Manager.CountdownSeconds == countdowns[i] &&
                 r.Manager.WorkConditionsCsvText == csv, "timing preset used incorrect parameters");
-            Require(r.Manager.TargetRunsFullCycle, "timing preset must start with a full target cycle");
+            Require(!r.Manager.TargetRunsFullCycle, "timing preset must end after lifting");
             var targetOrder = (int[])Get(r.Manager,"shortPilotTargetOrder");
             Require(new HashSet<int>(targetOrder).Count == 6, "a condition repeated a target pattern");
             for (int position = 0; position < targetOrder.Length; position++)
