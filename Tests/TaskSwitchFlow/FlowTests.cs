@@ -355,6 +355,11 @@ static class FlowTests
                     Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForPhaseBoundary,
                         "coarse-to-fine change alone triggered a switch");
                     r.Registry.cranes[0].InformationTarget.position = new Vector3(r.Target(0).targetX, -1.56f, 0);
+                    r.Op.MovementCommand = new Vector3(.2f, 0, .2f);
+                    r.Update();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForPhaseBoundary,
+                        "detailed boundary mode switched while the aligned axis was still commanded");
+                    r.Op.MovementCommand = new Vector3(0, 0, .2f);
                     r.Update();
                     Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation &&
                         r.Cycle(0).IsPaused && r.Tracker(0).CurrentStepId == "Move1.PickupFineAlign",

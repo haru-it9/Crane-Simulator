@@ -35,7 +35,7 @@ public partial class TaskSwitchExperimentManager
     private void StartPilotTimingBoundary()
     {
         bool singleAxisPolicy = switchMethod == TaskSwitchMethod.SingleAxisBoundary;
-        previousHorizontalAxes = ReadSourceHorizontalAxes(singleAxisPolicy);
+        previousHorizontalAxes = ReadSourceHorizontalAxes(requireNeutralInput: true);
         if (singleAxisPolicy && SourceNeedsSingleAxis(previousHorizontalAxes))
         {
             EmitEvent("PilotSingleAxisAtRequest", $"Step={sourceWorkPhaseTracker.CurrentStepId};HorizontalAxes={previousHorizontalAxes}");
@@ -73,9 +73,8 @@ public partial class TaskSwitchExperimentManager
         if (!IsWaitingForPilotTimingBoundary || sourceWorkPhaseTracker == null ||
             !sourceWorkPhaseTracker.IsMonitoring) return false;
 
-        bool singleAxisPolicy = switchMethod == TaskSwitchMethod.SingleAxisBoundary;
-        int axes = ReadSourceHorizontalAxes(singleAxisPolicy);
-        bool reached = previousHorizontalAxes == 2 && (axes == 1 || (singleAxisPolicy && axes == 0));
+        int axes = ReadSourceHorizontalAxes(requireNeutralInput: true);
+        bool reached = previousHorizontalAxes == 2 && axes >= 0 && axes <= 1;
         previousHorizontalAxes = axes;
         if (!reached) return false;
 
