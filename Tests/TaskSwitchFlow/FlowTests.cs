@@ -418,23 +418,24 @@ static class FlowTests
             "early choice left a stale hold at the next major boundary");
         early.Manager.ExitExperimentMode();
 
-        var fixedWork = TimingRig(4);
-        // Simulate six earlier returns and finish the source work.
-        Set(fixedWork.Manager,"completedSwitchCount",6);
-        for (int phase = 0; phase < 14; phase++)
+        foreach (int completedSwitches in new[] { 6, 5 })
         {
-            if (fixedWork.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.LiftUp)
-                fixedWork.Attach(0, fixedWork.Cycle(0).CurrentCycleNumber == 2 ? 2 : 1);
-            if (fixedWork.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.Place)
-                fixedWork.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();
-            fixedWork.Complete(0);
-            if (phase == 11)
-                Require(fixedWork.Manager.CurrentState != TaskSwitchExperimentState.Completed &&
-                    fixedWork.Cycle(0).CurrentCycleNumber == 4, "timing pilot omitted the fixed fourth pickup");
+            var rig = TimingRig(4);
+            Set(rig.Manager, "completedSwitchCount", completedSwitches);
+            int expectedCycles = completedSwitches == 6 ? 3 : 5;
+            for (int phase = 0; phase < expectedCycles * 4; phase++)
+            {
+                if (rig.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.LiftUp)
+                    rig.Attach(0, rig.Cycle(0).CurrentCycleNumber == 2 ? 2 : 1);
+                if (rig.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.Place)
+                    rig.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();
+                Require(rig.Manager.CurrentState != TaskSwitchExperimentState.Completed, "timing trial ended too early");
+                rig.Complete(0);
+            }
+            Require(rig.Manager.CurrentState == TaskSwitchExperimentState.Completed &&
+                rig.Cycle(0).CompletedCycleCount == expectedCycles, "timing trial missed its completion boundary");
         }
-        Require(fixedWork.Manager.CurrentState == TaskSwitchExperimentState.Completed &&
-            fixedWork.Cycle(0).CompletedCycleCount == 3, "timing pilot did not end after the fourth pickup");
-        Console.WriteLine("PASS: all six unguided timing presets, common workload and starting height, deadlines, detailed/single-axis boundaries, early choice, and the fixed fourth pickup");
+        Console.WriteLine("PASS: timing presets finish after three cycles with six returns or at the five-cycle limit");
     }
 
     static Rig TimingRig(int index)
