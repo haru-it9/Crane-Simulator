@@ -87,10 +87,11 @@ public partial class TaskSwitchExperimentManager
         if (!IsWaitingForPilotTimingBoundary || tracker != sourceWorkPhaseTracker ||
             ExperimentPauseManager.IsPaused) return;
 
-        bool startsCurrentControl = nextStep == "LiftUp.LoadAcquisition" ||
-            nextStep == "Place.LoadRelease" || nextStep == "PlaceToTrack.LoadRelease";
-        if (IsVerticalStep(nextStep) ||
-            (switchMethod == TaskSwitchMethod.DetailedBoundaryOperatorInitiated && startsCurrentControl))
+        bool detailedBoundaryPolicy = switchMethod == TaskSwitchMethod.DetailedBoundaryOperatorInitiated;
+        if (detailedBoundaryPolicy && IsCurrentControlStep(previousStep) && IsVerticalStep(nextStep))
+            return;
+
+        if (IsVerticalStep(nextStep) || (detailedBoundaryPolicy && IsCurrentControlStep(nextStep)))
         {
             CompletePhaseBoundarySwitch($"Detail:{previousStep}->{nextStep}");
         }
@@ -116,6 +117,9 @@ public partial class TaskSwitchExperimentManager
         return (Mathf.Abs(position.position.x - targetX) > tolerance || command.x != 0f ? 1 : 0) +
             (Mathf.Abs(position.position.z - targetZ) > tolerance || command.z != 0f ? 1 : 0);
     }
+
+    private static bool IsCurrentControlStep(string step) =>
+        step == "LiftUp.LoadAcquisition" || step == "Place.LoadRelease" || step == "PlaceToTrack.LoadRelease";
 
     private static bool IsVerticalStep(string step) =>
         step == "LiftUp.PickupLowering" || step == "LiftUp.LoadedRaising" ||
