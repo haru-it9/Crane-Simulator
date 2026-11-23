@@ -8,7 +8,10 @@ public enum TaskSwitchMethod
     OperatorInitiated = 3,
     CountdownOperatorInitiated = 4,
     AnnouncedPhaseBoundary = 5,
-    AnnouncedPhaseBoundaryOperatorInitiated = 6
+    AnnouncedPhaseBoundaryOperatorInitiated = 6,
+    DetailedBoundaryOperatorInitiated = 7,
+    SingleAxisBoundary = 8,
+    Immediate = 9
 }
 
 public enum TaskSwitchExperimentState

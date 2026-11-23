@@ -44,6 +44,9 @@ public partial class TaskSwitchExperimentManager
     {
         get
         {
+            if (UsesUnguidedPilotFeedback)
+                return Resources.Load<TextAsset>("PilotSwitchTimingWorkConditions");
+
             int pattern = GetShortPilotWorkPattern();
             if (pattern != 0)
                 return Resources.Load<TextAsset>("PilotWorkConditionsPattern" + pattern);
@@ -301,11 +304,7 @@ public partial class TaskSwitchExperimentManager
     private void AcceptOperatorSwitch()
     {
         // The source continues until this click, then switches and starts the target with one confirmation.
-        string policy = operatorDeadlinePending
-            ? "CountdownOperatorInitiated"
-            : advanceNoticeAllowsEarlySwitch
-                ? "AnnouncedPhaseBoundaryOperatorInitiated"
-                : "OperatorInitiated";
+        string policy = switchMethod.ToString();
         EmitEvent("OperatorSwitchConfirmationPressed", policy);
         EmitEvent("SwitchTriggerSelected", "Trigger=Operator;Policy=" + policy);
         SwitchControlToTarget(policy);

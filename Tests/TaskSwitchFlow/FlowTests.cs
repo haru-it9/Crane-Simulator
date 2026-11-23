@@ -30,11 +30,12 @@ static class FlowTests
             {
                 var c=new CraneInstance {CraneId=i+1,LifMagSystem=new LifMagSystem()};c.CraneUnit=new CraneUnit {magnet=c.LifMagSystem};
                 var gen=new BoardGenerator();for(int b=1;b<=3;b++) {var board=new GameObject("board"+b);board.components[typeof(BoardInfo)]=new BoardInfo {Weight=b*100};gen.Boards.Add(board);}c.BoardGenerator=gen;
-                var target=new CraneWorkTargetManager {CraneIndex=i};var tracker=new CraneWorkPhaseTracker();var load=new CraneWorkLoadPlanManager();var cycle=new CraneWorkCycleController();
+                var target=new CraneWorkTargetManager {CraneIndex=i};var tracker=new CraneWorkPhaseTracker {TargetManager=target};var load=new CraneWorkLoadPlanManager();var cycle=new CraneWorkCycleController();
                 Set(load,"workTargetManager",target);Set(load,"craneInstance",c);Set(load,"boardGenerator",gen);
                 Set(cycle,"phaseTracker",tracker);Set(cycle,"targetManager",target);Set(cycle,"loadPlanManager",load);Set(cycle,"craneInstance",c);
                 c.components[typeof(BoardGenerator)]=gen;c.components[typeof(CraneWorkTargetManager)]=target;c.components[typeof(CraneWorkPhaseTracker)]=tracker;c.components[typeof(CraneWorkCycleController)]=cycle;c.components[typeof(CraneWorkLoadPlanManager)]=load;Registry.cranes[i]=c;
             }
+            Op.CurrentCraneInstance=Registry.cranes[0];
             Set(Manager,"craneOperationManager",Op);Set(Manager,"craneRegistry",Registry);Set(Manager,"interventionScenarioManager",new CraneInterventionScenarioManager());
             Set(Manager,"switchScheduleCsv",new TextAsset(Schedule));Set(Manager,"workConditionsCsv",new TextAsset(Work()));Set(Manager,"switchMethod",method);
             Manager.ExperimentEventOccurred+=e=>Events.Add(e.eventName);
@@ -296,6 +297,142 @@ static class FlowTests
         Require(!held.Op.IsOperationInputLocked && held.Events.FindAll(e=>e=="SourceInputUnlocked").Count==1,"neutral return controls did not unlock exactly once");
         Console.WriteLine("PASS: source return validation, Move1/Move2 fine-alignment restoration and goal/count preservation, failure lock/retry, tracker-only fallback and neutral movement/spread release gate with Pause/UI hint");
     }
+    static void CheckSwitchTimingPilot(string root)
+    {
+        const string workName = "PilotSwitchTimingWorkConditions";
+        string csv = System.IO.File.ReadAllText(System.IO.Path.Combine(root, "Assets/Resources/" + workName + ".csv"));
+        Resources.Assets[workName] = new TextAsset(csv) {name = workName};
+        var methods = new[] {
+            TaskSwitchMethod.CountdownOperatorInitiated, TaskSwitchMethod.CountdownOperatorInitiated,
+            TaskSwitchMethod.DetailedBoundaryOperatorInitiated, TaskSwitchMethod.SingleAxisBoundary,
+            TaskSwitchMethod.Immediate, TaskSwitchMethod.OperatorInitiated
+        };
+        var countdowns = new[] {3f, 10f, 0f, 3f, 0f, 0f};
+        string commonTargetOrder = null;
+        for (int i = 0; i < methods.Length; i++)
+        {
+            var r = TimingRig(i);
+            Require(r.Manager.UsesUnguidedPilotFeedback && r.Op.NeutralFeedback &&
+                r.Manager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.None,
+                "timing preset enabled guidance");
+            Require(r.Manager.SwitchMethod == methods[i] && r.Manager.CountdownSeconds == countdowns[i] &&
+                r.Manager.WorkConditionsCsvText == csv, "timing preset used incorrect parameters");
+            string targetOrder = string.Join(",", (int[])Get(r.Manager,"shortPilotTargetOrder"));
+            if (i == 0) commonTargetOrder = targetOrder;
+            Require(targetOrder == commonTargetOrder && r.Registry.cranes[0].InformationTarget.position.y == -1.25f &&
+                r.Registry.cranes[1].InformationTarget.position.y == -1.25f, "timing preset changed the planned workload");
+
+            RequestPilotSwitch(r);
+            switch (i)
+            {
+                case 0:
+                    Time.realtimeSinceStartupAsDouble = 2.9;
+                    r.Manager.ConfirmTargetTask();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.OperatingTarget,
+                        "3-second condition rejected an early choice");
+                    break;
+                case 1:
+                    Time.realtimeSinceStartupAsDouble = 9.99;
+                    r.Update();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.CountingDown, "10-second deadline too early");
+                    Time.realtimeSinceStartupAsDouble = 10;
+                    r.Update();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation, "10-second deadline missed");
+                    break;
+                case 2:
+                    r.Tracker(0).AdvanceDetail("Move1.PickupFineAlign");
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForPhaseBoundary,
+                        "coarse-to-fine change alone triggered a switch");
+                    r.Registry.cranes[0].InformationTarget.position = new Vector3(r.Target(0).targetX, -1.25f, 0);
+                    r.Update();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation &&
+                        r.Cycle(0).IsPaused && r.Tracker(0).CurrentStepId == "Move1.PickupFineAlign",
+                        "2-to-1 boundary did not preserve the suspended step");
+                    break;
+                case 3:
+                    r.Tracker(0).CurrentMajorPhase = CraneStatusManager.WorkPhase.LiftUp;
+                    r.Tracker(0).AdvanceDetail("LiftUp.LoadAcquisition");
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForPhaseBoundary,
+                        "single-axis policy triggered on current control");
+                    r.Tracker(0).AdvanceDetail("LiftUp.LoadedRaising");
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation,
+                        "single-axis policy missed transition to raising");
+                    break;
+                case 4:
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation &&
+                        r.Op.CurrentCraneIndex == 1, "immediate preset did not switch at request");
+                    break;
+                case 5:
+                    Time.realtimeSinceStartupAsDouble = 60;
+                    r.Update();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.WaitingForOperatorSwitch &&
+                        r.Op.CurrentCraneIndex == 0, "voluntary mode switched without the operator");
+                    r.Manager.ConfirmTargetTask();
+                    Require(r.Manager.CurrentState == TaskSwitchExperimentState.OperatingTarget, "voluntary choice did not switch");
+                    break;
+            }
+            r.Manager.ExitExperimentMode();
+        }
+
+        var single = TimingRig(3);
+        single.Registry.cranes[0].InformationTarget.position = new Vector3(single.Target(0).targetX, -1.25f, 0);
+        RequestPilotSwitch(single);
+        Require(single.Manager.CurrentState == TaskSwitchExperimentState.CountingDown &&
+            single.Manager.CountdownRemaining == 3f, "already-one-axis request did not start the 3-second deadline");
+        Time.realtimeSinceStartupAsDouble = 3;
+        single.Update();
+        Require(single.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation, "single-axis deadline missed");
+        single.Manager.ExitExperimentMode();
+
+        var early = TimingRig(2);
+        RequestPilotSwitch(early);
+        early.Manager.ConfirmTargetTask();
+        Require(early.Manager.CurrentState == TaskSwitchExperimentState.OperatingTarget,
+            "detailed boundary mode rejected a voluntary choice");
+        FinishPilotTargetAndReturn(early);
+        early.Complete(0);
+        Require(early.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.LiftUp,
+            "early choice left a stale hold at the next major boundary");
+        early.Manager.ExitExperimentMode();
+
+        var fixedWork = TimingRig(4);
+        // Simulate six earlier returns and finish the source work.
+        Set(fixedWork.Manager,"completedSwitchCount",6);
+        for (int phase = 0; phase < 14; phase++)
+        {
+            if (fixedWork.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.LiftUp)
+                fixedWork.Attach(0, fixedWork.Cycle(0).CurrentCycleNumber == 2 ? 2 : 1);
+            if (fixedWork.Cycle(0).CurrentPhase == CraneStatusManager.WorkPhase.Place)
+                fixedWork.Registry.cranes[0].LifMagSystem.AttachedBoards.Clear();
+            fixedWork.Complete(0);
+            if (phase == 11)
+                Require(fixedWork.Manager.CurrentState != TaskSwitchExperimentState.Completed &&
+                    fixedWork.Cycle(0).CurrentCycleNumber == 4, "timing pilot omitted the fixed fourth pickup");
+        }
+        Require(fixedWork.Manager.CurrentState == TaskSwitchExperimentState.Completed &&
+            fixedWork.Cycle(0).CompletedCycleCount == 3, "timing pilot did not end after the fourth pickup");
+        Console.WriteLine("PASS: all six unguided timing presets, common workload and starting height, deadlines, detailed/single-axis boundaries, early choice, and the fixed fourth pickup");
+    }
+
+    static Rig TimingRig(int index)
+    {
+        Time.realtimeSinceStartupAsDouble = 0;
+        ExperimentPauseManager.PauseOffsetSeconds = 0;
+        var r = new Rig(TaskSwitchMethod.OperatorInitiated);
+        Set(r.Manager,"pilotExperiment",true);
+        Set(r.Manager,"pilotCondition", (TaskSwitchExperimentManager.PilotCondition)
+            ((int)TaskSwitchExperimentManager.PilotCondition.Timing1_Countdown3s + index));
+        r.Manager.StartExperiment();
+        Require(r.Manager.CurrentState == TaskSwitchExperimentState.OperatingSource, "timing preset could not start");
+        return r;
+    }
+
+    static void RequestPilotSwitch(Rig rig)
+    {
+        typeof(TaskSwitchExperimentManager).GetMethod("RequestSwitchCore", BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(rig.Manager, new object[] {"Test"});
+    }
+
     static void CheckPilotPresets(string root)
     {
         for(int pattern=1;pattern<=6;pattern++)
@@ -778,6 +915,7 @@ static class FlowTests
         CheckHybridSwitches();
         CheckSourceReturnValidation();
         CheckPilotPresets(args[0]);
+        CheckSwitchTimingPilot(args[0]);
         CheckShortPilotCompletion();
         CheckPlacementPlanSnapshot();
         CheckPilotSourceContinuity();

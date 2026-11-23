@@ -1023,7 +1023,8 @@ public class CraneUnit : MonoBehaviour
         UpdateSpeedTexts();
     }
 
-    public bool TryAlignInterventionPickup(Transform informationTarget, float worldX, float worldZ)
+    public bool TryAlignInterventionPickup(Transform informationTarget, float worldX, float worldZ,
+        float? startLocalY = null)
     {
         if (informationTarget == null || mainCrane == null || mainLifMag == null)
             return false;
@@ -1046,7 +1047,10 @@ public class CraneUnit : MonoBehaviour
             localZ < minZ - tolerance || localZ > maxZ + tolerance)
             return false;
 
-        SetInterventionPose(localZ, localX, mainLifMag.localPosition.y);
+        if (startLocalY.HasValue && (startLocalY.Value < minMainY || startLocalY.Value > maxMainY))
+            return false;
+
+        SetInterventionPose(localZ, localX, startLocalY ?? mainLifMag.localPosition.y);
         return Mathf.Abs(informationTarget.position.x - worldX) <= tolerance &&
             Mathf.Abs(informationTarget.position.z - worldZ) <= tolerance;
     }

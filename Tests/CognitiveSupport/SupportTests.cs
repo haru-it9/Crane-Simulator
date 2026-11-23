@@ -717,6 +717,16 @@ public static class SupportTests
         manager.Raise("PilotMajorPhaseStarted");Call(support,"LateUpdate");
         Check(!Requested(support,"leftFade"),"Temporary retains its original coarse-step tolerance");
         Call(support,"OnDisable");
+        manager.UsesUnguidedPilotFeedback=true;
+        Call(support,"OnEnable");
+        manager.Raise("ExperimentPreparing");
+        manager.Raise("TargetDisplaySwitched");
+        manager.Raise("SourceDisplayRestored");
+        manager.Raise("SourceOperationResumed");
+        Call(support,"LateUpdate");
+        Check(!root.activeSelf && SameColor(currentText.color,Color.white),
+            "unguided timing preset restored current text and kept arrows hidden");
+        Call(support,"OnDisable");
         Console.WriteLine("Cognitive support checks passed: "+checks);
     }
 }

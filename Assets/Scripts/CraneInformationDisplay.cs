@@ -47,6 +47,9 @@ public class CraneInformationDisplay : MonoBehaviour
     [Min(0f)]
     private float weightToleranceKg = 100f;
 
+    [Tooltip("予備検証の下降警告。未設定の場合は作業切替用の座標表示に自動生成します。")]
+    [SerializeField] private Text invalidDescentWarningText;
+
     [Header("板密度 [kg/m^3]")]
     [SerializeField] private float boardDensity = 7850f;
 
@@ -76,6 +79,9 @@ public class CraneInformationDisplay : MonoBehaviour
     private readonly Dictionary<Text, Color> defaultValueColors =
         new Dictionary<Text, Color>();
 
+    private bool neutralTaskSwitchFeedback;
+    private float invalidDescentWarningUntil;
+
     public float FineAlignTolerance => fineAlignTolerance;
     public Color AchievedValueColor => achievedValueColor;
     public bool CurrentXHighlighted { get; private set; }
@@ -97,11 +103,78 @@ public class CraneInformationDisplay : MonoBehaviour
         UpdatePositionText();
         UpdateWeightText();
         UpdateAchievementColors();
+        UpdateInvalidDescentWarning();
     }
 
     private void OnDisable()
     {
         RestoreDefaultValueColors();
+        ClearInvalidDescentWarning();
+    }
+
+    public void SetNeutralTaskSwitchFeedback(bool enabled)
+    {
+        neutralTaskSwitchFeedback = enabled;
+        RestoreDefaultValueColors();
+        ClearInvalidDescentWarning();
+    }
+
+    public void ReportDescentInput()
+    {
+        if (!neutralTaskSwitchFeedback ||
+            !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
+            (xWithinTarget && zWithinTarget)) return;
+
+        invalidDescentWarningUntil = Time.unscaledTime + 0.8f;
+    }
+
+    public void ClearInvalidDescentWarning()
+    {
+        invalidDescentWarningUntil = 0f;
+        if (invalidDescentWarningText != null)
+            invalidDescentWarningText.gameObject.SetActive(false);
+    }
+
+    private void UpdateInvalidDescentWarning()
+    {
+        if (!neutralTaskSwitchFeedback || invalidDescentWarningUntil <= 0f)
+            return;
+
+        if (Time.unscaledTime >= invalidDescentWarningUntil || ExperimentPauseManager.IsPaused ||
+            !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
+            (xWithinTarget && zWithinTarget))
+        {
+            ClearInvalidDescentWarning();
+            return;
+        }
+
+        if (invalidDescentWarningText == null)
+            CreateInvalidDescentWarning();
+        if (invalidDescentWarningText != null)
+        {
+            invalidDescentWarningText.text = "座標が不適です";
+            invalidDescentWarningText.color = Color.red;
+            invalidDescentWarningText.raycastTarget = false;
+            invalidDescentWarningText.gameObject.SetActive(true);
+        }
+    }
+
+    private void CreateInvalidDescentWarning()
+    {
+        Text coordinateText = taskSwitchDisplayTexts?.xText;
+        if (coordinateText == null) return;
+
+        var warningObject = new GameObject("InvalidDescentWarning", typeof(RectTransform));
+        invalidDescentWarningText = warningObject.AddComponent<Text>();
+        RectTransform rect = invalidDescentWarningText.rectTransform;
+        rect.SetParent(coordinateText.rectTransform, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(720f, 85f);
+        rect.anchoredPosition = new Vector2(-190f, -410f);
+        invalidDescentWarningText.font = coordinateText.font;
+        invalidDescentWarningText.fontSize = 54;
+        invalidDescentWarningText.fontStyle = FontStyle.Bold;
+        invalidDescentWarningText.alignment = TextAnchor.MiddleCenter;
     }
 
     public void SetTarget(
@@ -110,6 +183,7 @@ public class CraneInformationDisplay : MonoBehaviour
     )
     {
         RestoreDefaultValueColors();
+        ClearInvalidDescentWarning();
 
         // 共有UIの操作対象を変更しても、各クレーンの吊上げ表示状態を保持します。
         if (lifMagSystem != null)
@@ -294,7 +368,7 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private void UpdateAchievementColors()
     {
-        UpdateCoordinateAchievementState(
+        TryGetCoordinateAchievementState(
             out bool xWithinTarget,
             out bool zWithinTarget
         );
@@ -311,9 +385,9 @@ public class CraneInformationDisplay : MonoBehaviour
                 Mathf.Max(0f, weightToleranceKg);
         }
 
-        CurrentXHighlighted = xWithinTarget;
-        CurrentZHighlighted = zWithinTarget;
-        CurrentWeightHighlighted = weightWithinTarget;
+        CurrentXHighlighted = !neutralTaskSwitchFeedback && xWithinTarget;
+        CurrentZHighlighted = !neutralTaskSwitchFeedback && zWithinTarget;
+        CurrentWeightHighlighted = !neutralTaskSwitchFeedback && weightWithinTarget;
         AchievementFrame = Time.frameCount;
         foreach (InformationTextSet textSet in GetTextSets())
         {
@@ -322,16 +396,13 @@ public class CraneInformationDisplay : MonoBehaviour
                 continue;
             }
 
-            SetAchievementColor(textSet.xText, xWithinTarget);
-            SetAchievementColor(textSet.zText, zWithinTarget);
-            SetAchievementColor(
-                textSet.weightText,
-                weightWithinTarget
-            );
+            SetAchievementColor(textSet.xText, CurrentXHighlighted);
+            SetAchievementColor(textSet.zText, CurrentZHighlighted);
+            SetAchievementColor(textSet.weightText, CurrentWeightHighlighted);
         }
     }
 
-    private void UpdateCoordinateAchievementState(
+    private bool TryGetCoordinateAchievementState(
         out bool xWithinTarget,
         out bool zWithinTarget
     )
@@ -346,7 +417,7 @@ public class CraneInformationDisplay : MonoBehaviour
                 out float targetZ
             ))
         {
-            return;
+            return false;
         }
 
         // フェーズや下降高さ、監視状態にかかわらず、現在位置を毎フレーム判定します。
@@ -354,6 +425,7 @@ public class CraneInformationDisplay : MonoBehaviour
         float tolerance = Mathf.Max(0f, fineAlignTolerance);
         xWithinTarget = Mathf.Abs(currentPosition.x - targetX) <= tolerance;
         zWithinTarget = Mathf.Abs(currentPosition.z - targetZ) <= tolerance;
+        return true;
     }
 
     private bool TryGetCurrentWeightTargetKg(

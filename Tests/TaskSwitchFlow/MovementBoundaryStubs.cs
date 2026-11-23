@@ -96,6 +96,7 @@ public class CraneWorkLoadPlanManager
     public void SetPickupTargetWeightKg(float v) {} public void SetPlannedReleaseWeightKg(float v) {} public void SetTargetRemainingWeightKg(float v) {}
     public bool PreparePlacementPlan(float weight) { return true; }
 }
+public class CraneInformationDisplay { public int DescentInputs; public void ReportDescentInput() { DescentInputs++; } }
 public partial class CraneOperationManager
 {
     public enum InputMode { Keyboard,Joystick }
@@ -105,6 +106,7 @@ public partial class CraneOperationManager
     private string debugJoyStick2Horizontal="debugZ",debugJoyStick2Vertical="debugY",debugJoyStick3Vertical="debugX";
     private string joyStick2Horizontal="z",joyStick2Vertical="y",joyStick3Vertical="x",joyStick3MiniVertical="spread";
     private CraneWorkPhaseTracker selectedWorkPhaseTracker;
+    public CraneInformationDisplay CurrentInformationDisplay;
     public CraneInstance CurrentCraneInstance;public CraneUnit CurrentCrane=>CurrentCraneInstance.CraneUnit;
     public Vector3 LastAcceptedMovement;public float LastAcceptedSpread;public int LastAcceptedInputFrame;
     public event Action<CraneOperationManager,Vector3,float> MovementInputAccepted;

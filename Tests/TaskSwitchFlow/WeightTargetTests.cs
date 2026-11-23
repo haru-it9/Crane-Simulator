@@ -9,8 +9,44 @@ static class WeightTargetTests
     static void Check(bool value,string message) { if(!value) throw new Exception(message); }
     static void Set(object o,string name,object value) { o.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public).SetValue(o,value); }
     static void Call(object o,string name) { o.GetType().GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(o,null); }
+    static void CheckNeutralFeedback()
+    {
+        var target = new CraneWorkTargetManager();
+        target.SetFixedTarget(0, 0, -1, CraneWorkTargetKind.Pickup);
+        var position = new Transform {position = new Vector3(.05f, 0, -.05f)};
+        var warning = new Text();
+        var display = new CraneInformationDisplay();
+        Set(display, "targetTransform", position);
+        Set(display, "workPhaseTracker", new CraneWorkPhaseTracker {TargetManager = target});
+        Set(display, "invalidDescentWarningText", warning);
+        display.SetNeutralTaskSwitchFeedback(true);
+        Time.realtimeSinceStartupAsDouble = 2;
+        display.ReportDescentInput();
+        Call(display, "UpdateInvalidDescentWarning");
+        Call(display, "UpdateAchievementColors");
+        Check(!warning.gameObject.activeSelf && !display.CurrentXHighlighted && !display.CurrentZHighlighted,
+            "tolerance edge warned or showed coordinate feedback in the unguided preset");
+
+        position.position = new Vector3(0, 0, -.051f);
+        display.ReportDescentInput();
+        Call(display, "UpdateInvalidDescentWarning");
+        Check(warning.gameObject.activeSelf && warning.color.r == 1 && warning.text == "座標が不適です",
+            "out-of-range descent did not show the red coordinate warning");
+        Time.realtimeSinceStartupAsDouble = 3;
+        Call(display, "UpdateInvalidDescentWarning");
+        Check(!warning.gameObject.activeSelf, "warning stayed visible after the input stopped");
+
+        display.SetNeutralTaskSwitchFeedback(false);
+        display.ReportDescentInput();
+        Call(display, "UpdateInvalidDescentWarning");
+        Call(display, "UpdateAchievementColors");
+        Check(!warning.gameObject.activeSelf && display.CurrentXHighlighted,
+            "return to ordinary display did not restore coordinate feedback");
+    }
+
     static void Main(string[] args)
     {
+        CheckNeutralFeedback();
         for(int pattern=1;pattern<=6;pattern++)
         {
             var rows=TaskSwitchConditionCsv.ParseWork(File.ReadAllText(Path.Combine(args[0],"Assets/Resources/PilotWorkConditionsPattern"+pattern+".csv")),3);

@@ -321,6 +321,9 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         string
     > StepCompleted;
 
+    // Fired once the next step is current, so suspension preserves that step.
+    public event Action<CraneWorkPhaseTracker, string, string> DetailBoundaryReached;
+
     public event Action<
         CraneWorkPhaseTracker,
         CraneStatusManager.WorkPhase,
@@ -1441,6 +1444,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         {
             ResetStepTimers();
             NotifyStepStarted();
+            DetailBoundaryReached?.Invoke(this, completedStep.stepId, CurrentStepId);
             return;
         }
 

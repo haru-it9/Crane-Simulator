@@ -19,7 +19,7 @@ def method(path, signature):
 stubs = (root / 'Tests/TaskSwitchFlow/UnityFlowStubs.cs').read_text()
 stubs = stubs.replace('public class CraneOperationManager {', 'public partial class CraneOperationManager {')
 stubs = stubs.replace('public class CraneUnit {', 'public class CraneUnit { public LifMagSystem LifMagSystem => magnet;')
-stubs = stubs.replace('public class Text : UnityEngine.MonoBehaviour {', 'public class Text : UnityEngine.MonoBehaviour { public UnityEngine.Color color;')
+stubs = stubs.replace('public class Text : UnityEngine.MonoBehaviour {', 'public class Text : UnityEngine.MonoBehaviour { public UnityEngine.Color color; public bool raycastTarget;')
 stubs = stubs.replace('None=0,Minus=45', 'None=0,Tab=9,Minus=45')
 stubs = stubs.replace('public static bool GetKey(KeyCode key)', 'public static bool GetKeyDown(KeyCode key) { return false; } public static bool GetKey(KeyCode key)')
 output.joinpath('WeightUiStubs.cs').write_text(stubs)
@@ -37,7 +37,12 @@ public partial class CraneOperationManager {
     public CraneUnit CurrentCrane;
 ''' + method(op, '    private void LateUpdate()') + '\n' + method(op, '    private void UpdateSelectedCraneWeightTargetInformation()') + '''
 }
-public class CraneInformationDisplay {
+public partial class CraneInformationDisplay {
+    private bool neutralTaskSwitchFeedback;
+    private Text invalidDescentWarningText;
+    private float invalidDescentWarningUntil;
+    private float fineAlignTolerance = .05f;
+    private Transform targetTransform;
     private CraneWorkPhaseTracker workPhaseTracker;
     private CraneWorkLoadPlanManager loadPlanManager;
     private LifMagSystem lifMagSystem;
@@ -50,9 +55,15 @@ public class CraneInformationDisplay {
     private List<InformationTextSet> texts = new List<InformationTextSet>();
     private Dictionary<Text,Color> defaultValueColors = new Dictionary<Text,Color>();
     private IEnumerable<InformationTextSet> GetTextSets() { return texts; }
-    private void UpdateCoordinateAchievementState(out bool x,out bool z) { x=z=false; }
+    private void CreateInvalidDescentWarning() { invalidDescentWarningText = new Text(); }
 ''' + '\n'.join(method(info, signature) for signature in [
+    '    public void SetNeutralTaskSwitchFeedback(',
+    '    public void ReportDescentInput()',
+    '    public void ClearInvalidDescentWarning()',
+    '    private void UpdateInvalidDescentWarning()',
     '    private void UpdateAchievementColors()',
+    '    private bool TryGetCoordinateAchievementState(',
+    '    private void RestoreDefaultValueColors()',
     '    private bool TryGetCurrentWeightTargetKg(',
     '    private void SetAchievementColor('
 ]) + '\n}\n')

@@ -5,7 +5,7 @@ output="$(mktemp -d)"
 trap 'rm -rf "$output"' EXIT
 "${MCS:-mcs}" -define:TASK_SWITCH_FLOW -out:"$output/test.exe" "$root/Assets/Scripts/TaskSwitchExperimentTypes.cs" \
     "$root/Assets/Scripts/TaskSwitchWorkConditions.cs" "$root/Assets/Scripts/TaskSwitchExperimentManager.cs" \
-    "$root/Assets/Scripts/TaskSwitchExperimentManager.WorkConditions.cs" "$root/Assets/Scripts/CraneWorkTargetTypes.cs" \
+    "$root/Assets/Scripts/TaskSwitchExperimentManager.WorkConditions.cs" "$root/Assets/Scripts/TaskSwitchExperimentManager.PilotTiming.cs" "$root/Assets/Scripts/CraneWorkTargetTypes.cs" \
     "$root/Assets/Scripts/CraneWorkCycleController.cs" "$root/Assets/Scripts/CraneWorkLoadPlanManager.cs" \
     "$root/Tests/TaskSwitchFlow/UnityFlowStubs.cs" "$root/Tests/TaskSwitchFlow/FlowTests.cs"
 "${MONO:-mono}" "$output/test.exe" "$root"

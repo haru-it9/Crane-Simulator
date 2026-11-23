@@ -73,7 +73,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         Condition4_AnnouncedBoundary_Temporary = 4,
         Condition5_Countdown7s_None = 5,
         Condition6_Countdown7s_Continuous = 6,
-        Condition7_Countdown7s_InputTriggeredFade = 7
+        Condition7_Countdown7s_InputTriggeredFade = 7,
+        Timing1_Countdown3s = 8,
+        Timing2_Countdown10s = 9,
+        Timing3_DetailedBoundary = 10,
+        Timing4_SingleAxis = 11,
+        Timing5_Immediate = 12,
+        Timing6_OperatorInitiated = 13
     }
 
     [Header("予備実験")]
@@ -91,9 +97,46 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public PilotDirectionDisplay PilotSupport => pilotDirectionDisplay;
     public float PilotDisplaySeconds => pilotDisplaySeconds;
 
+    private static readonly TaskSwitchMethod[] pilotTimingMethods =
+    {
+        TaskSwitchMethod.CountdownOperatorInitiated,
+        TaskSwitchMethod.CountdownOperatorInitiated,
+        TaskSwitchMethod.DetailedBoundaryOperatorInitiated,
+        TaskSwitchMethod.SingleAxisBoundary,
+        TaskSwitchMethod.Immediate,
+        TaskSwitchMethod.OperatorInitiated
+    };
+
+    private int PilotTimingConditionNumber =>
+        (int)pilotCondition >= (int)PilotCondition.Timing1_Countdown3s &&
+        (int)pilotCondition <= (int)PilotCondition.Timing6_OperatorInitiated
+            ? (int)pilotCondition - (int)PilotCondition.Timing1_Countdown3s + 1
+            : 0;
+    public bool UsesUnguidedPilotFeedback => pilotExperiment && PilotTimingConditionNumber != 0;
+
     private void ApplyPilotCondition()
     {
         if (!pilotExperiment || pilotCondition == PilotCondition.Custom) return;
+        if (UsesUnguidedPilotFeedback)
+        {
+            switchMethod = pilotTimingMethods[PilotTimingConditionNumber - 1];
+            switch (pilotCondition)
+            {
+                case PilotCondition.Timing1_Countdown3s:
+                case PilotCondition.Timing4_SingleAxis:
+                    pilotSwitchDeadlineSeconds = 3f;
+                    break;
+                case PilotCondition.Timing2_Countdown10s:
+                    pilotSwitchDeadlineSeconds = 10f;
+                    break;
+                default:
+                    pilotSwitchDeadlineSeconds = 0f;
+                    break;
+            }
+            pilotDirectionDisplay = PilotDirectionDisplay.None;
+            ApplyShortPilotDefaults();
+            return;
+        }
         switch (pilotCondition)
         {
             case PilotCondition.Condition1_Countdown3s_Temporary:
@@ -124,6 +167,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             default:
                 return;
         }
+        ApplyShortPilotDefaults();
+    }
+
+    private void ApplyShortPilotDefaults()
+    {
         pilotShortRun = true;
         pilotWorkOrder = PilotWorkOrder.Alternate;
         // Apply the corrected range to existing serialized preset selections too.
@@ -436,6 +484,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         UpdatePendingOperationInputUnlock();
         UpdatePilotRequestClock();
         if (pilotExperiment && UpdatePilotRequestTimer()) return;
+        if (TryCompleteHorizontalAxisBoundary()) return;
         // Resolve the deadline before a simultaneous confirmation press. Public UI
         // callbacks perform the same check, so expiration never counts as early choice.
         if (TryCompleteOperatorDeadline()) return;
@@ -543,7 +592,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         SubscribeToWorkPhaseEvents();
         SubscribeToCycleEvents();
 
-        if (pilotExperiment && switchMethod != TaskSwitchMethod.Countdown &&
+        if (pilotExperiment && !UsesUnguidedPilotFeedback && switchMethod != TaskSwitchMethod.Countdown &&
             switchMethod != TaskSwitchMethod.CountdownOperatorInitiated &&
             switchMethod != TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated)
         {
@@ -625,7 +674,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             craneRegistry.SetActiveCraneCount(requiredCraneCount);
         }
 
-        craneOperationManager.BeginTaskSwitchExperimentMode();
+        craneOperationManager.BeginTaskSwitchExperimentMode(UsesUnguidedPilotFeedback);
 
         if (initializeScenariosOnStartExperiment)
         {
@@ -665,7 +714,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             string targetRows = shortPilotTargetOrder == null ? "Sequential" : string.Join(",", shortPilotTargetOrder);
             EmitEvent("PilotRunConfigured", FormattableString.Invariant(
-                $"PilotCondition={pilotCondition};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};RequestDistribution={(pilotShortRun ? "OneRequestPerTwoPhases" : "RandomIntervalsAcrossPhases")};RequestWindowDelayMin={pilotMinimumWindowRequestDelaySeconds};RequestWindowDelayMax={pilotMaximumWindowRequestDelaySeconds};SourceExtension=FourthCycleThroughLiftUpIfSwitchesPending;WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
+                $"PilotCondition={pilotCondition};TimingCondition={PilotTimingConditionNumber};NeutralCoordinateWeightAndCurrentText={UsesUnguidedPilotFeedback};SwitchMethod={switchMethod};ShortRun={pilotShortRun};SourceCycles={PilotRequiredSourceCycles};Switches={PilotRequiredSwitches};DeadlineApplies={switchMethod == TaskSwitchMethod.Countdown || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated};DeadlineSeconds={CountdownSeconds};DeadlineIfAlreadySingleAxis={switchMethod == TaskSwitchMethod.SingleAxisBoundary};Support={pilotDirectionDisplay};DisplaySeconds={pilotDisplaySeconds};RequestIntervalMin={pilotMinimumRequestIntervalSeconds};RequestIntervalMax={pilotMaximumRequestIntervalSeconds};TimingSeed={pilotRequestTimingSeed};RequestDistribution={(pilotShortRun ? "OneRequestPerTwoPhases" : "RandomIntervalsAcrossPhases")};RequestWindowDelayMin={pilotMinimumWindowRequestDelaySeconds};RequestWindowDelayMax={pilotMaximumWindowRequestDelaySeconds};SourceExtension={(UsesUnguidedPilotFeedback ? "FixedFourthPickup" : "FourthCycleThroughLiftUpIfSwitchesPending")};WorkOrder={pilotWorkOrder};WorkOrderSeed={pilotOrderSeed};LongFirst={pilotLongFirst};TargetOrderSeed={pilotTargetOrderSeed};TargetRows={targetRows};WorkCsv={runWorkConditionsCsv?.name}"));
         }
         StartSecondarySubtask();
         EmitEvent("SourceOperationStarted");
@@ -762,6 +811,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         pilotSourceExtensionCompleted = true;
         controller.StopCycleAndTracker();
         EmitEvent("PilotSourceExtensionCompleted", "Cycle=4;EndPhase=LiftUp;CompletedFullCycles=3");
+        if (IsWaitingForPilotTimingBoundary)
+        {
+            if (switchMethod == TaskSwitchMethod.DetailedBoundaryOperatorInitiated)
+                CompletePhaseBoundarySwitch("RealWork:LiftUp");
+            else
+                SwitchAtPilotSourceEnd();
+        }
         TryCompletePilotExperiment();
     }
 
@@ -779,7 +835,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     {
         if (controller != sourceCycleController) return;
         if (pilotExperiment && pilotShortRun && completedCycles == PilotRequiredSourceCycles &&
-            completedSwitchCount < PilotRequiredSwitches)
+            (UsesUnguidedPilotFeedback || completedSwitchCount < PilotRequiredSwitches))
         {
             pilotSourceExtensionStarted = true;
             EmitEvent("PilotSourceExtensionScheduled",
@@ -874,6 +930,14 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             case TaskSwitchMethod.AnnouncedPhaseBoundaryOperatorInitiated:
                 StartAnnouncedPhaseBoundarySwitch(true);
                 break;
+            case TaskSwitchMethod.DetailedBoundaryOperatorInitiated:
+            case TaskSwitchMethod.SingleAxisBoundary:
+                StartPilotTimingBoundary();
+                break;
+            case TaskSwitchMethod.Immediate:
+                EmitEvent("SwitchTriggerSelected", "Trigger=Immediate;Policy=Immediate");
+                SwitchControlToTarget("Immediate");
+                break;
         }
     }
 
@@ -929,6 +993,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public void NotifySourcePhaseBoundary()
     {
         if (ExperimentPauseManager.IsPaused) return;
+        if (IsWaitingForPilotTimingBoundary) return;
         if (!allowLegacyPhaseBoundaryFallback)
         {
             Debug.LogWarning(
@@ -1131,7 +1196,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         countdownRemaining = 0f;
         EmitEvent("OperatorDeadlineReached");
         EmitEvent("CountdownCompleted", "OperatorDeadline");
-        EmitEvent("SwitchTriggerSelected", "Trigger=Deadline;Policy=CountdownOperatorInitiated");
+        EmitEvent("SwitchTriggerSelected", "Trigger=Deadline;Policy=" + switchMethod);
         SwitchControlToTarget("OperatorDeadline");
         return true;
     }
@@ -1202,6 +1267,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         operatorDeadlineActiveRealtime = 0;
         advanceNoticeActive = false;
         advanceNoticeAllowsEarlySwitch = false;
+        previousHorizontalAxes = -1;
         if (noticeTextStyleCaptured && countdownText != null)
         {
             countdownText.resizeTextForBestFit = originalNoticeBestFit;
@@ -1319,7 +1385,11 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
               (PilotLiftOnly || ActiveTargetTaskPattern == TaskSwitchTargetTaskPattern.Move2ToPlace))
         );
 
-        if (condition == targetCondition && PilotLiftOnly && activeTargetWorkCondition != null &&
+        if (UsesUnguidedPilotFeedback)
+        {
+            if (!SetPilotTimingStartPose(condition, craneInstance)) return false;
+        }
+        else if (condition == targetCondition && PilotLiftOnly && activeTargetWorkCondition != null &&
             !craneInstance.CraneUnit.TryAlignInterventionPickup(
                 craneInstance.InformationTarget, activeTargetWorkCondition.pickupX, activeTargetWorkCondition.pickupZ))
         {
@@ -1529,6 +1599,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             sourceWorkPhaseTracker.MajorPhaseCompleted +=
                 HandleSourceMajorPhaseCompleted;
+            sourceWorkPhaseTracker.DetailBoundaryReached += HandleSourceDetailBoundary;
             realSourceBoundarySubscribed = true;
         }
 
@@ -1557,6 +1628,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             sourceWorkPhaseTracker.MajorPhaseCompleted -=
                 HandleSourceMajorPhaseCompleted;
+            sourceWorkPhaseTracker.DetailBoundaryReached -= HandleSourceDetailBoundary;
         }
 
         if (legacySourceBoundarySubscribed &&
@@ -1588,6 +1660,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         {
             RecordPilotRequestWindowStart(phase, cycleNumber);
             NotifyPilotSupportPhaseStarted(phase, cycleNumber);
+            if (IsWaitingForPilotTimingBoundary && switchMethod == TaskSwitchMethod.SingleAxisBoundary)
+            {
+                // The new phase has its own target, so classify its actual initial operation.
+                previousHorizontalAxes = ReadSourceHorizontalAxes();
+                if (SourceNeedsSingleAxis(previousHorizontalAxes))
+                    CompletePhaseBoundarySwitch($"NextMajorPhase:{phase};NextStep={sourceWorkPhaseTracker.CurrentStepId}");
+            }
         }
 
         if (!ShouldUseSwitchScheduleCsv ||
@@ -1745,9 +1824,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
                 completedPhase.ToString()
             );
 
-            CompletePhaseBoundarySwitch(
-                $"RealWork:{completedPhase}"
-            );
+            // Single-axis timing checks the next phase after its target is applied.
+            if (switchMethod != TaskSwitchMethod.SingleAxisBoundary)
+                CompletePhaseBoundarySwitch($"RealWork:{completedPhase}");
             return;
         }
 
@@ -1875,6 +1954,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         CraneStatusManager.WorkPhase newPhase
     )
     {
+        if (IsWaitingForPilotTimingBoundary) return;
         CompletePhaseBoundarySwitch(
             $"Legacy:{previousPhase}->{newPhase}"
         );
@@ -1889,7 +1969,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
 
         EmitEvent("SourcePhaseBoundaryReached", detail);
-        if (advanceNoticeActive)
+        if (advanceNoticeActive || IsWaitingForPilotTimingBoundary)
             EmitEvent("SwitchTriggerSelected", "Trigger=PhaseBoundary;Policy=" + switchMethod);
         SwitchControlToTarget(advanceNoticeActive ? switchMethod.ToString() : "PhaseBoundary");
     }

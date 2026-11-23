@@ -157,6 +157,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (experimentManager != null && experimentManager.UsesUnguidedPilotFeedback) return;
         if (!visible && !currentHighlightWindowActive && !currentFeedbackActive && !useCurrentRangeColoring) return;
         if (operationManager == null || !operationManager.IsTaskSwitchExperimentMode ||
             experimentManager == null || !experimentManager.isActiveAndEnabled ||
@@ -215,6 +216,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void HandleExperimentEvent(TaskSwitchEventData data)
     {
+        if (experimentManager != null && experimentManager.UsesUnguidedPilotFeedback)
+        {
+            if (data.eventName == "ExperimentPreparing") Hide(data.eventName);
+            return;
+        }
         switch (data.eventName)
         {
             case "PilotMajorPhaseStarted": ShowPhaseCue(); break;

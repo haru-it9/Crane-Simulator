@@ -487,10 +487,11 @@ public class CraneOperationManager : MonoBehaviour
     /// 通常の管理モードを一時退避し、
     /// 2基間の作業切替実験用モードを開始します。
     /// </summary>
-    public void BeginTaskSwitchExperimentMode()
+    public void BeginTaskSwitchExperimentMode(bool neutralFeedback = false)
     {
         if (taskSwitchExperimentMode)
         {
+            CurrentInformationDisplay?.SetNeutralTaskSwitchFeedback(neutralFeedback);
             return;
         }
 
@@ -502,6 +503,7 @@ public class CraneOperationManager : MonoBehaviour
 
         taskSwitchExperimentMode = true;
         externalOperationInputLocked = true;
+        CurrentInformationDisplay?.SetNeutralTaskSwitchFeedback(neutralFeedback);
 
         ReleaseCurrentCraneSelectionPause();
 
@@ -525,6 +527,7 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
+        CurrentInformationDisplay?.SetNeutralTaskSwitchFeedback(false);
         externalOperationInputLocked = false;
         taskSwitchExperimentMode = false;
 
@@ -615,6 +618,7 @@ public class CraneOperationManager : MonoBehaviour
     public void SetTaskSwitchOperationInputLocked(bool locked)
     {
         externalOperationInputLocked = locked;
+        if (locked) CurrentInformationDisplay?.ClearInvalidDescentWarning();
 
         if (locked && CurrentCrane != null)
         {
@@ -1580,6 +1584,9 @@ public class CraneOperationManager : MonoBehaviour
             mainYInput = 0f;
             mainZInput = 0f;
         }
+
+        if (taskSwitchExperimentMode && mainYInput < 0f)
+            CurrentInformationDisplay?.ReportDescentInput();
 
         CurrentCrane.MoveMainLifMagX(mainXInput);
         CurrentCrane.MoveMainLifMagY(mainYInput);

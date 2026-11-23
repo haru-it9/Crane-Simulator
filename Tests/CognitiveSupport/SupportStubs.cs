@@ -156,15 +156,16 @@ public class CraneWorkCycleController { public bool HasPendingNextPhase;public C
 public class CraneWorkTargetManager { public bool TryGetTarget(out float x,out float z) { x=999;z=999;return true; } }
 public class CraneOperationManager
 {
-    public bool IsTaskSwitchExperimentMode=true;public int CurrentCraneIndex;
+    public bool IsTaskSwitchExperimentMode=true, IsOperationInputLocked;public int CurrentCraneIndex;
+    public event Action<CraneOperationManager,UnityEngine.Vector3,float> MovementInputAccepted;
     public CraneInstance CurrentCraneInstance;
     public CraneInstance CurrentCrane=>CurrentCraneInstance;
 }
 public static class ExperimentPauseManager { public static bool IsPaused;public static double ActiveRealtime; }
 public class TaskSwitchExperimentManager : UnityEngine.MonoBehaviour
 {
-    public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary }
-    public bool IsPilotExperiment;
+    public enum PilotDirectionDisplay { None, Temporary, Continuous, MovementPhaseTemporary, InputTriggeredFade }
+    public bool IsPilotExperiment, UsesUnguidedPilotFeedback;
     public PilotDirectionDisplay PilotSupport;
     public float PilotDisplaySeconds=2;
     public TaskSwitchExperimentState CurrentState=TaskSwitchExperimentState.WaitingForConfirmation;
