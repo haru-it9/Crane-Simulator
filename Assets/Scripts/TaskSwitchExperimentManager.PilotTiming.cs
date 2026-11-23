@@ -34,8 +34,8 @@ public partial class TaskSwitchExperimentManager
 
     private void StartPilotTimingBoundary()
     {
-        previousHorizontalAxes = ReadSourceHorizontalAxes();
         bool singleAxisPolicy = switchMethod == TaskSwitchMethod.SingleAxisBoundary;
+        previousHorizontalAxes = ReadSourceHorizontalAxes(singleAxisPolicy);
         if (singleAxisPolicy && SourceNeedsSingleAxis(previousHorizontalAxes))
         {
             EmitEvent("PilotSingleAxisAtRequest", $"Step={sourceWorkPhaseTracker.CurrentStepId};HorizontalAxes={previousHorizontalAxes}");
@@ -53,14 +53,13 @@ public partial class TaskSwitchExperimentManager
             sourceCycleController.RequestHoldAfterCurrentPhase();
 
         advanceNoticeActive = true;
-        advanceNoticeAllowsEarlySwitch = !singleAxisPolicy;
+        advanceNoticeAllowsEarlySwitch = true;
         SetState(TaskSwitchExperimentState.WaitingForPhaseBoundary);
-        ShowAdvanceNoticeText("作業の区切りで\n切替");
+        ShowAdvanceNoticeText(singleAxisPolicy ? "横行or走行\n完了後に切替" : "作業の区切りで\n切替", singleAxisPolicy);
         SetPanelActive(countdownPanel, true);
-        SetPanelActive(confirmationPanel, advanceNoticeAllowsEarlySwitch);
-        EmitEvent("PhaseBoundaryAdvanceNoticeShown", "AllowEarlySwitch=" + advanceNoticeAllowsEarlySwitch);
-        if (advanceNoticeAllowsEarlySwitch)
-            EmitEvent("OperatorSwitchAvailable", "UntilDetailedBoundary");
+        SetPanelActive(confirmationPanel, true);
+        EmitEvent("PhaseBoundaryAdvanceNoticeShown", "AllowEarlySwitch=True");
+        EmitEvent("OperatorSwitchAvailable", singleAxisPolicy ? "UntilSingleAxisBoundary" : "UntilDetailedBoundary");
     }
 
     private void SwitchAtPilotSourceEnd()
@@ -74,12 +73,13 @@ public partial class TaskSwitchExperimentManager
         if (!IsWaitingForPilotTimingBoundary || sourceWorkPhaseTracker == null ||
             !sourceWorkPhaseTracker.IsMonitoring) return false;
 
-        int axes = ReadSourceHorizontalAxes();
-        bool reached = previousHorizontalAxes == 2 && axes == 1;
+        bool singleAxisPolicy = switchMethod == TaskSwitchMethod.SingleAxisBoundary;
+        int axes = ReadSourceHorizontalAxes(singleAxisPolicy);
+        bool reached = previousHorizontalAxes == 2 && (axes == 1 || (singleAxisPolicy && axes == 0));
         previousHorizontalAxes = axes;
         if (!reached) return false;
 
-        CompletePhaseBoundarySwitch($"HorizontalAxes:2->1;Step={sourceWorkPhaseTracker.CurrentStepId}");
+        CompletePhaseBoundarySwitch($"HorizontalAxes:2->{axes};Step={sourceWorkPhaseTracker.CurrentStepId}");
         return true;
     }
 
@@ -101,7 +101,7 @@ public partial class TaskSwitchExperimentManager
         sourceWorkPhaseTracker != null && sourceWorkPhaseTracker.IsMonitoring &&
         (horizontalAxes == 1 || IsVerticalStep(sourceWorkPhaseTracker.CurrentStepId));
 
-    private int ReadSourceHorizontalAxes()
+    private int ReadSourceHorizontalAxes(bool requireNeutralInput = false)
     {
         if (sourceWorkPhaseTracker == null || !sourceWorkPhaseTracker.IsMonitoring) return -1;
         CraneStatusManager.WorkPhase phase = sourceWorkPhaseTracker.CurrentMajorPhase;
@@ -112,8 +112,10 @@ public partial class TaskSwitchExperimentManager
             return -1;
 
         float tolerance = craneOperationManager.CurrentInformationDisplay?.FineAlignTolerance ?? 0.05f;
-        return (Mathf.Abs(position.position.x - targetX) > tolerance ? 1 : 0) +
-            (Mathf.Abs(position.position.z - targetZ) > tolerance ? 1 : 0);
+        // Read the dead-zone-filtered command used by final movement alignment.
+        Vector3 command = requireNeutralInput ? craneOperationManager.ReadMovementCommand() : Vector3.zero;
+        return (Mathf.Abs(position.position.x - targetX) > tolerance || command.x != 0f ? 1 : 0) +
+            (Mathf.Abs(position.position.z - targetZ) > tolerance || command.z != 0f ? 1 : 0);
     }
 
     private static bool IsVerticalStep(string step) =>

@@ -407,6 +407,29 @@ static class FlowTests
         Require(single.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation, "single-axis deadline missed");
         single.Manager.ExitExperimentMode();
 
+        var axisBoundary = TimingRig(3);
+        var axisNotice = new UnityEngine.UI.Text();
+        Set(axisBoundary.Manager, "countdownText", axisNotice);
+        RequestPilotSwitch(axisBoundary);
+        Require(axisNotice.text == "横行or走行\n完了後に切替", "single-axis notice is missing");
+        axisBoundary.Registry.cranes[0].InformationTarget.position = new Vector3(axisBoundary.Target(0).targetX, -1.56f, 0);
+        axisBoundary.Op.MovementCommand = new Vector3(.2f, 0, .2f);
+        axisBoundary.Update();
+        Require(axisBoundary.Manager.CurrentState == TaskSwitchExperimentState.WaitingForPhaseBoundary,
+            "single-axis mode switched while the aligned axis was still commanded");
+        axisBoundary.Op.MovementCommand = new Vector3(0, 0, .2f);
+        axisBoundary.Update();
+        Require(axisBoundary.Manager.CurrentState == TaskSwitchExperimentState.WaitingForConfirmation,
+            "single-axis mode missed release of the aligned axis while the other axis was commanded");
+        axisBoundary.Manager.ExitExperimentMode();
+
+        var axisEarly = TimingRig(3);
+        RequestPilotSwitch(axisEarly);
+        axisEarly.Manager.ConfirmTargetTask();
+        Require(axisEarly.Manager.CurrentState == TaskSwitchExperimentState.OperatingTarget,
+            "single-axis mode rejected a voluntary choice before the boundary");
+        axisEarly.Manager.ExitExperimentMode();
+
         var early = TimingRig(2);
         RequestPilotSwitch(early);
         early.Manager.ConfirmTargetTask();

@@ -1306,7 +1306,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
              currentState == TaskSwitchExperimentState.WaitingForPhaseBoundary);
     }
 
-    private void ShowAdvanceNoticeText(string message)
+    private void ShowAdvanceNoticeText(string message, bool fitText = false)
     {
         if (countdownText == null) return;
         if (!noticeTextStyleCaptured)
@@ -1326,8 +1326,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
         // Keep the two-line notice large in the countdown area. The slightly wider
         // box fits four Japanese characters without covering the confirmation button.
-        countdownText.resizeTextForBestFit = false;
         countdownText.fontSize = Mathf.Max(1, phaseBoundaryNoticeFontSize);
+        countdownText.resizeTextForBestFit = fitText;
+        if (fitText)
+        {
+            countdownText.resizeTextMinSize = 1;
+            countdownText.resizeTextMaxSize = countdownText.fontSize;
+        }
         countdownText.rectTransform.sizeDelta = phaseBoundaryNoticeSize;
         if (noticePanelRect != null)
         {
@@ -1744,7 +1749,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             if (IsWaitingForPilotTimingBoundary && switchMethod == TaskSwitchMethod.SingleAxisBoundary)
             {
                 // The new phase has its own target, so classify its actual initial operation.
-                previousHorizontalAxes = ReadSourceHorizontalAxes();
+                previousHorizontalAxes = ReadSourceHorizontalAxes(requireNeutralInput: true);
                 if (SourceNeedsSingleAxis(previousHorizontalAxes))
                     CompletePhaseBoundarySwitch($"NextMajorPhase:{phase};NextStep={sourceWorkPhaseTracker.CurrentStepId}");
             }
