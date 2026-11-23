@@ -1585,8 +1585,9 @@ public class CraneOperationManager : MonoBehaviour
             mainZInput = 0f;
         }
 
-        if (taskSwitchExperimentMode && mainYInput < 0f)
-            CurrentInformationDisplay?.ReportDescentInput();
+        if (taskSwitchExperimentMode && mainYInput < 0f &&
+            CurrentInformationDisplay?.ReportDescentInput() == true)
+            mainYInput = 0f;
 
         CurrentCrane.MoveMainLifMagX(mainXInput);
         CurrentCrane.MoveMainLifMagY(mainYInput);

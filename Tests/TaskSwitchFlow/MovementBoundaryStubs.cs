@@ -96,7 +96,7 @@ public class CraneWorkLoadPlanManager
     public void SetPickupTargetWeightKg(float v) {} public void SetPlannedReleaseWeightKg(float v) {} public void SetTargetRemainingWeightKg(float v) {}
     public bool PreparePlacementPlan(float weight) { return true; }
 }
-public class CraneInformationDisplay { public int DescentInputs; public void ReportDescentInput() { DescentInputs++; } }
+public class CraneInformationDisplay { public int DescentInputs; public bool ReportDescentInput() { DescentInputs++; return false; } }
 public partial class CraneOperationManager
 {
     public enum InputMode { Keyboard,Joystick }

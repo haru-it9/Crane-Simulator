@@ -119,13 +119,14 @@ public class CraneInformationDisplay : MonoBehaviour
         ClearInvalidDescentWarning();
     }
 
-    public void ReportDescentInput()
+    public bool ReportDescentInput()
     {
         if (!neutralTaskSwitchFeedback ||
             !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
-            (xWithinTarget && zWithinTarget)) return;
+            (xWithinTarget && zWithinTarget)) return false;
 
         invalidDescentWarningUntil = Time.unscaledTime + 0.8f;
+        return true;
     }
 
     public void ClearInvalidDescentWarning()
@@ -162,17 +163,19 @@ public class CraneInformationDisplay : MonoBehaviour
     private void CreateInvalidDescentWarning()
     {
         Text coordinateText = taskSwitchDisplayTexts?.xText;
-        if (coordinateText == null) return;
+        Canvas canvas = coordinateText != null ? coordinateText.canvas : null;
+        if (canvas == null) return;
 
         var warningObject = new GameObject("InvalidDescentWarning", typeof(RectTransform));
         invalidDescentWarningText = warningObject.AddComponent<Text>();
         RectTransform rect = invalidDescentWarningText.rectTransform;
-        rect.SetParent(coordinateText.rectTransform, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(720f, 85f);
-        rect.anchoredPosition = new Vector2(-190f, -410f);
+        rect.SetParent(canvas.rootCanvas.transform, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.4f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(900f, 112f);
+        rect.anchoredPosition = Vector2.zero;
         invalidDescentWarningText.font = coordinateText.font;
-        invalidDescentWarningText.fontSize = 54;
+        invalidDescentWarningText.fontSize = 72;
         invalidDescentWarningText.fontStyle = FontStyle.Bold;
         invalidDescentWarningText.alignment = TextAnchor.MiddleCenter;
     }

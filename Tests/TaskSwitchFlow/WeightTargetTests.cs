@@ -21,14 +21,14 @@ static class WeightTargetTests
         Set(display, "invalidDescentWarningText", warning);
         display.SetNeutralTaskSwitchFeedback(true);
         Time.realtimeSinceStartupAsDouble = 2;
-        display.ReportDescentInput();
+        Check(!display.ReportDescentInput(), "unexpected descent interlock state");
         Call(display, "UpdateInvalidDescentWarning");
         Call(display, "UpdateAchievementColors");
         Check(!warning.gameObject.activeSelf && !display.CurrentXHighlighted && !display.CurrentZHighlighted,
             "tolerance edge warned or showed coordinate feedback in the unguided preset");
 
         position.position = new Vector3(0, 0, -.051f);
-        display.ReportDescentInput();
+        Check(display.ReportDescentInput(), "unexpected descent interlock state");
         Call(display, "UpdateInvalidDescentWarning");
         Check(warning.gameObject.activeSelf && warning.color.r == 1 && warning.text == "座標が不適です",
             "out-of-range descent did not show the red coordinate warning");
@@ -37,7 +37,7 @@ static class WeightTargetTests
         Check(!warning.gameObject.activeSelf, "warning stayed visible after the input stopped");
 
         display.SetNeutralTaskSwitchFeedback(false);
-        display.ReportDescentInput();
+        Check(!display.ReportDescentInput(), "unexpected descent interlock state");
         Call(display, "UpdateInvalidDescentWarning");
         Call(display, "UpdateAchievementColors");
         Check(!warning.gameObject.activeSelf && display.CurrentXHighlighted,

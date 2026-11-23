@@ -58,7 +58,7 @@ public partial class CraneInformationDisplay {
     private void CreateInvalidDescentWarning() { invalidDescentWarningText = new Text(); }
 ''' + '\n'.join(method(info, signature) for signature in [
     '    public void SetNeutralTaskSwitchFeedback(',
-    '    public void ReportDescentInput()',
+    '    public bool ReportDescentInput()',
     '    public void ClearInvalidDescentWarning()',
     '    private void UpdateInvalidDescentWarning()',
     '    private void UpdateAchievementColors()',
