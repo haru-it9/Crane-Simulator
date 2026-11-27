@@ -12,6 +12,8 @@ public partial class SimulatorStartManager
     [SerializeField, Tooltip("負の値の場合は実験のSourceクレーンを使います。")]
     private int practiceCraneIndex = -1;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
+    [SerializeField] private Vector2 practiceAlternatePickupWorld = new Vector2(4f, 2f);
+    private Vector2 activePracticePickup;
     private static readonly Vector2 PracticeTravelDistance = new Vector2(6f, 4f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
     [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
@@ -126,26 +128,12 @@ public partial class SimulatorStartManager
         }
 
         if (practiceCompleted) return;
-        if (practicePickupWorld.x != Mathf.Round(practicePickupWorld.x) ||
-            practicePickupWorld.y != Mathf.Round(practicePickupWorld.y))
-        {
-            SetPracticeStatus("Practice Pickup Worldには、板山の整数座標を指定してください。", true);
-            return;
-        }
-
-        if (!practiceBoards.TryGetPickupTargetWeightKg(practicePickupWorld.x, practicePickupWorld.y,
-                1, out _, out _, out _))
-        {
-            SetPracticeStatus($"練習クレーンの板置場に指定した厚板がありません。Practice Pickup World（X={practicePickupWorld.x:F2}, Z={practicePickupWorld.y:F2}）を確認してください。", true);
-            return;
-        }
-
         if (previousPracticeDirection < 0 && !ValidatePracticeStartPoses()) return;
 
-        int previousIndex = practiceStartDirections.IndexOf(previousPracticeDirection);
-        int directionIndex = Random.Range(0, practiceStartDirections.Count - (previousIndex >= 0 ? 1 : 0));
-        if (previousIndex >= 0 && directionIndex >= previousIndex) directionIndex++;
-        int direction = practiceStartDirections[directionIndex];
+        // Choose a new approach direction while keeping both travel distances fixed.
+        var eligibleDirections = practiceStartDirections.FindAll(candidate =>
+            previousPracticeDirection < 0 || (candidate & 1) != (previousPracticeDirection & 1));
+        int direction = eligibleDirections[Random.Range(0, eligibleDirections.Count)];
         if (!TrySetPracticeStartPose(direction))
         {
             SetPracticeStatus("練習の開始座標が操作範囲外です。板山の座標と開始高さを確認してください。", true);
@@ -153,6 +141,7 @@ public partial class SimulatorStartManager
         }
 
         practiceCrane.CraneUnit.ResetSpeedLevel();
+        activePracticePickup = GetPracticePickup(direction);
         previousPracticeDirection = direction;
         practiceReady = true;
         string previousResult = practiceTimes.Count > 0
@@ -163,18 +152,29 @@ public partial class SimulatorStartManager
     private bool ValidatePracticeStartPoses()
     {
         practiceStartDirections.Clear();
-        for (int direction = 0; direction < 4; direction++)
+        for (int direction = 0; direction < 8; direction++)
+        {
+            Vector2 pickup = GetPracticePickup(direction);
+            if (pickup.x != Mathf.Round(pickup.x) || pickup.y != Mathf.Round(pickup.y) ||
+                !practiceBoards.TryGetPickupTargetWeightKg(pickup.x, pickup.y, 1, out _, out _, out _))
+                continue;
             if (TrySetPracticeStartPose(direction)) practiceStartDirections.Add(direction);
+        }
 
-        if (practiceStartDirections.Count >= 2) return true;
-        SetPracticeStatus("横行6 m・走行4 mで開始できる位置が2か所未満です。板山の座標と開始高さを確認してください。", true);
+        if (practiceStartDirections.Exists(candidate => (candidate & 1) == 0) &&
+            practiceStartDirections.Exists(candidate => (candidate & 1) != 0)) return true;
+        SetPracticeStatus("横行6 m・走行4 mで左右から開始できません。練習用の板山座標と開始高さを確認してください。", true);
         return false;
     }
 
+    private Vector2 GetPracticePickup(int direction) =>
+        (direction & 4) == 0 ? practicePickupWorld : practiceAlternatePickupWorld;
+
     private bool TrySetPracticeStartPose(int direction)
     {
-        float x = practicePickupWorld.x + ((direction & 1) == 0 ? -PracticeTravelDistance.x : PracticeTravelDistance.x);
-        float z = practicePickupWorld.y + ((direction & 2) == 0 ? -PracticeTravelDistance.y : PracticeTravelDistance.y);
+        Vector2 pickup = GetPracticePickup(direction);
+        float x = pickup.x + ((direction & 1) == 0 ? -PracticeTravelDistance.x : PracticeTravelDistance.x);
+        float z = pickup.y + ((direction & 2) == 0 ? -PracticeTravelDistance.y : PracticeTravelDistance.y);
         return practiceCrane.CraneUnit.TryAlignInterventionPickup(
             practiceCrane.InformationTarget, x, z, practiceStartLocalY);
     }
@@ -192,7 +192,7 @@ public partial class SimulatorStartManager
         practiceCycle.SetExperimentConditions(new[] { new TaskSwitchWorkCondition
         {
             role = "Source", index = 1,
-            pickupX = practicePickupWorld.x, pickupZ = practicePickupWorld.y,
+            pickupX = activePracticePickup.x, pickupZ = activePracticePickup.y,
             pickupCount = 1, placementCount = 1
         } });
         practiceCycle.SetAutomaticPhaseAdvance(true);
