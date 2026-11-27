@@ -30,7 +30,7 @@ public partial class TaskSwitchExperimentManager
             return window == FindLongestMainStudyMovementWindow() ? 6f : Mathf.Lerp(2.5f, 4f, fraction);
         if (switchMethod == TaskSwitchMethod.OperatorInitiated)
             return Mathf.Lerp(2f, 10f, fraction);
-        return MainStudyPlannedAxes(window) == 1 ? Mathf.Lerp(1f, 2f, fraction) : 0f;
+        return MainStudyPlannedAxes(window) == 1 ? Mathf.Lerp(1f, 2f, fraction) : 3f;
     }
 
     private int FindLongestMainStudyMovementWindow()
