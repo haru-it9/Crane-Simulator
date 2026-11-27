@@ -29940,7 +29940,7 @@ MonoBehaviour:
   craneOperationManager: {fileID: 1612894383}
   craneRegistry: {fileID: 2123578659}
   interventionScenarioManager: {fileID: 1123226829}
-  switchMethod: 3
+  switchMethod: 8
   sourceCondition:
     craneIndex: 0
     taskName: Source Task
@@ -29962,13 +29962,15 @@ MonoBehaviour:
   countdownSeconds: 5
   operatorSwitchDeadlineSeconds: 10
   pilotExperiment: 1
-  pilotCondition: 13
-  pilotDirectionDisplay: 0
+  pilotCondition: 22
+  pilotDirectionDisplay: 4
   pilotDisplaySeconds: 2
-  pilotSwitchDeadlineSeconds: 0
+  pilotSwitchDeadlineSeconds: 3
   pilotWorkOrder: 0
   pilotLongFirst: 0
   pilotOrderSeed: 0
+  mainStudyMinimumRequestDelaySeconds: 1
+  mainStudyMaximumRequestDelaySeconds: 5
   pilotMinimumRequestIntervalSeconds: 10
   pilotMaximumRequestIntervalSeconds: 20
   pilotMinimumWindowRequestDelaySeconds: 0
@@ -183236,6 +183238,15 @@ MonoBehaviour:
   - {fileID: 1384457869}
   excludeSelectables: []
   craneCountManager: {fileID: 623956169}
+  practiceCraneIndex: 0
+  practicePickupWorld: {x: -4, y: 4}
+  practiceAlternatePickupWorld: {x: 4, y: 2}
+  practiceStartLocalY: -1.56
+  practiceDisplayOrigin: {x: 0.5, y: -0.5}
+  practiceStableChangePercent: 10
+  practiceMaximumTrialSeconds: 35
+  practiceStatusText: {fileID: 0}
+  practiceModeSettings: {fileID: 0}
 --- !u!4 &2080963383
 Transform:
   m_ObjectHideFlags: 0
@@ -189663,6 +189674,7 @@ MonoBehaviour:
   positiveXPointsUp: 1
   positiveYPointsUp: 0
   positiveZPointsRight: 0
+  mainStudyCurrentAdjustmentColor: {r: 1, g: 0.65, b: 0.15, a: 1}
 --- !u!1001 &215319541745644313
 PrefabInstance:
   m_ObjectHideFlags: 0
