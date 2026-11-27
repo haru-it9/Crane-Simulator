@@ -64,15 +64,7 @@ public class TaskSwitchSupportArrow : MaskableGraphic
             AddVertex(vertices, x - halfWidth, y - halfHeight);
             AddVertex(vertices, x + halfWidth, y - halfHeight);
             AddVertex(vertices, x, y + halfHeight);
-            AddVertex(vertices, x - halfWidth * 0.55f, y - halfHeight * 0.64f);
-            AddVertex(vertices, x + halfWidth * 0.55f, y - halfHeight * 0.64f);
-            AddVertex(vertices, x, y + halfHeight * 0.46f);
-            vertices.AddTriangle(0, 1, 4);
-            vertices.AddTriangle(0, 4, 3);
-            vertices.AddTriangle(1, 2, 5);
-            vertices.AddTriangle(1, 5, 4);
-            vertices.AddTriangle(2, 0, 3);
-            vertices.AddTriangle(2, 3, 5);
+            vertices.AddTriangle(0, 1, 2);
             return;
         }
 
