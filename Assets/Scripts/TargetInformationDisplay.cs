@@ -66,6 +66,14 @@ public class TargetInformationDisplay : MonoBehaviour
         new List<TargetData>();
     private int currentIndex;
 
+    private bool hidePositionCoordinates;
+
+    public void SetPositionCoordinatesVisible(bool visible)
+    {
+        hidePositionCoordinates = !visible;
+        RefreshPositionCoordinates();
+    }
+
     public float CurrentTargetX { get; private set; }
     public float CurrentTargetZ { get; private set; }
     public float CurrentTargetWeightTon { get; private set; }
@@ -157,19 +165,10 @@ public class TargetInformationDisplay : MonoBehaviour
         CurrentTargetZ = data.targetZ;
         CurrentTargetWeightTon = data.targetWeight;
         HasCurrentWeightTarget = true;
+        RefreshPositionCoordinates();
 
         foreach (TargetTextSet textSet in GetTextSets())
         {
-            if (textSet.targetXText != null)
-            {
-                textSet.targetXText.text = data.targetX.ToString("F2");
-            }
-
-            if (textSet.targetZText != null)
-            {
-                textSet.targetZText.text = data.targetZ.ToString("F2");
-            }
-
             if (textSet.targetWeightText != null)
             {
                 textSet.targetWeightText.text =
@@ -192,19 +191,23 @@ public class TargetInformationDisplay : MonoBehaviour
 
         CurrentTargetX = displayTargetX;
         CurrentTargetZ = displayTargetZ;
+        RefreshPositionCoordinates();
+    }
 
+    private void RefreshPositionCoordinates()
+    {
         foreach (TargetTextSet textSet in GetTextSets())
         {
             if (textSet.targetXText != null)
             {
                 textSet.targetXText.text =
-                    displayTargetX.ToString("F2");
+                    hidePositionCoordinates ? "" : CurrentTargetX.ToString("F2");
             }
 
             if (textSet.targetZText != null)
             {
                 textSet.targetZText.text =
-                    displayTargetZ.ToString("F2");
+                    hidePositionCoordinates ? "" : CurrentTargetZ.ToString("F2");
             }
         }
     }

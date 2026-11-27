@@ -835,6 +835,14 @@ public class CraneOperationManager : MonoBehaviour
         );
     }
 
+    public void SetPracticeCoordinatesVisible(bool visible)
+    {
+        CurrentInformationDisplay?.SetPositionCoordinatesVisible(visible);
+        if (targetInformationDisplay == null)
+            targetInformationDisplay = FindObjectOfType<TargetInformationDisplay>(true);
+        targetInformationDisplay?.SetPositionCoordinatesVisible(visible);
+    }
+
     private void ShowDisplayedPositionTarget(float targetX, float targetZ)
     {
         Vector2 origin = CurrentInformationDisplay != null

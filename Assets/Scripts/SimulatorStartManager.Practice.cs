@@ -108,6 +108,7 @@ public partial class SimulatorStartManager
         }
 
         practiceOperation.SetTaskSwitchOperationInputLocked(true);
+        practiceOperation.SetPracticeCoordinatesVisible(false);
         IsOperationEnabled = true;
         practiceCycle.StopCycleAndTracker();
         practiceCrane.CraneUnit.ClearInterventionBoardAttachment();
@@ -208,6 +209,7 @@ public partial class SimulatorStartManager
         if (startScreen != null) startScreen.SetActive(false);
         SetOperationUIInteractable(true);
         IsOperationEnabled = true;
+        practiceOperation.SetPracticeCoordinatesVisible(true);
         practiceOperation.SetTaskSwitchOperationInputLocked(false);
         UpdatePracticeTimerText();
     }
@@ -217,6 +219,7 @@ public partial class SimulatorStartManager
         if (!practiceRunning || cycle != practiceCycle || completedCycles < 1) return;
         practiceFinishTime = ExperimentPauseManager.ActiveRealtime;
         practiceOperation.SetTaskSwitchOperationInputLocked(true);
+        practiceOperation.SetPracticeCoordinatesVisible(false);
     }
 
     private void Update()

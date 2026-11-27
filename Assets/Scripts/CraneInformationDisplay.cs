@@ -109,6 +109,13 @@ public class CraneInformationDisplay : MonoBehaviour
     public bool CurrentWeightHighlighted { get; private set; }
     public int AchievementFrame { get; private set; } = -1;
     public Vector2 CoordinateDisplayOrigin { get; set; }
+    private bool hidePositionCoordinates;
+
+    public void SetPositionCoordinatesVisible(bool visible)
+    {
+        hidePositionCoordinates = !visible;
+        UpdatePositionText();
+    }
     public float CurrentX { get; private set; }
     public float CurrentZ { get; private set; }
     public float CurrentDisplayWeightTon { get; private set; }
@@ -274,12 +281,12 @@ public class CraneInformationDisplay : MonoBehaviour
         {
             if (textSet.xText != null)
             {
-                textSet.xText.text = $"{CurrentX - CoordinateDisplayOrigin.x:F2}";
+                textSet.xText.text = hidePositionCoordinates ? "" : $"{CurrentX - CoordinateDisplayOrigin.x:F2}";
             }
 
             if (textSet.zText != null)
             {
-                textSet.zText.text = $"{CurrentZ - CoordinateDisplayOrigin.y:F2}";
+                textSet.zText.text = hidePositionCoordinates ? "" : $"{CurrentZ - CoordinateDisplayOrigin.y:F2}";
             }
         }
     }
