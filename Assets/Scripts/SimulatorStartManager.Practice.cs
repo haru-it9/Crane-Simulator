@@ -47,6 +47,7 @@ public partial class SimulatorStartManager
     private CraneInstance practiceCrane;
     private CraneWorkCycleController practiceCycle;
     private BoardGenerator practiceBoards;
+    private Text practiceStartButtonText;
     private bool practiceReady, practiceRunning, practiceCompleted;
     private int previousPracticeDirection = -1;
     private double practiceStartTime, practiceFinishTime;
@@ -97,7 +98,7 @@ public partial class SimulatorStartManager
         practiceReady = false;
         IsOperationEnabled = false;
         SetOperationUIInteractable(false);
-        if (startScreen != null) startScreen.SetActive(true);
+        if (startScreen != null) startScreen.SetActive(false);
 
         if (practiceOperation == null && !InitializePracticeCrane())
         {
@@ -150,13 +151,16 @@ public partial class SimulatorStartManager
         practiceCrane.CraneUnit.ResetSpeedLevel();
         previousPracticeDirection = direction;
         practiceReady = true;
-        SetPracticeStatus($"練習 {practiceTimes.Count + 1} 試行目の準備完了。Startで開始します。");
+        string previousResult = practiceTimes.Count > 0
+            ? $"\n前回 {practiceTimes[practiceTimes.Count - 1]:F2} 秒" : "";
+        SetPracticeStatus($"Start · 第{practiceTimes.Count + 1}試行{previousResult}");
     }
 
     public void StartPracticeTrial(TaskSwitchExperimentManager experiment = null)
     {
         if (practiceCompleted || practiceRunning || ExperimentPauseManager.IsPaused) return;
         if (experiment != null) practiceModeSettings = experiment;
+        ResolvePracticeStartButtonText();
         if (practiceModeSettings != null && practiceModeSettings.IsPracticeConditionSelected)
             ApplyPracticeDisplay();
         if (!practiceReady) PreparePracticeTrial();
@@ -183,6 +187,7 @@ public partial class SimulatorStartManager
         SetOperationUIInteractable(true);
         IsOperationEnabled = true;
         practiceOperation.SetTaskSwitchOperationInputLocked(false);
+        UpdatePracticeTimerText();
     }
 
     private void RecordPracticeFinish(CraneWorkCycleController cycle, int completedCycles)
@@ -194,7 +199,12 @@ public partial class SimulatorStartManager
 
     private void Update()
     {
-        if (!practiceRunning || practiceCycle == null || practiceCycle.IsRunning) return;
+        if (!practiceRunning || practiceCycle == null) return;
+        if (practiceCycle.IsRunning)
+        {
+            UpdatePracticeTimerText();
+            return;
+        }
 
         practiceRunning = false;
         if (practiceFinishTime < practiceStartTime)
@@ -215,7 +225,7 @@ public partial class SimulatorStartManager
 
         PreparePracticeTrial();
         if (practiceCompleted)
-            SetPracticeStatus($"練習完了（{count} 試行）。直近3回のタイムが安定しました。");
+            SetPracticeStatus($"練習完了 · {count}試行\n最終 {duration:F2} 秒");
     }
 
     private static bool IsPracticeTimeStable(double previous, double current, double limit)
@@ -223,9 +233,43 @@ public partial class SimulatorStartManager
         return previous > 0 && System.Math.Abs(current - previous) / previous <= limit;
     }
 
-    private void SetPracticeStatus(string message, bool error = false)
+    private void ResolvePracticeStartButtonText()
+    {
+        if (practiceStartButtonText != null || practiceModeSettings == null) return;
+
+        foreach (Button button in FindObjectsOfType<Button>(true))
+        {
+            var onClick = button.onClick;
+            for (int i = 0; i < onClick.GetPersistentEventCount(); i++)
+            {
+                if (onClick.GetPersistentTarget(i) != practiceModeSettings ||
+                    onClick.GetPersistentMethodName(i) != nameof(TaskSwitchExperimentManager.StartExperiment)) continue;
+                Text label = button.GetComponentInChildren<Text>(true);
+                if (label == null) continue;
+                practiceStartButtonText = label;
+                label.resizeTextMinSize = 8;
+                label.resizeTextMaxSize = label.fontSize;
+                label.resizeTextForBestFit = true;
+                return;
+            }
+        }
+    }
+
+    private void UpdatePracticeTimerText()
+    {
+        double elapsed = ExperimentPauseManager.ActiveRealtime - practiceStartTime;
+        WritePracticeStatusText($"第{practiceTimes.Count + 1}試行\n{elapsed:F2} 秒");
+    }
+
+    private void WritePracticeStatusText(string message)
     {
         if (practiceStatusText != null) practiceStatusText.text = message;
+        if (practiceStartButtonText != null) practiceStartButtonText.text = message;
+    }
+
+    private void SetPracticeStatus(string message, bool error = false)
+    {
+        WritePracticeStatusText(message);
         if (error) Debug.LogError(message, this);
         else Debug.Log(message, this);
     }
