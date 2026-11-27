@@ -14,7 +14,7 @@ public partial class SimulatorStartManager
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
     [SerializeField] private Vector2 practiceTravelDistance = new Vector2(2f, 2f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
-    [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(0.5f, -0.5f);
+    [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
     [SerializeField, Min(0f)] private float practiceStableChangePercent = 5f;
     [SerializeField] private Text practiceStatusText;
 
@@ -86,7 +86,8 @@ public partial class SimulatorStartManager
         practiceBoards = boards;
         practiceCycle.AllCyclesCompleted += RecordPracticeFinish;
         if (operation.CurrentInformationDisplay != null)
-            operation.CurrentInformationDisplay.CoordinateDisplayOrigin = practiceDisplayOrigin;
+            operation.CurrentInformationDisplay.CoordinateDisplayOrigin = new Vector2(
+                Mathf.Round(practiceDisplayOrigin.x), Mathf.Round(practiceDisplayOrigin.y));
         return true;
     }
 
@@ -121,6 +122,13 @@ public partial class SimulatorStartManager
         }
 
         if (practiceCompleted) return;
+        if (practicePickupWorld.x != Mathf.Round(practicePickupWorld.x) ||
+            practicePickupWorld.y != Mathf.Round(practicePickupWorld.y))
+        {
+            SetPracticeStatus("Practice Pickup Worldには、板山の整数座標を指定してください。", true);
+            return;
+        }
+
         if (!(practiceTravelDistance.x > 0f && practiceTravelDistance.y > 0f) ||
             !practiceBoards.TryGetPickupTargetWeightKg(practicePickupWorld.x, practicePickupWorld.y,
                 1, out _, out _, out _))
