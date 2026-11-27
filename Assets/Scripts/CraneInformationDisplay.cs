@@ -149,9 +149,11 @@ public class CraneInformationDisplay : MonoBehaviour
 
     public bool ReportDescentInput()
     {
-        if (!neutralTaskSwitchFeedback ||
-            !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
-            (xWithinTarget && zWithinTarget)) return false;
+        bool practice = SimulatorStartManager.IsPracticeActive;
+        if (!neutralTaskSwitchFeedback && !practice) return false;
+
+        bool hasTarget = TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget);
+        if (hasTarget ? xWithinTarget && zWithinTarget : !practice) return false;
 
         invalidDescentWarningUntil = Time.unscaledTime + 0.8f;
         return true;
@@ -166,12 +168,13 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private void UpdateInvalidDescentWarning()
     {
-        if (!neutralTaskSwitchFeedback || invalidDescentWarningUntil <= 0f)
-            return;
+        if (invalidDescentWarningUntil <= 0f) return;
 
-        if (Time.unscaledTime >= invalidDescentWarningUntil || ExperimentPauseManager.IsPaused ||
-            !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
-            (xWithinTarget && zWithinTarget))
+        bool practice = SimulatorStartManager.IsPracticeActive;
+        bool hasTarget = TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget);
+        if ((!neutralTaskSwitchFeedback && !practice) ||
+            Time.unscaledTime >= invalidDescentWarningUntil || ExperimentPauseManager.IsPaused ||
+            (hasTarget ? xWithinTarget && zWithinTarget : !practice))
         {
             ClearInvalidDescentWarning();
             return;
