@@ -158,8 +158,18 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private void UpdateInvalidDescentWarning()
     {
-        if (!neutralTaskSwitchFeedback || invalidDescentWarningUntil <= 0f)
+        if (!ExperimentPauseManager.IsPaused && workPhaseTracker != null &&
+            workPhaseTracker.IsMonitoring && workPhaseTracker.AirbornePlacementNeedsRepositioning)
+        {
+            ShowOperationWarning("厚板を再吸着して配置し直してください");
             return;
+        }
+
+        if (!neutralTaskSwitchFeedback || invalidDescentWarningUntil <= 0f)
+        {
+            ClearInvalidDescentWarning();
+            return;
+        }
 
         if (Time.unscaledTime >= invalidDescentWarningUntil || ExperimentPauseManager.IsPaused ||
             !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
@@ -169,11 +179,16 @@ public class CraneInformationDisplay : MonoBehaviour
             return;
         }
 
+        ShowOperationWarning("座標が不適です");
+    }
+
+    private void ShowOperationWarning(string message)
+    {
         if (invalidDescentWarningText == null)
             CreateInvalidDescentWarning();
         if (invalidDescentWarningText != null)
         {
-            invalidDescentWarningText.text = "座標が不適です";
+            invalidDescentWarningText.text = message;
             invalidDescentWarningText.color = Color.red;
             invalidDescentWarningText.raycastTarget = false;
             invalidDescentWarningText.gameObject.SetActive(true);

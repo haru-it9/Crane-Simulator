@@ -211,6 +211,13 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         (CurrentMajorPhase == CraneStatusManager.WorkPhase.Place ||
          CurrentMajorPhase ==
              CraneStatusManager.WorkPhase.PlaceToTrack);
+    private readonly HashSet<GameObject> previousPlacementBoards = new HashSet<GameObject>();
+    private readonly HashSet<GameObject> airbornePlacementBoards = new HashSet<GameObject>();
+    private bool airbornePlacementAccepted;
+    private float airbornePlacementStableSeconds;
+    public bool AirbornePlacementNeedsRepositioning { get; private set; }
+    public event Action<CraneWorkPhaseTracker, string> AirbornePlacementChanged;
+
     public float LastInvalidationWeightKg { get; private set; }
     public float LastInvalidationWeightErrorKg { get; private set; }
     public float LastInvalidationStepElapsedSeconds { get; private set; }
@@ -383,7 +390,7 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
         UpdateObservedState(deltaTime);
 
-        if (InvalidatePickupWeightIfNeeded(deltaTime))
+        if (UpdateAirbornePlacement(deltaTime) || InvalidatePickupWeightIfNeeded(deltaTime))
         {
             return;
         }
@@ -448,6 +455,12 @@ public class CraneWorkPhaseTracker : MonoBehaviour
             ? lifMagSystem.LastAttachedBoard
             : null;
         releasedBoard = null;
+        previousPlacementBoards.Clear();
+        airbornePlacementBoards.Clear();
+        airbornePlacementAccepted = AirbornePlacementNeedsRepositioning = false;
+        airbornePlacementStableSeconds = 0f;
+        if (lifMagSystem != null)
+            foreach (GameObject board in lifMagSystem.AttachedBoards) previousPlacementBoards.Add(board);
 
         if (phase == CraneStatusManager.WorkPhase.Place ||
             phase == CraneStatusManager.WorkPhase.PlaceToTrack)
@@ -846,6 +859,113 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         }
 
         wasHoldingBoard = isHolding;
+    }
+
+    private bool UpdateAirbornePlacement(float deltaTime)
+    {
+        if (CurrentMajorPhase != CraneStatusManager.WorkPhase.Place &&
+            CurrentMajorPhase != CraneStatusManager.WorkPhase.PlaceToTrack) return false;
+
+        string prefix = CurrentMajorPhase.ToString();
+        bool lowering = CurrentStepId == prefix + ".PlacementLowering";
+        bool releasing = CurrentStepId == prefix + ".LoadRelease";
+        if (!lowering && !releasing) return false;
+
+        LifMagSystem magnet = GetLifMagSystem();
+        if (magnet == null) return false;
+
+        var attached = magnet.AttachedBoards;
+        if (!IsPlacementTouchdownConfirmed && !airbornePlacementAccepted)
+        {
+            int previousDropCount = airbornePlacementBoards.Count;
+            previousPlacementBoards.ExceptWith(attached);
+            airbornePlacementBoards.UnionWith(previousPlacementBoards);
+            if (airbornePlacementBoards.Count > previousDropCount)
+            {
+                airbornePlacementStableSeconds = 0f;
+                AirbornePlacementChanged?.Invoke(this, "AirbornePlacementRelease");
+            }
+        }
+        previousPlacementBoards.Clear();
+        previousPlacementBoards.UnionWith(attached);
+
+        if (airbornePlacementAccepted)
+        {
+            if (releasing && !IsSupportWeightWithinTarget(CurrentMajorPhase))
+                airbornePlacementAccepted = false;
+            else
+            {
+                CompleteCurrentStep();
+                return true;
+            }
+        }
+        if (airbornePlacementBoards.Count == 0)
+        {
+            AirbornePlacementNeedsRepositioning = false;
+            airbornePlacementStableSeconds = 0f;
+            return false;
+        }
+
+        airbornePlacementBoards.ExceptWith(attached);
+        if (airbornePlacementBoards.Count == 0)
+        {
+            AirbornePlacementNeedsRepositioning = false;
+            airbornePlacementStableSeconds = 0f;
+            ResetStepTimers();
+            AirbornePlacementChanged?.Invoke(this, "AirbornePlacementReattached");
+            return false;
+        }
+
+        bool settled = true;
+        foreach (GameObject board in airbornePlacementBoards)
+        {
+            if (board == null || !board.TryGetComponent(out Rigidbody body) ||
+                body.isKinematic || !body.IsSleeping())
+            {
+                settled = false;
+                break;
+            }
+        }
+        airbornePlacementStableSeconds = settled
+            ? airbornePlacementStableSeconds + Mathf.Max(0f, deltaTime) : 0f;
+        if (airbornePlacementStableSeconds < 0.2f) return true;
+
+        bool valid = IsAirbornePlacementWithinTarget(prefix) &&
+            IsSupportWeightWithinTarget(CurrentMajorPhase);
+        if (!valid)
+        {
+            if (!AirbornePlacementNeedsRepositioning)
+                AirbornePlacementChanged?.Invoke(this, "AirbornePlacementRepositionRequired");
+            AirbornePlacementNeedsRepositioning = true;
+            return true;
+        }
+
+        AirbornePlacementNeedsRepositioning = false;
+        airbornePlacementAccepted = true;
+        AirbornePlacementChanged?.Invoke(this, "AirbornePlacementAccepted");
+        CompleteCurrentStep();
+        return true;
+    }
+
+    private bool IsAirbornePlacementWithinTarget(string prefix)
+    {
+        if (!TryGetTargetPosition(out float targetX, out float targetZ)) return false;
+        foreach (CraneWorkStepDefinition step in activeSteps)
+        {
+            if (step.stepId != prefix + ".PlacementLowering" || step.completionConditions == null) continue;
+            foreach (CraneWorkConditionDefinition condition in step.completionConditions)
+            {
+                if (condition == null || condition.conditionType != CraneWorkConditionType.PositionWithinTarget) continue;
+                foreach (GameObject board in airbornePlacementBoards)
+                {
+                    Vector3 position = board.transform.position;
+                    if (Mathf.Abs(position.x - targetX) > condition.threshold ||
+                        Mathf.Abs(position.z - targetZ) > condition.secondaryThreshold) return false;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private void EvaluateCurrentStep(float deltaTime)
