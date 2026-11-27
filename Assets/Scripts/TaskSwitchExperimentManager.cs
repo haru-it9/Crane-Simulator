@@ -519,10 +519,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         ResolveCycleControllers();
         SubscribeToWorkPhaseEvents();
         SubscribeToCycleEvents();
+        SubscribeMainStudyMovementInput();
     }
 
     private void OnDisable()
     {
+        UnsubscribeMainStudyMovementInput();
         StopSecondarySubtask("ManagerDisabled");
         UnsubscribeSecondaryPauseEvents();
         UnsubscribeFromWorkPhaseEvents();
@@ -560,6 +562,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             return;
         }
 
+        if (UpdateMainStudyDeferredSwitch()) return;
         UpdatePilotRequestClock();
         UpdatePendingOperationInputUnlock();
         UpdatePilotRequestClock();
@@ -675,6 +678,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
         ApplyPilotCondition();
         FindReferences();
+        SubscribeMainStudyMovementInput();
         ResolveWorkPhaseTrackers();
         ResolveCycleControllers();
         SubscribeToWorkPhaseEvents();
@@ -733,6 +737,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         pilotRequestClockLastRealtime = ExperimentPauseManager.ActiveRealtime;
         pilotRequestClockActive = false;
         mainStudyHeldSlot = -1;
+        int longImmediateWindow = IsMainStudy && switchMethod == TaskSwitchMethod.Immediate
+            ? FindLongestMainStudyMovementWindow() : -1;
         for (int window = 0; window < pilotRequestWindowStarts.Length; window++)
         {
             pilotRequestWindowStarts[window] = -1;
@@ -740,7 +746,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             float fraction = (float)random.NextDouble();
             if (UsesTimingWorkProtocol)
                 fraction = (pilotTimingDelayBands[window] + fraction) / 3f;
-            pilotRequestWindowDelays[window] = Mathf.Lerp(PilotWindowDelayMin, PilotWindowDelayMax, fraction);
+            pilotRequestWindowDelays[window] = MainStudyUsesMovementAnchor
+                ? GetMainStudyMovementDelay(window, longImmediateWindow, fraction)
+                : Mathf.Lerp(PilotWindowDelayMin, PilotWindowDelayMax, fraction);
         }
         pilotSourceExtensionStarted = false;
         pilotSourceExtensionCompleted = false;
@@ -842,7 +850,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private bool ValidatePilotTimingRequestSteps()
     {
-        if (!UsesTimingWorkProtocol) return true;
+        if (!UsesTimingWorkProtocol || MainStudyUsesMovementAnchor) return true;
         if (pilotTimingRequestSteps != null && pilotTimingRequestSteps.Length == PilotRequiredSwitches)
         {
             for (int window = 0; window < pilotTimingRequestSteps.Length; window++)
@@ -865,7 +873,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void HandlePilotRequestStepStarted(CraneWorkPhaseTracker tracker, CraneStatusManager.WorkPhase phase, string step)
     {
-        if (!UsesTimingWorkProtocol || tracker != sourceWorkPhaseTracker ||
+        if (MainStudyUsesMovementAnchor || !UsesTimingWorkProtocol || tracker != sourceWorkPhaseTracker ||
             sourceCycleController == null || !sourceCycleController.IsRunning) return;
         int cycle = sourceCycleController.CurrentCycleNumber;
         if (cycle < 1 || cycle > PilotRequiredSourceCycles) return;
@@ -920,7 +928,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
         if (!CanRequestSwitch) return false;
 
-        RequestSwitchCore($"RequestTrigger=MainStudyWindowEnd;NominalSlotCycle={mainStudyHeldSlot / 2 + 1}");
+        RequestSwitchCore($"RequestTrigger=MainStudyWindowEnd;NominalSlotCycle={mainStudyHeldSlot / 2 + 1};PlannedHorizontalAxes={MainStudyPlannedAxes(mainStudyHeldSlot)};HorizontalAxesAtRequest={ReadSourceHorizontalAxes()}");
         return true;
     }
 
@@ -938,7 +946,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             int window = completedSwitchCount;
             if (pilotRequestWindowStarts[window] < 0) return false;
             pilotRequestDue = pilotRequestWindowStarts[window] + pilotRequestWindowDelays[window];
-            if (UsesTimingWorkProtocol && window == 0)
+            if (UsesTimingWorkProtocol && !MainStudyUsesMovementAnchor && window == 0)
                 pilotRequestDue = System.Math.Max(pilotRequestDue, PilotTimingFirstRequestMinimumSourceSeconds);
             now = pilotRequestClock;
         }
@@ -963,12 +971,18 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
             sourceWorkPhaseTracker.IsMajorPhaseCompleted || !sourceWorkPhaseTracker.IsMonitoring))
             return false;
 
+        if (IsMainStudy && switchMethod != TaskSwitchMethod.OperatorInitiated &&
+            IsCurrentControlStep(sourceWorkPhaseTracker?.CurrentStepId)) return false;
+
         string axisDetail = string.Empty;
         if (UsesTimingWorkProtocol)
         {
             int horizontalAxes = ReadSourceHorizontalAxes();
             int requiredAxes = SourceNeedsSingleAxis(horizontalAxes) ? 1 : horizontalAxes;
-            axisDetail = $";RequiredMovementAxes={requiredAxes};AnchorStep={pilotTimingRequestSteps[completedSwitchCount]}";
+            if (MainStudyUsesMovementAnchor)
+                axisDetail = $";RequiredMovementAxes={requiredAxes};HorizontalAxesAtRequest={horizontalAxes};PlannedHorizontalAxes={MainStudyPlannedAxes(completedSwitchCount)};Anchor=AcceptedHorizontalMovement;PlannedDelaySeconds={pilotRequestWindowDelays[completedSwitchCount]:F3}";
+            else
+                axisDetail = $";RequiredMovementAxes={requiredAxes};AnchorStep={pilotTimingRequestSteps[completedSwitchCount]}";
         }
         double timerOffset = now - pilotRequestDue;
         pilotRequestDue = -1;
@@ -1463,6 +1477,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void ResetAdvanceNotice()
     {
+        mainStudyDeferredSwitchDetail = null;
+        mainStudyDeferredOperatorConfirmation = false;
         operatorDeadlinePending = false;
         operatorDeadlineActiveRealtime = 0;
         advanceNoticeActive = false;
@@ -1504,8 +1520,20 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         }
     }
 
-    private void SwitchControlToTarget(string detail)
+    private void SwitchControlToTarget(string detail, bool confirmWhenDeferred = false)
     {
+        if (mainStudyDeferredSwitchDetail != null) return;
+        if (IsMainStudy && (switchMethod == TaskSwitchMethod.CountdownOperatorInitiated ||
+            switchMethod == TaskSwitchMethod.SingleAxisBoundary) &&
+            IsCurrentControlStep(sourceWorkPhaseTracker?.CurrentStepId))
+        {
+            mainStudyDeferredSwitchDetail = detail;
+            mainStudyDeferredOperatorConfirmation = confirmWhenDeferred;
+            EmitEvent("MainStudySwitchDeferredForCurrentControl",
+                $"Trigger={detail};SourceStep={sourceWorkPhaseTracker.CurrentStepId}");
+            return;
+        }
+
         craneOperationManager.SetTaskSwitchOperationInputLocked(true);
         PauseSourceWorkForSwitch();
         // An early choice cancels only the future hold request. Do not advance a

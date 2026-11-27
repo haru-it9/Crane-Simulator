@@ -361,7 +361,7 @@ public partial class TaskSwitchExperimentManager
         string policy = switchMethod.ToString();
         EmitEvent("OperatorSwitchConfirmationPressed", policy);
         EmitEvent("SwitchTriggerSelected", "Trigger=Operator;Policy=" + policy);
-        SwitchControlToTarget(policy);
+        SwitchControlToTarget(policy, confirmWhenDeferred: true);
         if(currentState==TaskSwitchExperimentState.WaitingForConfirmation) ConfirmTargetTask();
     }
     private void ClearExperimentWorkConditions()

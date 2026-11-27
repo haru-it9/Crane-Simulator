@@ -6,6 +6,99 @@ public partial class TaskSwitchExperimentManager
     private int previousHorizontalAxes = -1;
 
     private const float PilotTimingStartLocalY = -1.56f;
+    private CraneOperationManager mainStudyMovementInputSource;
+    private string mainStudyDeferredSwitchDetail;
+    private bool mainStudyDeferredOperatorConfirmation;
+
+    private bool MainStudyUsesMovementAnchor => IsMainStudy &&
+        (switchMethod == TaskSwitchMethod.Immediate || switchMethod == TaskSwitchMethod.OperatorInitiated ||
+         switchMethod == TaskSwitchMethod.SingleAxisBoundary);
+
+    private int MainStudyPlannedAxes(int window)
+    {
+        if (switchMethod == TaskSwitchMethod.Immediate) return 2;
+        if (switchMethod != TaskSwitchMethod.SingleAxisBoundary) return -1;
+        return window == 1 || window == 2 || window == 5 ? 1 : 2;
+    }
+
+    private float GetMainStudyMovementDelay(int window, int longImmediateWindow, float fraction)
+    {
+        if (switchMethod == TaskSwitchMethod.Immediate)
+            return window == longImmediateWindow ? 7f : Mathf.Lerp(2f, 3f, fraction);
+        if (switchMethod == TaskSwitchMethod.OperatorInitiated)
+            return Mathf.Lerp(2f, 10f, fraction);
+        return MainStudyPlannedAxes(window) == 1 ? Mathf.Lerp(1f, 2f, fraction) : 0f;
+    }
+
+    private int FindLongestMainStudyMovementWindow()
+    {
+        int longestWindow = -1;
+        float longestTravel = -1f;
+        for (int cycle = 1; cycle <= PilotRequiredSourceCycles; cycle++)
+        {
+            var work = SourceWorkCondition(cycle);
+            if (work == null) continue;
+            var previous = SourceWorkCondition(cycle - 1);
+            float move1 = Mathf.Abs(work.pickupZ - (previous != null ? previous.placementZ : work.placementZ));
+            float move2 = Mathf.Abs(work.placementZ - work.pickupZ);
+            if (move1 > longestTravel) { longestTravel = move1; longestWindow = (cycle - 1) * 2; }
+            if (move2 > longestTravel) { longestTravel = move2; longestWindow = (cycle - 1) * 2 + 1; }
+        }
+        return longestWindow;
+    }
+
+    private void SubscribeMainStudyMovementInput()
+    {
+        if (mainStudyMovementInputSource == craneOperationManager) return;
+        UnsubscribeMainStudyMovementInput();
+        mainStudyMovementInputSource = craneOperationManager;
+        if (mainStudyMovementInputSource != null)
+            mainStudyMovementInputSource.MovementInputAccepted += HandleMainStudyMovementInput;
+    }
+
+    private void UnsubscribeMainStudyMovementInput()
+    {
+        if (mainStudyMovementInputSource != null)
+            mainStudyMovementInputSource.MovementInputAccepted -= HandleMainStudyMovementInput;
+        mainStudyMovementInputSource = null;
+    }
+
+    private void HandleMainStudyMovementInput(CraneOperationManager manager, Vector3 movement, float spread)
+    {
+        if (!MainStudyUsesMovementAnchor || !CanRequestSwitch ||
+            manager.CurrentCraneIndex != sourceCondition.craneIndex || sourceCycleController == null ||
+            sourceWorkPhaseTracker == null || !sourceWorkPhaseTracker.IsMonitoring ||
+            sourceWorkPhaseTracker.IsMajorPhaseCompleted || (movement.x == 0f && movement.z == 0f)) return;
+
+        var phase = sourceWorkPhaseTracker.CurrentMajorPhase;
+        if (phase != CraneStatusManager.WorkPhase.Move1 && phase != CraneStatusManager.WorkPhase.Move2) return;
+        int cycle = sourceCycleController.CurrentCycleNumber;
+        int window = (cycle - 1) * 2 + (phase == CraneStatusManager.WorkPhase.Move1 ? 0 : 1);
+        if (window != completedSwitchCount || pilotRequestWindowStarts[window] >= 0) return;
+
+        if (switchMethod == TaskSwitchMethod.SingleAxisBoundary)
+        {
+            int plannedAxes = MainStudyPlannedAxes(window);
+            if (ReadSourceHorizontalAxes() != plannedAxes ||
+                (plannedAxes == 1 && movement.x != 0f && movement.z != 0f)) return;
+        }
+
+        RecordPilotRequestAnchor(window, cycle, "AcceptedHorizontalMovement:" + sourceWorkPhaseTracker.CurrentStepId);
+    }
+
+    private bool UpdateMainStudyDeferredSwitch()
+    {
+        if (mainStudyDeferredSwitchDetail == null) return false;
+        if (IsCurrentControlStep(sourceWorkPhaseTracker?.CurrentStepId)) return true;
+
+        string detail = mainStudyDeferredSwitchDetail;
+        bool confirm = mainStudyDeferredOperatorConfirmation;
+        mainStudyDeferredSwitchDetail = null;
+        mainStudyDeferredOperatorConfirmation = false;
+        SwitchControlToTarget(detail);
+        if (confirm && currentState == TaskSwitchExperimentState.WaitingForConfirmation) ConfirmTargetTask();
+        return true;
+    }
 
     private bool SetPilotTimingStartPose(TaskSwitchCraneCondition condition, CraneInstance crane)
     {
