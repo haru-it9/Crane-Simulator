@@ -197,6 +197,35 @@ public partial class TaskSwitchExperimentManager
         return balancedOrder;
     }
 
+    private string BuildMainStudyWorkCsv(TextAsset sharedWorkFile)
+    {
+        const string routeResource = "MainStudySourceRoutes";
+        TextAsset routes = Resources.Load<TextAsset>(routeResource);
+        if (routes == null || sharedWorkFile == null)
+            throw new FormatException("本検証には MainStudySourceRoutes と共有の切替先作業CSVが必要です。");
+
+        string[] sharedLines = sharedWorkFile.text.Split('\n');
+        var selected = new List<string> { sharedLines[0].Trim() };
+        string prefix = pilotCondition.ToString() + ",";
+        foreach (string rawLine in routes.text.Split('\n'))
+        {
+            string line = rawLine.Trim();
+            if (line.StartsWith(prefix, StringComparison.Ordinal))
+                selected.Add(line.Substring(prefix.Length));
+        }
+
+        if (selected.Count != PilotRequiredSourceCycles + 1)
+            throw new FormatException($"{routeResource}: {pilotCondition} のSource経路は{PilotRequiredSourceCycles}サイクル必要です。");
+
+        foreach (string rawLine in sharedLines)
+        {
+            string line = rawLine.Trim();
+            if (line.StartsWith("Target,", StringComparison.Ordinal)) selected.Add(line);
+        }
+
+        return string.Join("\n", selected);
+    }
+
     private bool LoadExperimentConditions()
     {
         try
@@ -211,7 +240,19 @@ public partial class TaskSwitchExperimentManager
             var schedule=scheduleEnabled && scheduleFile!=null
                 ? TaskSwitchConditionCsv.ParseSchedule(scheduleFile.text,targetTaskPattern,sourceTotalCycleCount)
                 : new List<TaskSwitchScheduleRow>();
-            var work=workFile!=null ? TaskSwitchConditionCsv.ParseWork(workFile.text, SourceTotalCycleCount, pilotExperiment) : new List<TaskSwitchWorkCondition>();
+            string workCsv = IsMainStudy ? BuildMainStudyWorkCsv(workFile) : workFile != null ? workFile.text : null;
+            var work = workCsv != null ? TaskSwitchConditionCsv.ParseWork(workCsv, SourceTotalCycleCount, pilotExperiment)
+                : new List<TaskSwitchWorkCondition>();
+            if (IsMainStudy)
+            {
+                for (int cycle = 1; cycle <= PilotRequiredSourceCycles; cycle++)
+                {
+                    var route = work.Find(c => c.role == "Source" && c.index == cycle);
+                    if (route == null) throw new FormatException($"MainStudySourceRoutes: {pilotCondition} のSource {cycle} がありません。");
+                    EmitEvent("MainStudySourceRouteAssigned", FormattableString.Invariant(
+                        $"Condition={pilotCondition};Cycle={cycle};PickupX={route.pickupX};PickupZ={route.pickupZ};PlacementX={route.placementX};PlacementZ={route.placementZ};PickupCount={route.pickupCount};PlacementCount={route.placementCount}"));
+                }
+            }
             pilotSourceRows = pilotExperiment ? work.FindAll(c => c.role == "Source").Count : 0;
             if (pilotExperiment)
             {
