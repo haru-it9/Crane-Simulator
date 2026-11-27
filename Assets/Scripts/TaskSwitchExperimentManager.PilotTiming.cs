@@ -34,6 +34,13 @@ public partial class TaskSwitchExperimentManager
 
     private void StartPilotTimingBoundary()
     {
+        if (IsMainStudy && mainStudyHeldSlot == completedSwitchCount)
+        {
+            EmitEvent("SwitchTriggerSelected", "Trigger=WindowEnd;Policy=" + switchMethod);
+            SwitchControlToTarget("MainStudyWindowEnd");
+            return;
+        }
+
         bool singleAxisPolicy = switchMethod == TaskSwitchMethod.SingleAxisBoundary;
         previousHorizontalAxes = ReadSourceHorizontalAxes(requireNeutralInput: true);
         if (singleAxisPolicy && SourceNeedsSingleAxis(previousHorizontalAxes))

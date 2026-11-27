@@ -83,6 +83,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private CraneWorkStepDefinition overrunStep;
     private float overrunGoalX, overrunGoalZ, overrunStartX, overrunStartZ;
     private bool overrunTracking;
+    [Header("本検証の支援表示")]
+    [SerializeField] private Color mainStudyCurrentAdjustmentColor = new Color(1f, 0.65f, 0.15f, 1f);
+    private const float MainStudyArrowFadeDelaySeconds = 1.5f;
+    private bool MainStudySupport => experimentManager != null && experimentManager.MainStudySupportEnabled;
+    private bool CurrentRangeColoring => MainStudySupport || useCurrentRangeColoring;
+
     private bool InputTriggeredPilotArrows => experimentManager != null && experimentManager.IsPilotExperiment &&
         experimentManager.PilotSupport == TaskSwitchExperimentManager.PilotDirectionDisplay.InputTriggeredFade;
     private bool ContinuousPilotArrows => experimentManager != null && experimentManager.IsPilotExperiment &&
@@ -158,7 +164,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private void LateUpdate()
     {
         if (experimentManager != null && experimentManager.UsesUnguidedPilotFeedback) return;
-        if (!visible && !currentHighlightWindowActive && !currentFeedbackActive && !useCurrentRangeColoring) return;
+        if (!visible && !currentHighlightWindowActive && !currentFeedbackActive && !CurrentRangeColoring) return;
         if (operationManager == null || !operationManager.IsTaskSwitchExperimentMode ||
             experimentManager == null || !experimentManager.isActiveAndEnabled ||
             experimentManager.CurrentState == TaskSwitchExperimentState.Idle ||
@@ -182,7 +188,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void EnsureNormalCurrentFeedback()
     {
-        if (!useCurrentRangeColoring || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
+        if (!CurrentRangeColoring || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
         if (currentFeedbackActive && selectedCrane == operationManager.CurrentCraneInstance) return;
         TaskSwitchExperimentState state = experimentManager.CurrentState;
         // Confirmation/return transitions still use Show's CSV preview and event anchors.
@@ -255,6 +261,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             !arrowTimerStarted || awaitingConfirmation ||
             manager.CurrentCraneInstance != selectedCrane || manager.IsOperationInputLocked ||
             ExperimentPauseManager.IsPaused) return;
+        if (MainStudySupport)
+        {
+            UpdateMainStudyArrowInput(movement);
+            return;
+        }
         if ((movement.x == 0f && movement.y == 0f && movement.z == 0f) ||
             (lastRequiredMovement.x == 0f && lastRequiredMovement.y == 0f && lastRequiredMovement.z == 0f)) return;
 
@@ -272,6 +283,19 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         hideAt = ExperimentPauseManager.ActiveRealtime + EffectiveFadeSeconds;
         Record("ArrowFadeStarted", "Anchor=AcceptedMovement;Role=" + (targetSide ? "Target" : "Source") +
             ";FadeSeconds=" + EffectiveFadeSeconds.ToString("F3", CultureInfo.InvariantCulture));
+    }
+
+    private void UpdateMainStudyArrowInput(Vector3 movement)
+    {
+        if (movement == Vector3.zero)
+        {
+            ShowErrorCue("InputNeutral");
+            return;
+        }
+        if (!visible || inputFadeStarted) return;
+        inputFadeStarted = true;
+        hideAt = ExperimentPauseManager.ActiveRealtime + MainStudyArrowFadeDelaySeconds + EffectiveFadeSeconds;
+        Record("ArrowFadeScheduled", "Anchor=AcceptedMovement;DelaySeconds=1.5");
     }
 
     private static bool WrongAxis(float accepted, float required)
@@ -303,6 +327,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (supportRoot == null || operationManager == null || !operationManager.IsTaskSwitchExperimentMode)
             return;
 
+        if (MainStudySupport && arrowTimerStarted && inputFadeStarted &&
+            selectedCrane == operationManager.CurrentCraneInstance)
+        {
+            chevronCountsCaptured = false;
+            RefreshPresentation();
+            return;
+        }
         HideArrows("MajorPhaseStarted");
         BindSelectedCrane();
         if (selectedCrane == null) return;
@@ -355,7 +386,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";DurationAnchor=" + (InputTriggeredPilotArrows ? "AcceptedMovement" : "InputUnlocked") +
             ";CurrentHighlightEnd=CorrectWeightRaised" +
             ";CurrentRule=ZeroOrTargetTonnesTimes10ToPlus10A_ClearLoadToMax" +
-            ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
+            ";CurrentColorMode=" + (CurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeClearance=" + currentRangeClearance.ToString(CultureInfo.InvariantCulture) +
             ";CurrentInputLabelFadeSeconds=" + Mathf.Clamp(currentInputLabelFadeSeconds, 0.5f, 1f).ToString(CultureInfo.InvariantCulture) +
             ";CurrentInputLabelDelaySeconds=" + Mathf.Max(0f, currentInputLabelDelaySeconds).ToString(CultureInfo.InvariantCulture) +
@@ -436,7 +467,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             IsCurrentAdjustmentStage(step, unit);
         bool currentOperationPhase = phase == CraneStatusManager.WorkPhase.LiftUp ||
             phase == CraneStatusManager.WorkPhase.Place || phase == CraneStatusManager.WorkPhase.PlaceToTrack;
-        CaptureCurrentInputLabel(currentOperationPhase && (currentAdjustmentStage || movement.y > 0f), currentGuidance);
+        bool needsCurrentOperation = currentOperationPhase && (currentAdjustmentStage || movement.y > 0f);
+        CaptureCurrentInputLabel(needsCurrentOperation, currentGuidance);
         // The tracker may already be on a raising step based on held weight. That must not
         // bypass the displayed-current check, including on a mid-raising Source return.
         if (currentAdjustmentStage || movement.y > 0f)
@@ -463,7 +495,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
 
         lastRequiredMovement = movement;
-        CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position);
+        if (!MainStudySupport) CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position);
 
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
@@ -479,11 +511,14 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             phaseText.text = label;
         }
         CheckCurrentLiftConfirmation(unit);
-        bool showCurrentHighlight = !useCurrentRangeColoring && directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
-        bool showAppropriateCurrent = useCurrentRangeColoring && directionEnabled && currentFeedbackActive && currentGuidance == "ReadyToRaise";
+        bool showCurrentHighlight = !CurrentRangeColoring && directionEnabled && currentHighlightLatched && currentHighlightWindowActive;
+        bool showAppropriateCurrent = CurrentRangeColoring && directionEnabled && currentFeedbackActive && currentGuidance == "ReadyToRaise";
         if (showAppropriateCurrent && currentLabelHighlighted)
             ResetCurrentInputLabel("CurrentInRange");
-        SetCurrentHighlight(showCurrentHighlight || showAppropriateCurrent ? 1f : 0f, showAppropriateCurrent);
+        bool showCurrentAdjustment = MainStudySupport && needsCurrentOperation &&
+            (currentGuidance == "IncreaseCurrent" || currentGuidance == "DecreaseCurrent" || currentGuidance == "SetCurrentToZero");
+        SetCurrentHighlight(showCurrentHighlight || showAppropriateCurrent || showCurrentAdjustment ? 1f : 0f,
+            showAppropriateCurrent, showCurrentAdjustment);
         if (!showDirection)
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
@@ -509,9 +544,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ";ChevronsZ=" + DisplayedCount(showDirection, movement.z, zCount) +
             ";VerticalDistanceKnown=" + capturedVerticalDistanceKnown +
             ";CurrentGuidance=" + currentGuidance +
-            ";CurrentColorMode=" + (useCurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
+            ";CurrentColorMode=" + (CurrentRangeColoring ? "RangeStatus" : "TouchdownReminder") +
             ";CurrentRangeExpanded=" + currentRangeExpanded +
             ";CurrentAppropriateVisible=" + showAppropriateCurrent +
+            (MainStudySupport ? ";CurrentAdjustmentVisible=" + showCurrentAdjustment : "") +
             ";CurrentHighlightVisible=" + (showCurrentHighlight && !showAppropriateCurrent) +
             ";ChevronCountAnchor=DisplaySwitch;ChevronCountsFixed=True";
         if (presentation != lastPresentation)
@@ -565,7 +601,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void CaptureCurrentInputLabel(bool needsCurrentOperation, string guidance)
     {
-        if (!currentLabelDecisionPending) return;
+        if (MainStudySupport || !currentLabelDecisionPending) return;
         currentLabelDecisionPending = false;
         bool needsAdjustment = guidance == "IncreaseCurrent" || guidance == "DecreaseCurrent" || guidance == "SetCurrentToZero";
         if (currentInputLabel == null || supportContent == TaskSwitchSupportContent.PhaseOnly ||
@@ -733,7 +769,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void ArmCurrentHighlight(CraneStatusManager.WorkPhase phase, CraneUnit unit)
     {
-        if (useCurrentRangeColoring || !currentHighlightWindowActive || currentHighlightLatched || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
+        if (CurrentRangeColoring || !currentHighlightWindowActive || currentHighlightLatched || supportContent == TaskSwitchSupportContent.PhaseOnly) return;
         currentHighlightLatched = true;
         currentHighlightPhase = phase;
         hasCurrentLiftSample = unit != null && unit.TryGetMainLifMagLocalY(out currentLiftBaselineLocalY);
@@ -743,7 +779,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void CheckCurrentLiftConfirmation(CraneUnit unit)
     {
-        if (useCurrentRangeColoring || !currentHighlightWindowActive || !currentHighlightLatched || unit == null) return;
+        if (CurrentRangeColoring || !currentHighlightWindowActive || !currentHighlightLatched || unit == null) return;
         float localY;
         if (!unit.TryGetMainLifMagLocalY(out localY) || float.IsNaN(localY) || float.IsInfinity(localY)) return;
         if (!hasCurrentLiftSample)
@@ -812,7 +848,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         bool wasVisible = visible;
         visible = false;
-        if (reason == "Timeout") inputFadeStarted = false;
+        if (reason == "Timeout")
+        {
+            if (!MainStudySupport) inputFadeStarted = false;
+        }
         else ResetInputFadeTracking();
         if (supportRoot != null) supportRoot.SetActive(false);
         ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
@@ -844,13 +883,14 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         return false;
     }
 
-    private void SetCurrentHighlight(float strength, bool appropriate = false)
+    private void SetCurrentHighlight(float strength, bool appropriate = false, bool needsAdjustment = false)
     {
         if (currentValueDisplays == null) return;
         Color appropriateColor = coordinateColorSource != null
             ? coordinateColorSource.AchievedValueColor : new Color(0.65f, 1f, 0.10f, 1f);
         Color highlightColor = appropriate ? appropriateColor : phaseText != null ? phaseText.color : Color.white;
-        if (!appropriate && currentLabelHighlighted && currentInputLabel != null)
+        if (needsAdjustment) highlightColor = mainStudyCurrentAdjustmentColor;
+        if (!MainStudySupport && !appropriate && currentLabelHighlighted && currentInputLabel != null)
         {
             strength = 1f;
             highlightColor = currentInputLabel.color;
