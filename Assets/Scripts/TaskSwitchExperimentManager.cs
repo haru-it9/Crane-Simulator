@@ -87,12 +87,13 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         MainCountdown3s_Unsupported = 18,
         MainCountdown3s_Supported = 19,
         MainSingleAxis_Unsupported = 20,
-        MainSingleAxis_Supported = 21
+        MainSingleAxis_Supported = 21,
+        Practice = 22
     }
 
     [Header("予備実験・本検証")]
     [SerializeField] private bool pilotExperiment;
-    [Tooltip("予備実験または本検証の条件を選択。Mainで始まる8条件は本検証です。変更は実験終了後に行ってください。")]
+    [Tooltip("予備実験・本検証・練習の条件を選択。Practiceは2軸移動とつり上げの練習です。変更は実験終了後に行ってください。")]
     [SerializeField] private PilotCondition pilotCondition = PilotCondition.Custom;
     [SerializeField] private PilotDirectionDisplay pilotDirectionDisplay = PilotDirectionDisplay.None;
     [SerializeField, Min(0.1f)] private float pilotDisplaySeconds = 2f;
@@ -109,7 +110,9 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     [SerializeField] private ExperimentRunMode runMode;
 
-    public bool IsPracticeModeEnabled => runMode == ExperimentRunMode.Practice || enablePracticeMode;
+    public bool IsPracticeConditionSelected => pilotCondition == PilotCondition.Practice;
+    public bool IsPracticeModeEnabled => IsPracticeConditionSelected ||
+        runMode == ExperimentRunMode.Practice || enablePracticeMode;
     public int PracticeSourceCraneIndex => sourceCondition != null ? sourceCondition.craneIndex : 0;
 
     public bool IsPilotExperiment => pilotExperiment;
@@ -657,7 +660,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
         if (IsPracticeModeEnabled || SimulatorStartManager.IsPracticeActive)
         {
             var startManager = FindObjectOfType<SimulatorStartManager>();
-            if (startManager != null) startManager.StartPracticeTrial();
+            if (startManager != null) startManager.StartPracticeTrial(this);
             else Debug.LogError("練習の開始に必要なSimulatorStartManagerが見つかりません。", this);
             return;
         }

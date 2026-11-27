@@ -78,7 +78,7 @@ public partial class SimulatorStartManager : MonoBehaviour
 
     public void OnStartButtonClicked()
     {
-        if (PracticeSelected)
+        if (UsePracticeStartScreen())
         {
             StartPracticeTrial();
             return;
@@ -112,6 +112,12 @@ public partial class SimulatorStartManager : MonoBehaviour
         SetOperationUIInteractable(true);
 
         ApplySelectedSimulatorMode();
+
+        if (practiceModeSettings != null && practiceModeSettings.IsPracticeConditionSelected)
+        {
+            StopAllLogging();
+            return;
+        }
 
         // Task Switch owns a single session bundle and clock; automatic mode keeps its existing logs.
         if (simulatorMode == SimulatorMode.TaskSwitchExperiment)
@@ -163,7 +169,7 @@ public partial class SimulatorStartManager : MonoBehaviour
 
     public void OnDebugButtonClicked()
     {
-        if (PracticeSelected)
+        if (UsePracticeStartScreen())
         {
             StartPracticeTrial();
             return;

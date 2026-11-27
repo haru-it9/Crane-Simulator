@@ -21,16 +21,27 @@ public partial class SimulatorStartManager
     public static bool IsPracticeActive { get; private set; }
     [SerializeField] private TaskSwitchExperimentManager practiceModeSettings;
 
-    private bool PracticeSelected
+    private bool UsePracticeStartScreen()
     {
-        get
+        if (practiceModeSettings == null)
+            practiceModeSettings = FindObjectOfType<TaskSwitchExperimentManager>(true);
+        if (IsPracticeActive) return true;
+        if (practiceModeSettings != null && practiceModeSettings.IsPracticeConditionSelected)
         {
-            if (practiceModeSettings == null)
-                practiceModeSettings = FindObjectOfType<TaskSwitchExperimentManager>(true);
-            return (practiceModeSettings != null && practiceModeSettings.IsPracticeModeEnabled) ||
-                enableTaskSwitchPractice;
+            ApplyPracticeDisplay();
+            return false;
         }
+        return enableTaskSwitchPractice ||
+            (practiceModeSettings != null && practiceModeSettings.IsPracticeModeEnabled);
     }
+
+    private void ApplyPracticeDisplay()
+    {
+        var layout = FindObjectOfType<DisplayLayoutManager>(true);
+        if (layout != null) layout.SelectTaskSwitchDisplayMode();
+        SelectTaskSwitchExperimentMode();
+    }
+
     private readonly List<double> practiceTimes = new List<double>();
     private CraneOperationManager practiceOperation;
     private CraneInstance practiceCrane;
@@ -42,9 +53,7 @@ public partial class SimulatorStartManager
 
     private bool InitializePracticeCrane()
     {
-        var layout = FindObjectOfType<DisplayLayoutManager>(true);
-        if (layout != null) layout.SelectTaskSwitchDisplayMode();
-        SelectTaskSwitchExperimentMode();
+        ApplyPracticeDisplay();
         if (!ApplyCraneCountForSelectedMode()) return false;
 
         int craneIndex = practiceCraneIndex >= 0 ? practiceCraneIndex
@@ -136,9 +145,12 @@ public partial class SimulatorStartManager
         SetPracticeStatus($"練習 {practiceTimes.Count + 1} 試行目の準備完了。Startで開始します。");
     }
 
-    public void StartPracticeTrial()
+    public void StartPracticeTrial(TaskSwitchExperimentManager experiment = null)
     {
         if (practiceCompleted || practiceRunning || ExperimentPauseManager.IsPaused) return;
+        if (experiment != null) practiceModeSettings = experiment;
+        if (practiceModeSettings != null && practiceModeSettings.IsPracticeConditionSelected)
+            ApplyPracticeDisplay();
         if (!practiceReady) PreparePracticeTrial();
         if (!practiceReady) return;
 
