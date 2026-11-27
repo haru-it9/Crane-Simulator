@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-public class SimulatorStartManager : MonoBehaviour
+public partial class SimulatorStartManager : MonoBehaviour
 {
     private const int TaskSwitchCraneCount = 2;
 
@@ -74,10 +74,17 @@ public class SimulatorStartManager : MonoBehaviour
         }
 
         SetOperationUIInteractable(false);
+        if (PracticeSelected) StartCoroutine(PrepareFirstPracticeTrial());
     }
 
     public void OnStartButtonClicked()
     {
+        if (PracticeSelected)
+        {
+            StartPracticeTrial();
+            return;
+        }
+
         if (craneCountManager == null)
         {
             Debug.LogError("CraneCountManagerが設定されていません。");
@@ -157,6 +164,12 @@ public class SimulatorStartManager : MonoBehaviour
 
     public void OnDebugButtonClicked()
     {
+        if (PracticeSelected)
+        {
+            StartPracticeTrial();
+            return;
+        }
+
         if (craneCountManager == null)
         {
             Debug.LogError("CraneCountManagerが設定されていません。");
@@ -396,6 +409,10 @@ public class SimulatorStartManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (practiceCycle != null) practiceCycle.AllCyclesCompleted -= RecordPracticeFinish;
+        if (practiceOperation != null && practiceOperation.CurrentInformationDisplay != null)
+            practiceOperation.CurrentInformationDisplay.CoordinateDisplayOrigin = Vector2.zero;
+        IsPracticeActive = false;
         StopAllLogging();
     }
 }

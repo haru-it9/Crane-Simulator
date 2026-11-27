@@ -642,7 +642,7 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     /// </summary>
     public void StartExperiment()
     {
-        if (ExperimentPauseManager.IsPaused) return;
+        if (ExperimentPauseManager.IsPaused || SimulatorStartManager.IsPracticeActive) return;
         ApplyPilotCondition();
         FindReferences();
         ResolveWorkPhaseTrackers();

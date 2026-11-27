@@ -830,10 +830,9 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        targetInformationDisplay.ShowPositionTarget(
-            targetX,
-            targetZ
-        );
+        Vector2 origin = CurrentInformationDisplay != null
+            ? CurrentInformationDisplay.CoordinateDisplayOrigin : Vector2.zero;
+        targetInformationDisplay.ShowPositionTarget(targetX - origin.x, targetZ - origin.y);
 
         Debug.Log(
             $"Crane {currentCraneIndex + 1} 目標座標表示: " +
@@ -996,10 +995,9 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        targetInformationDisplay.ShowPositionTarget(
-            target.targetX,
-            target.targetZ
-        );
+        Vector2 origin = CurrentInformationDisplay != null
+            ? CurrentInformationDisplay.CoordinateDisplayOrigin : Vector2.zero;
+        targetInformationDisplay.ShowPositionTarget(target.targetX - origin.x, target.targetZ - origin.y);
 
         Debug.Log(
             $"Crane {currentCraneIndex + 1} 共通目標座標表示更新: " +
