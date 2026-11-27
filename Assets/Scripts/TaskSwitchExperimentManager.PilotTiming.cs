@@ -11,12 +11,13 @@ public partial class TaskSwitchExperimentManager
     private bool mainStudyDeferredOperatorConfirmation;
 
     private bool MainStudyUsesMovementAnchor => IsMainStudy &&
-        (switchMethod == TaskSwitchMethod.Immediate || switchMethod == TaskSwitchMethod.OperatorInitiated ||
+        (switchMethod == TaskSwitchMethod.Immediate || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated ||
+         switchMethod == TaskSwitchMethod.OperatorInitiated ||
          switchMethod == TaskSwitchMethod.SingleAxisBoundary);
 
     private int MainStudyPlannedAxes(int window)
     {
-        if (switchMethod == TaskSwitchMethod.Immediate) return 2;
+        if (switchMethod == TaskSwitchMethod.Immediate || switchMethod == TaskSwitchMethod.CountdownOperatorInitiated) return 2;
         if (switchMethod != TaskSwitchMethod.SingleAxisBoundary) return -1;
         return window == 1 || window == 2 || window == 5 ? 1 : 2;
     }
@@ -25,6 +26,8 @@ public partial class TaskSwitchExperimentManager
     {
         if (switchMethod == TaskSwitchMethod.Immediate)
             return window == longImmediateWindow ? 7f : Mathf.Lerp(2f, 3f, fraction);
+        if (switchMethod == TaskSwitchMethod.CountdownOperatorInitiated)
+            return window == FindLongestMainStudyMovementWindow() ? 6f : Mathf.Lerp(2.5f, 4f, fraction);
         if (switchMethod == TaskSwitchMethod.OperatorInitiated)
             return Mathf.Lerp(2f, 10f, fraction);
         return MainStudyPlannedAxes(window) == 1 ? Mathf.Lerp(1f, 2f, fraction) : 0f;
