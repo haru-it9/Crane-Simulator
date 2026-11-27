@@ -4,7 +4,8 @@ using UnityEngine.UI;
 public enum TaskSwitchDirectionPresentation
 {
     SingleArrow,
-    DistanceChevrons
+    DistanceChevrons,
+    FineAlignmentTriangle
 }
 
 /// <summary>A mesh arrow, independent of the font's Unicode-arrow glyph coverage.</summary>
@@ -55,6 +56,26 @@ public class TaskSwitchSupportArrow : MaskableGraphic
             }
             return;
         }
+        if (presentation == TaskSwitchDirectionPresentation.FineAlignmentTriangle)
+        {
+            float halfWidth = r.width * 0.32f;
+            float halfHeight = r.height * 0.32f;
+            float x = r.center.x, y = r.center.y;
+            AddVertex(vertices, x - halfWidth, y - halfHeight);
+            AddVertex(vertices, x + halfWidth, y - halfHeight);
+            AddVertex(vertices, x, y + halfHeight);
+            AddVertex(vertices, x - halfWidth * 0.55f, y - halfHeight * 0.64f);
+            AddVertex(vertices, x + halfWidth * 0.55f, y - halfHeight * 0.64f);
+            AddVertex(vertices, x, y + halfHeight * 0.46f);
+            vertices.AddTriangle(0, 1, 4);
+            vertices.AddTriangle(0, 4, 3);
+            vertices.AddTriangle(1, 2, 5);
+            vertices.AddTriangle(1, 5, 4);
+            vertices.AddTriangle(2, 0, 3);
+            vertices.AddTriangle(2, 3, 5);
+            return;
+        }
+
         float middle = r.center.x;
         float neck = r.yMin + r.height * 0.55f;
         float halfShaft = r.width * 0.17f;

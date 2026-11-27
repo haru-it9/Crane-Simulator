@@ -82,10 +82,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private Vector3 lastRequiredMovement, lastMainStudyGuidance;
     private Vector2 lastMainStudyGoal;
     private bool hasMainStudyGoal;
+    private const float MainStudyFineAlignmentDistance = 0.35f;
     private const double MainStudyStallSeconds = 0.5;
     private const float MainStudyMinimumDisplacement = 0.001f;
     private readonly double[] mainStudyLastMovementAt = new double[3];
-    private Vector3 mainStudyMovementAnchor, mainStudyTrackedDirection, mainStudyStallArrows;
+    private Vector3 mainStudyMovementAnchor, mainStudyTrackedDirection, mainStudyCueAxes;
     private CraneWorkStepDefinition overrunStep;
     private float overrunGoalX, overrunGoalZ, overrunStartX, overrunStartZ;
     private bool overrunTracking;
@@ -295,16 +296,18 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private void UpdateMainStudyArrowInput(Vector3 movement)
     {
         if (movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
-        if (movement.x * lastRequiredMovement.x < 0f ||
-            movement.y * lastRequiredMovement.y < 0f ||
-            movement.z * lastRequiredMovement.z < 0f)
+        var wrongAxes = new Vector3(
+            movement.x * lastRequiredMovement.x < 0f ? lastRequiredMovement.x : 0f,
+            movement.y * lastRequiredMovement.y < 0f ? lastRequiredMovement.y : 0f,
+            movement.z * lastRequiredMovement.z < 0f ? lastRequiredMovement.z : 0f);
+        if (wrongAxes != Vector3.zero)
         {
-            mainStudyStallArrows = Vector3.zero;
+            if (!visible || inputFadeStarted) mainStudyCueAxes = wrongAxes;
             ShowErrorCue("WrongDirection");
             return;
         }
-        Vector3 displayedDirection = mainStudyStallArrows != Vector3.zero
-            ? mainStudyStallArrows : lastRequiredMovement;
+        Vector3 displayedDirection = mainStudyCueAxes != Vector3.zero
+            ? mainStudyCueAxes : lastRequiredMovement;
         if (!visible || inputFadeStarted || Vector3.Dot(movement, displayedDirection) <= 0f) return;
         inputFadeStarted = true;
         double now = ExperimentPauseManager.ActiveRealtime;
@@ -332,7 +335,17 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
         }
-        Record("ArrowReshown", "Reason=" + reason + ";Role=" + (targetSide ? "Target" : "Source"));
+        string detail = "Reason=" + reason + ";Role=" + (targetSide ? "Target" : "Source");
+        if (MainStudySupport)
+        {
+            Transform position = selectedCrane != null ? selectedCrane.InformationTarget : null;
+            detail += ";CueAxes=" + mainStudyCueAxes.ToString("F3") +
+                ";Required=" + lastRequiredMovement.ToString("F3") +
+                ";Accepted=" + operationManager.LastAcceptedMovement.ToString("F3") +
+                ";Position=" + (position != null ? position.position.ToString("F4") : "") +
+                ";Goal=" + (hasMainStudyGoal ? lastMainStudyGoal.ToString("F4") : "");
+        }
+        Record("ArrowReshown", detail);
     }
 
     private void ResetInputFadeTracking()
@@ -341,7 +354,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         overrunStep = null;
         lastRequiredMovement = lastMainStudyGuidance = Vector3.zero;
         hasMainStudyGoal = false;
-        mainStudyTrackedDirection = mainStudyStallArrows = Vector3.zero;
+        mainStudyTrackedDirection = mainStudyCueAxes = Vector3.zero;
     }
 
     private void ShowPhaseCue(string anchor = "MajorPhaseStarted")
@@ -534,11 +547,11 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             var measuredPosition = new Vector3(position.position.x, localY, position.position.z);
             UpdateMainStudyStallCue(measuredPosition, movement, hasY);
-            if (mainStudyStallArrows != Vector3.zero)
+            if (mainStudyCueAxes != Vector3.zero)
                 movement = Vector3.Scale(movement, new Vector3(
-                    Mathf.Abs(mainStudyStallArrows.x),
-                    Mathf.Abs(mainStudyStallArrows.y),
-                    Mathf.Abs(mainStudyStallArrows.z)));
+                    Mathf.Abs(mainStudyCueAxes.x),
+                    Mathf.Abs(mainStudyCueAxes.y),
+                    Mathf.Abs(mainStudyCueAxes.z)));
         }
 
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
@@ -567,12 +580,16 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
         }
+        bool showFineAlignment = MainStudySupport && hasGoal && position != null &&
+            (phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.Move2);
+        bool fineX = showFineAlignment && Mathf.Abs(goalX - position.position.x) <= MainStudyFineAlignmentDistance;
+        bool fineZ = showFineAlignment && Mathf.Abs(goalZ - position.position.z) <= MainStudyFineAlignmentDistance;
         SetArrow(leftFade, leftXArrow, showDirection ? movement.x : 0f,
-            positiveXPointsUp, true, xCount);
+            positiveXPointsUp, true, xCount, fineX);
         SetArrow(rightYFade, rightYArrow, showDirection ? movement.y : 0f,
             positiveYPointsUp, true, yCount);
         SetArrow(rightZFade, rightZArrow, showDirection ? movement.z : 0f,
-            positiveZPointsRight, false, zCount);
+            positiveZPointsRight, false, zCount, fineZ);
         if (rightYLabel != null && movement.y != 0f && showDirection)
         {
             bool pointsUp = (movement.y > 0f) == positiveYPointsUp;
@@ -607,16 +624,20 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
         var goal = new Vector2(goalX, goalZ);
         bool goalChanged = hasGoal && (!hasMainStudyGoal || lastMainStudyGoal != goal);
-        bool directionChanged = WrongAxis(movement.x, lastMainStudyGuidance.x) ||
-            WrongAxis(movement.y, lastMainStudyGuidance.y) ||
-            WrongAxis(movement.z, lastMainStudyGuidance.z);
+        var changedAxes = new Vector3(
+            WrongAxis(movement.x, lastMainStudyGuidance.x) ? movement.x : 0f,
+            WrongAxis(movement.y, lastMainStudyGuidance.y) ? movement.y : 0f,
+            WrongAxis(movement.z, lastMainStudyGuidance.z) ? movement.z : 0f);
         lastMainStudyGoal = goal;
         hasMainStudyGoal = hasGoal;
         lastMainStudyGuidance = movement;
 
-        if (movement == Vector3.zero || (!goalChanged && !directionChanged)) return;
+        if (movement == Vector3.zero || (!goalChanged && changedAxes == Vector3.zero)) return;
         chevronCountsCaptured = false;
-        mainStudyTrackedDirection = mainStudyStallArrows = Vector3.zero;
+        if (goalChanged)
+            mainStudyTrackedDirection = mainStudyCueAxes = Vector3.zero;
+        else if (!visible || inputFadeStarted || mainStudyCueAxes != Vector3.zero)
+            mainStudyCueAxes = changedAxes;
         ShowErrorCue(goalChanged ? "TargetPositionChanged" : "RequiredDirectionChanged");
     }
 
@@ -642,12 +663,12 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
         if (overrunCueShown || required == Vector3.zero)
         {
-            mainStudyStallArrows = Vector3.zero;
+            mainStudyCueAxes = Vector3.zero;
             return;
         }
-        if (stalled != Vector3.zero && (!visible || inputFadeStarted || mainStudyStallArrows != Vector3.zero))
+        if (stalled != Vector3.zero && (!visible || inputFadeStarted || mainStudyCueAxes != Vector3.zero))
         {
-            mainStudyStallArrows = stalled;
+            mainStudyCueAxes = stalled;
             chevronCountsCaptured = false;
             ShowErrorCue("MovementStalled");
         }
@@ -693,6 +714,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if ((xOverrun || zOverrun) && !overrunCueShown)
         {
             overrunCueShown = true;
+            if (MainStudySupport) mainStudyCueAxes = movement;
             ShowErrorCue("Overrun");
         }
         else if (!xOverrun && !zOverrun) overrunCueShown = false;
@@ -920,7 +942,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     }
 
     private void SetArrow(ArrowFade fade, TaskSwitchSupportArrow arrow,
-        float command, bool positiveDirection, bool vertical, int count)
+        float command, bool positiveDirection, bool vertical, int count, bool fineAlignment = false)
     {
         if (fade != null)
         {
@@ -940,7 +962,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
         // Keep the previous direction and label throughout its disappearance.
         if (arrow == null || command == 0f) return;
-        arrow.SetPresentation(directionPresentation, count, maximumChevrons);
+        arrow.SetPresentation(fineAlignment ? TaskSwitchDirectionPresentation.FineAlignmentTriangle : directionPresentation,
+            count, maximumChevrons);
         bool positive = (command > 0f) == positiveDirection;
         float angle = vertical ? (positive ? 0f : 180f) : (positive ? -90f : 90f);
         arrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, angle);
