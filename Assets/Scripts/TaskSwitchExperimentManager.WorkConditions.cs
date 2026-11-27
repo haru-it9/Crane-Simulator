@@ -44,7 +44,7 @@ public partial class TaskSwitchExperimentManager
     {
         get
         {
-            if (UsesUnguidedPilotFeedback)
+            if (UsesTimingWorkProtocol)
                 return Resources.Load<TextAsset>("PilotSwitchTimingWorkConditions");
 
             int pattern = GetShortPilotWorkPattern();
@@ -187,7 +187,7 @@ public partial class TaskSwitchExperimentManager
             order[i] = order[j];
             order[j] = row;
         }
-        if (!UsesUnguidedPilotFeedback) return order;
+        if (PilotTimingConditionNumber == 0) return order;
 
         // A Williams design balances both position and adjacent patterns across six conditions.
         int[] offsets = { 0, 1, 5, 2, 4, 3 };
@@ -254,13 +254,13 @@ public partial class TaskSwitchExperimentManager
             if (source)
             {
                 required = 0;
-                if (!UsesUnguidedPilotFeedback)
+                if (!UsesTimingWorkProtocol)
                     foreach (var row in experimentWorkConditions)
                         if (row.role == "Source" && row.pickupX == work.pickupX && row.pickupZ == work.pickupZ)
                             required += row.pickupCount;
 
-                int firstCycle = UsesUnguidedPilotFeedback ? 1 : PilotRequiredSourceCycles + 1;
-                int lastCycle = UsesUnguidedPilotFeedback ? PilotTimingSourceCycleLimit :
+                int firstCycle = UsesTimingWorkProtocol ? 1 : PilotRequiredSourceCycles + 1;
+                int lastCycle = UsesTimingWorkProtocol ? TimingSourceCycleLimit :
                     pilotShortRun ? PilotRequiredSourceCycles + 1 : PilotRequiredSourceCycles;
                 for (int cycle = firstCycle; cycle <= lastCycle; cycle++)
                 {
