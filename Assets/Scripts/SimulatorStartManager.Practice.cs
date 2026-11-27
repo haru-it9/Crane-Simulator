@@ -12,7 +12,7 @@ public partial class SimulatorStartManager
     [SerializeField, Tooltip("負の値の場合は実験のSourceクレーンを使います。")]
     private int practiceCraneIndex = -1;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
-    [SerializeField] private Vector2 practiceTravelDistance = new Vector2(1.9f, 2f);
+    [SerializeField] private Vector2 practiceTravelDistance = new Vector2(1f, 2f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
     [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
     [SerializeField, Min(0f)] private float practiceStableChangePercent = 5f;
@@ -50,6 +50,7 @@ public partial class SimulatorStartManager
     private Text practiceStartButtonText;
     private Vector2 practiceTrialDistance;
     private bool practiceReady, practiceRunning, practiceCompleted;
+    public bool IsPracticeWaitingForStart => IsPracticeActive && !practiceRunning && !practiceCompleted;
     private int previousPracticeDirection = -1;
     private double practiceStartTime, practiceFinishTime;
 
@@ -97,7 +98,6 @@ public partial class SimulatorStartManager
     {
         IsPracticeActive = true;
         practiceReady = false;
-        IsOperationEnabled = false;
         SetOperationUIInteractable(false);
         if (startScreen != null) startScreen.SetActive(false);
 
@@ -108,6 +108,7 @@ public partial class SimulatorStartManager
         }
 
         practiceOperation.SetTaskSwitchOperationInputLocked(true);
+        IsOperationEnabled = true;
         practiceCycle.StopCycleAndTracker();
         practiceCrane.CraneUnit.ClearInterventionBoardAttachment();
 
@@ -159,17 +160,19 @@ public partial class SimulatorStartManager
 
     private bool ValidatePracticeStartPoses()
     {
-        practiceTrialDistance = practiceTravelDistance;
-        if (CanSetAllPracticeStartPoses(practiceTrialDistance)) return true;
+        practiceTrialDistance = new Vector2(Mathf.Floor(practiceTravelDistance.x),
+            Mathf.Floor(practiceTravelDistance.y));
+        if (practiceTrialDistance.x >= 1f && practiceTrialDistance.y >= 1f &&
+            CanSetAllPracticeStartPoses(practiceTrialDistance)) return true;
 
         // Older scenes may still serialize the original 2 m X distance.
         // Use a single shorter distance for every direction if it fits the crane.
-        if (Mathf.Approximately(practiceTrialDistance.x, 2f))
+        if (Mathf.Approximately(practiceTrialDistance.x, 2f) && practiceTrialDistance.y >= 1f)
         {
-            practiceTrialDistance.x = 1.9f;
+            practiceTrialDistance.x = 1f;
             if (CanSetAllPracticeStartPoses(practiceTrialDistance))
             {
-                Debug.Log("練習の横行距離は、全方向で開始できるよう1.90 mに設定しました。", this);
+                Debug.Log("練習の横行距離は、全方向で開始できるよう1.00 mに設定しました。", this);
                 return true;
             }
         }

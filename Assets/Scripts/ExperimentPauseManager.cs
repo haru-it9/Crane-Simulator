@@ -135,6 +135,17 @@ public class ExperimentPauseManager : MonoBehaviour
 
     public void TogglePause()
     {
+        if (!IsPaused && SimulatorStartManager.IsPracticeActive)
+        {
+            if (simulatorStartManager == null)
+                simulatorStartManager = FindObjectOfType<SimulatorStartManager>(true);
+            if (simulatorStartManager != null && simulatorStartManager.IsPracticeWaitingForStart)
+            {
+                simulatorStartManager.StartPracticeTrial();
+                return;
+            }
+        }
+
         SetPaused(!IsPaused);
     }
 
