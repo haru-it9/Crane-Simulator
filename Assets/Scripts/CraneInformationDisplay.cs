@@ -141,6 +141,10 @@ public class CraneInformationDisplay : MonoBehaviour
 
     public bool ReportDescentInput()
     {
+        // During recovery the board may need to be picked up away from the placement target.
+        if (workPhaseTracker != null && workPhaseTracker.IsMonitoring &&
+            workPhaseTracker.AirbornePlacementNeedsRepositioning) return false;
+
         if (!neutralTaskSwitchFeedback ||
             !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
             (xWithinTarget && zWithinTarget)) return false;
@@ -161,7 +165,7 @@ public class CraneInformationDisplay : MonoBehaviour
         if (!ExperimentPauseManager.IsPaused && workPhaseTracker != null &&
             workPhaseTracker.IsMonitoring && workPhaseTracker.AirbornePlacementNeedsRepositioning)
         {
-            ShowOperationWarning("厚板を再吸着して配置し直してください");
+            ShowOperationWarning("厚板を再吸着して再配置");
             return;
         }
 
