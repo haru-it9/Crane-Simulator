@@ -82,6 +82,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private Vector3 lastRequiredMovement, lastMainStudyGuidance;
     private Vector2 lastMainStudyGoal;
     private bool hasMainStudyGoal;
+    private const double MainStudyNeutralCueDelaySeconds = 0.5;
+    private double mainStudyNeutralSince = double.NaN;
     private CraneWorkStepDefinition overrunStep;
     private float overrunGoalX, overrunGoalZ, overrunStartX, overrunStartZ;
     private bool overrunTracking;
@@ -290,11 +292,15 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private void UpdateMainStudyArrowInput(Vector3 movement)
     {
         // Axis limits and phase gates can zero out accepted movement while the operator is still holding the stick.
-        if (operationManager.ReadMovementCommand() == Vector3.zero)
+        if (operationManager.ReadMovementCommand() == Vector3.zero && lastRequiredMovement != Vector3.zero)
         {
-            ShowErrorCue("InputNeutral");
+            double now = ExperimentPauseManager.ActiveRealtime;
+            if (double.IsNaN(mainStudyNeutralSince)) mainStudyNeutralSince = now;
+            if (now - mainStudyNeutralSince >= MainStudyNeutralCueDelaySeconds)
+                ShowErrorCue("InputNeutral");
             return;
         }
+        mainStudyNeutralSince = double.NaN;
         if (movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
         if (WrongAxis(movement.x, lastRequiredMovement.x) ||
             WrongAxis(movement.y, lastRequiredMovement.y) ||
@@ -333,6 +339,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         overrunStep = null;
         lastRequiredMovement = lastMainStudyGuidance = Vector3.zero;
         hasMainStudyGoal = false;
+        mainStudyNeutralSince = double.NaN;
     }
 
     private void ShowPhaseCue(string anchor = "MajorPhaseStarted")
@@ -510,6 +517,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (MainStudySupport) UpdateMainStudyGuidance(hasGoal, goalX, goalZ, movement);
         CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position, ref movement);
         lastRequiredMovement = movement;
+        if (MainStudySupport && movement == Vector3.zero) mainStudyNeutralSince = double.NaN;
 
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
