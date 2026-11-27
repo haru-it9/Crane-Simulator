@@ -869,8 +869,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
         if (completedSwitchCount != slot) return;
         mainStudyHeldSlot = slot;
+        string detail = $"SwitchIndex={slot + 1};Cycle={cycleNumber};Phase={phase}";
+        if (switchMethod == TaskSwitchMethod.OperatorInitiated)
+        {
+            EmitEvent("MainStudyWindowRequestReserved", detail);
+            return;
+        }
+
         controller.RequestHoldAfterCurrentPhase();
-        EmitEvent("MainStudyWindowHeld", $"SwitchIndex={slot + 1};Cycle={cycleNumber};Phase={phase}");
+        EmitEvent("MainStudyWindowHeld", detail);
     }
 
     private bool UpdateMainStudyWindowEnd()
