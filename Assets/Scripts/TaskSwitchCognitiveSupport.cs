@@ -748,7 +748,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private float EffectiveDisplaySeconds => experimentManager != null && experimentManager.IsPilotExperiment
         ? experimentManager.PilotDisplaySeconds : displaySeconds;
-    private float EffectiveFadeSeconds => Mathf.Min(Mathf.Max(0.1f, EffectiveDisplaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
+    private float EffectiveFadeSeconds => MainStudySupport ? 1f : Mathf.Min(Mathf.Max(0.1f, EffectiveDisplaySeconds), Mathf.Clamp(fadeOutSeconds, 0.5f, 1f));
     private float WindowOpacity => Mathf.Clamp01((float)(hideAt - ExperimentPauseManager.ActiveRealtime) / EffectiveFadeSeconds);
 
     private void StartArrowTimer(string anchor = "InputUnlocked")
