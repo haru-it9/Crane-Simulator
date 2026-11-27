@@ -79,7 +79,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private bool subscribed, visible, targetSide, awaitingConfirmation;
     private double hideAt;
     private bool arrowTimerStarted, inputFadeStarted, overrunCueShown;
-    private Vector3 lastRequiredMovement;
+    private Vector3 lastRequiredMovement, lastMainStudyGuidance;
+    private Vector2 lastMainStudyGoal;
+    private bool hasMainStudyGoal;
     private CraneWorkStepDefinition overrunStep;
     private float overrunGoalX, overrunGoalZ, overrunStartX, overrunStartZ;
     private bool overrunTracking;
@@ -293,8 +295,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ShowErrorCue("InputNeutral");
             return;
         }
-        // Keep the fade latched until the operator actually releases the movement input.
-        if (inputFadeStarted || movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
+        if (movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
         if (WrongAxis(movement.x, lastRequiredMovement.x) ||
             WrongAxis(movement.y, lastRequiredMovement.y) ||
             WrongAxis(movement.z, lastRequiredMovement.z))
@@ -302,7 +303,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ShowErrorCue("WrongDirection");
             return;
         }
-        if (!visible) return;
+        if (!visible || inputFadeStarted) return;
         inputFadeStarted = true;
         hideAt = ExperimentPauseManager.ActiveRealtime + EffectiveFadeSeconds;
         Record("ArrowFadeStarted", "Anchor=AcceptedMovement;Role=" + (targetSide ? "Target" : "Source") +
@@ -330,7 +331,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     {
         inputFadeStarted = overrunCueShown = overrunTracking = false;
         overrunStep = null;
-        lastRequiredMovement = Vector3.zero;
+        lastRequiredMovement = lastMainStudyGuidance = Vector3.zero;
+        hasMainStudyGoal = false;
     }
 
     private void ShowPhaseCue(string anchor = "MajorPhaseStarted")
@@ -505,6 +507,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             }
         }
 
+        if (MainStudySupport) UpdateMainStudyGuidance(hasGoal, goalX, goalZ, movement);
         CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position, ref movement);
         lastRequiredMovement = movement;
 
@@ -566,6 +569,24 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             lastPresentation = presentation;
             Record("Updated", presentation);
         }
+    }
+
+    private void UpdateMainStudyGuidance(bool hasGoal, float goalX, float goalZ, Vector3 movement)
+    {
+        if (!arrowTimerStarted || awaitingConfirmation) return;
+
+        var goal = new Vector2(goalX, goalZ);
+        bool goalChanged = hasGoal && (!hasMainStudyGoal || lastMainStudyGoal != goal);
+        bool directionChanged = WrongAxis(movement.x, lastMainStudyGuidance.x) ||
+            WrongAxis(movement.y, lastMainStudyGuidance.y) ||
+            WrongAxis(movement.z, lastMainStudyGuidance.z);
+        lastMainStudyGoal = goal;
+        hasMainStudyGoal = hasGoal;
+        lastMainStudyGuidance = movement;
+
+        if (movement == Vector3.zero || (!goalChanged && !directionChanged)) return;
+        chevronCountsCaptured = false;
+        ShowErrorCue(goalChanged ? "TargetPositionChanged" : "RequiredDirectionChanged");
     }
 
     private void CheckOverrunCue(CraneStatusManager.WorkPhase phase, CraneWorkStepDefinition step,
