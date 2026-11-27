@@ -839,7 +839,7 @@ public class CraneOperationManager : MonoBehaviour
     {
         Vector2 origin = CurrentInformationDisplay != null
             ? CurrentInformationDisplay.CoordinateDisplayOrigin : Vector2.zero;
-        targetInformationDisplay.ShowPositionTarget(targetX - origin.x, targetZ - origin.y);
+        targetInformationDisplay.ShowPositionTarget(targetX - origin.x, targetZ + origin.y);
     }
 
     private void BindSelectedCraneWeightSources()

@@ -12,7 +12,7 @@ public partial class SimulatorStartManager
     [SerializeField, Tooltip("負の値の場合は実験のSourceクレーンを使います。")]
     private int practiceCraneIndex = -1;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
-    [SerializeField] private Vector2 practiceTravelDistance = new Vector2(2f, 2f);
+    [SerializeField] private Vector2 practiceTravelDistance = new Vector2(1.9f, 2f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
     [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
     [SerializeField, Min(0f)] private float practiceStableChangePercent = 5f;
@@ -48,6 +48,7 @@ public partial class SimulatorStartManager
     private CraneWorkCycleController practiceCycle;
     private BoardGenerator practiceBoards;
     private Text practiceStartButtonText;
+    private Vector2 practiceTrialDistance;
     private bool practiceReady, practiceRunning, practiceCompleted;
     private int previousPracticeDirection = -1;
     private double practiceStartTime, practiceFinishTime;
@@ -138,13 +139,13 @@ public partial class SimulatorStartManager
             return;
         }
 
+        if (previousPracticeDirection < 0 && !ValidatePracticeStartPoses()) return;
+
         int direction = Random.Range(0, previousPracticeDirection < 0 ? 4 : 3);
         if (previousPracticeDirection >= 0 && direction >= previousPracticeDirection) direction++;
-        float x = practicePickupWorld.x + ((direction & 1) == 0 ? -1f : 1f) * practiceTravelDistance.x;
-        float z = practicePickupWorld.y + ((direction & 2) == 0 ? -1f : 1f) * practiceTravelDistance.y;
-        if (!practiceCrane.CraneUnit.TryAlignInterventionPickup(practiceCrane.InformationTarget, x, z, practiceStartLocalY))
+        if (!TrySetPracticeStartPose(direction, practiceTrialDistance))
         {
-            SetPracticeStatus($"練習の開始座標が操作範囲外です (X={x:F2}, Z={z:F2})。", true);
+            SetPracticeStatus("練習の開始座標が操作範囲外です。Practice Travel Distanceと開始高さを確認してください。", true);
             return;
         }
 
@@ -154,6 +155,42 @@ public partial class SimulatorStartManager
         string previousResult = practiceTimes.Count > 0
             ? $"\n前回 {practiceTimes[practiceTimes.Count - 1]:F2} 秒" : "";
         SetPracticeStatus($"Start · 第{practiceTimes.Count + 1}試行{previousResult}");
+    }
+
+    private bool ValidatePracticeStartPoses()
+    {
+        practiceTrialDistance = practiceTravelDistance;
+        if (CanSetAllPracticeStartPoses(practiceTrialDistance)) return true;
+
+        // Older scenes may still serialize the original 2 m X distance.
+        // Use a single shorter distance for every direction if it fits the crane.
+        if (Mathf.Approximately(practiceTrialDistance.x, 2f))
+        {
+            practiceTrialDistance.x = 1.9f;
+            if (CanSetAllPracticeStartPoses(practiceTrialDistance))
+            {
+                Debug.Log("練習の横行距離は、全方向で開始できるよう1.90 mに設定しました。", this);
+                return true;
+            }
+        }
+
+        SetPracticeStatus("練習の開始座標が操作範囲外です。Practice Travel Distanceと開始高さを確認してください。", true);
+        return false;
+    }
+
+    private bool CanSetAllPracticeStartPoses(Vector2 distance)
+    {
+        for (int direction = 0; direction < 4; direction++)
+            if (!TrySetPracticeStartPose(direction, distance)) return false;
+        return true;
+    }
+
+    private bool TrySetPracticeStartPose(int direction, Vector2 distance)
+    {
+        float x = practicePickupWorld.x + ((direction & 1) == 0 ? -distance.x : distance.x);
+        float z = practicePickupWorld.y + ((direction & 2) == 0 ? -distance.y : distance.y);
+        return practiceCrane.CraneUnit.TryAlignInterventionPickup(
+            practiceCrane.InformationTarget, x, z, practiceStartLocalY);
     }
 
     public void StartPracticeTrial(TaskSwitchExperimentManager experiment = null)
@@ -269,7 +306,9 @@ public partial class SimulatorStartManager
 
     private void SetPracticeStatus(string message, bool error = false)
     {
-        WritePracticeStatusText(message);
+        WritePracticeStatusText(error ? "準備エラー\nConsole確認" : message);
+        if (practiceStatusText != null && practiceStatusText != practiceStartButtonText)
+            practiceStatusText.text = message;
         if (error) Debug.LogError(message, this);
         else Debug.Log(message, this);
     }
