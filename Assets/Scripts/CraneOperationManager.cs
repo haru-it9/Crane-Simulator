@@ -791,10 +791,7 @@ public class CraneOperationManager : MonoBehaviour
                 out float managedTargetZ
             ))
         {
-            targetInformationDisplay.ShowPositionTarget(
-                managedTargetX,
-                managedTargetZ
-            );
+            ShowDisplayedPositionTarget(managedTargetX, managedTargetZ);
 
             Debug.Log(
                 $"Crane {currentCraneIndex + 1} 共通目標座標表示: " +
@@ -830,14 +827,19 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        Vector2 origin = CurrentInformationDisplay != null
-            ? CurrentInformationDisplay.CoordinateDisplayOrigin : Vector2.zero;
-        targetInformationDisplay.ShowPositionTarget(targetX - origin.x, targetZ - origin.y);
+        ShowDisplayedPositionTarget(targetX, targetZ);
 
         Debug.Log(
             $"Crane {currentCraneIndex + 1} 目標座標表示: " +
             $"X={targetX:F2}, Z={targetZ:F2}"
         );
+    }
+
+    private void ShowDisplayedPositionTarget(float targetX, float targetZ)
+    {
+        Vector2 origin = CurrentInformationDisplay != null
+            ? CurrentInformationDisplay.CoordinateDisplayOrigin : Vector2.zero;
+        targetInformationDisplay.ShowPositionTarget(targetX - origin.x, targetZ - origin.y);
     }
 
     private void BindSelectedCraneWeightSources()
@@ -995,9 +997,7 @@ public class CraneOperationManager : MonoBehaviour
             return;
         }
 
-        Vector2 origin = CurrentInformationDisplay != null
-            ? CurrentInformationDisplay.CoordinateDisplayOrigin : Vector2.zero;
-        targetInformationDisplay.ShowPositionTarget(target.targetX - origin.x, target.targetZ - origin.y);
+        ShowDisplayedPositionTarget(target.targetX, target.targetZ);
 
         Debug.Log(
             $"Crane {currentCraneIndex + 1} 共通目標座標表示更新: " +
