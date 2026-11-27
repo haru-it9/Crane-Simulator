@@ -600,9 +600,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (MainStudySupport && (xOverrun || zOverrun))
         {
             // Use the green-coordinate tolerance even during coarse alignment.
-            if (xOverrun) movement.x = Mathf.Sign(goalX - x);
-            if (zOverrun) movement.z = Mathf.Sign(goalZ - z);
-            movement.y = 0f;
+            movement = new Vector3(
+                xOverrun ? Mathf.Sign(goalX - x) : 0f,
+                0f,
+                zOverrun ? Mathf.Sign(goalZ - z) : 0f);
         }
         if ((xOverrun || zOverrun) && !overrunCueShown)
         {
