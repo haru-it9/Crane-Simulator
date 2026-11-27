@@ -551,6 +551,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     {
         UpdateSecondarySubtask();
         if (ExperimentPauseManager.IsPaused) return;
+
+        if (SimulatorStartManager.IsPracticeActive && Input.GetButtonDown(confirmationInputButton))
+        {
+            var startManager = FindObjectOfType<SimulatorStartManager>();
+            if (startManager != null && startManager.IsPracticeWaitingForStart)
+                startManager.StartPracticeTrial(this);
+            return;
+        }
+
         UpdatePilotRequestClock();
         UpdatePendingOperationInputUnlock();
         UpdatePilotRequestClock();
