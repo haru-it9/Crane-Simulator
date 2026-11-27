@@ -129,6 +129,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         public CanvasGroup canvas;
         public bool requested;
         public double fadeStarted;
+        public float fadeStartOpacity;
     }
 
     public TaskSwitchSupportContent SupportContent => supportContent;
@@ -325,7 +326,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         inputFadeStarted = false;
         hideAt = double.PositiveInfinity;
         if (supportRoot != null) supportRoot.SetActive(true);
-        ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
+        if (!MainStudySupport)
+        {
+            ResetFade(leftFade); ResetFade(rightYFade); ResetFade(rightZFade);
+        }
         Record("ArrowReshown", "Reason=" + reason + ";Role=" + (targetSide ? "Target" : "Source"));
     }
 
@@ -343,7 +347,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (supportRoot == null || operationManager == null || !operationManager.IsTaskSwitchExperimentMode)
             return;
 
-        if (MainStudySupport && arrowTimerStarted && inputFadeStarted &&
+        if (MainStudySupport && arrowTimerStarted &&
             selectedCrane == operationManager.CurrentCraneInstance)
         {
             chevronCountsCaptured = false;
@@ -910,11 +914,16 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         {
             bool requested = command != 0f;
             double now = ExperimentPauseManager.ActiveRealtime;
-            if (!requested && fade.requested) fade.fadeStarted = now;
+            if (!requested && fade.requested)
+            {
+                fade.fadeStarted = now;
+                fade.fadeStartOpacity = MainStudySupport ? fade.canvas.alpha : 1f;
+            }
             float localOpacity = requested ? 1f : !ContinuousPilotArrows && fade.group.gameObject.activeSelf
-                ? Mathf.Clamp01(1f - (float)(now - fade.fadeStarted) / EffectiveFadeSeconds) : 0f;
+                ? fade.fadeStartOpacity * Mathf.Clamp01(1f - (float)(now - fade.fadeStarted) / EffectiveFadeSeconds) : 0f;
             fade.requested = requested;
-            fade.canvas.alpha = localOpacity * WindowOpacity;
+            fade.canvas.alpha = MainStudySupport
+                ? Mathf.Min(localOpacity, WindowOpacity) : localOpacity * WindowOpacity;
             fade.group.gameObject.SetActive(fade.canvas.alpha > 0f);
         }
         // Keep the previous direction and label throughout its disappearance.
