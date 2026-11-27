@@ -498,9 +498,9 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             float xError = goalX - position.position.x;
             float zError = goalZ - position.position.z;
             movement = new Vector3(
-                Mathf.Abs(xError) > fineTolerance ? Mathf.Sign(xError) : 0f,
+                CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(position.position.x, goalX, fineTolerance) ? 0f : Mathf.Sign(xError),
                 0f,
-                Mathf.Abs(zError) > fineTolerance ? Mathf.Sign(zError) : 0f);
+                CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(position.position.z, goalZ, fineTolerance) ? 0f : Mathf.Sign(zError));
         }
 
         bool currentRangeExpanded;
@@ -703,6 +703,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ? coordinateColorSource.FineAlignTolerance : 0.05f);
         bool xOverrun = BeyondStartingSide(goalX - overrunStartX, goalX - x, tolerance);
         bool zOverrun = BeyondStartingSide(goalZ - overrunStartZ, goalZ - z, tolerance);
+        xOverrun &= !CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(x, goalX, tolerance);
+        zOverrun &= !CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(z, goalZ, tolerance);
         if (MainStudySupport && (xOverrun || zOverrun))
         {
             // Use the green-coordinate tolerance even during coarse alignment.

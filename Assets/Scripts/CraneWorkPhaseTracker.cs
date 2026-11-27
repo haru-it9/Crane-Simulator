@@ -551,8 +551,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
         {
             if (condition == null || condition.conditionType != CraneWorkConditionType.PositionWithinTarget) continue;
             hasPositionCondition = true;
-            withinTarget &= CurrentTargetErrorX <= condition.threshold &&
-                            CurrentTargetErrorZ <= condition.secondaryThreshold;
+            withinTarget &= CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(target.position.x, targetX, condition.threshold) &&
+                            CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(target.position.z, targetZ, condition.secondaryThreshold);
         }
         if (!hasPositionCondition) return false;
         if (withinTarget) return true;
@@ -1112,8 +1112,8 @@ public class CraneWorkPhaseTracker : MonoBehaviour
 
         float tolerance = Mathf.Max(0f, liftUpPositionTolerance);
 
-        return CurrentTargetErrorX <= tolerance &&
-               CurrentTargetErrorZ <= tolerance;
+        return CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(informationTarget.position.x, targetX, tolerance) &&
+               CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(informationTarget.position.z, targetZ, tolerance);
     }
 
     private bool EvaluateCondition(
@@ -1151,9 +1151,10 @@ public class CraneWorkPhaseTracker : MonoBehaviour
                 float allowedX = condition.threshold + exitMargin;
                 float allowedZ = condition.secondaryThreshold + exitMargin;
 
-                bool isWithinPosition =
-                    CurrentTargetErrorX <= allowedX &&
-                    CurrentTargetErrorZ <= allowedZ;
+                bool isWithinPosition = IsFinalMovementAlignmentStep()
+                    ? CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(informationTarget.position.x, targetX, allowedX) &&
+                      CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(informationTarget.position.z, targetZ, allowedZ)
+                    : CurrentTargetErrorX <= allowedX && CurrentTargetErrorZ <= allowedZ;
 
                 if (isWithinPosition)
                 {

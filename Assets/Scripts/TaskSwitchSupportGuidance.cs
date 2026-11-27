@@ -105,8 +105,8 @@ public static class TaskSwitchSupportGuidance
             bool useTravelTolerance = IsFinite(travelTolerance) && travelTolerance >= 0f &&
                 (step.majorPhase == CraneStatusManager.WorkPhase.Move1 || step.majorPhase == CraneStatusManager.WorkPhase.Move2);
             Vector3 movement = new Vector3(
-                Direction(goalX - current.x, useTravelTolerance ? travelTolerance : position.threshold), 0f,
-                Direction(goalZ - current.z, useTravelTolerance ? travelTolerance : position.secondaryThreshold));
+                useTravelTolerance ? DisplayedDirection(current.x, goalX, travelTolerance) : Direction(goalX - current.x, position.threshold), 0f,
+                useTravelTolerance ? DisplayedDirection(current.z, goalZ, travelTolerance) : Direction(goalZ - current.z, position.secondaryThreshold));
             if (movement.x != 0f || movement.z != 0f) return movement;
         }
 
@@ -116,6 +116,12 @@ public static class TaskSwitchSupportGuidance
 
         // Weight acquisition/release, speed/stability waits and completed axes need no movement.
         return Vector3.zero;
+    }
+
+    private static int DisplayedDirection(float current, float target, float tolerance)
+    {
+        return CraneInformationDisplay.IsWithinDisplayedCoordinateTolerance(current, target, tolerance)
+            ? 0 : current < target ? 1 : -1;
     }
 
     private static int Direction(float error, float tolerance)

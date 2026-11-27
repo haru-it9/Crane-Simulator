@@ -82,6 +82,26 @@ public class CraneInformationDisplay : MonoBehaviour
     private bool neutralTaskSwitchFeedback;
     private float invalidDescentWarningUntil;
 
+    public static bool IsWithinDisplayedCoordinateTolerance(float current, float target, float tolerance)
+    {
+        if (float.IsNaN(current) || float.IsInfinity(current) ||
+            float.IsNaN(target) || float.IsInfinity(target) || float.IsNaN(tolerance))
+            return false;
+
+        tolerance = Mathf.Max(0f, tolerance);
+        double difference = System.Math.Abs((double)current - target);
+        // Rounding the two coordinates can shift their difference by up to 0.01.
+        if (difference < tolerance - 0.011) return true;
+        if (difference > tolerance + 0.011) return false;
+
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        if (!decimal.TryParse(current.ToString("F2", culture), System.Globalization.NumberStyles.Number, culture, out decimal displayedCurrent) ||
+            !decimal.TryParse(target.ToString("F2", culture), System.Globalization.NumberStyles.Number, culture, out decimal displayedTarget))
+            return difference <= tolerance;
+
+        return System.Math.Abs(displayedCurrent - displayedTarget) <= (decimal)tolerance;
+    }
+
     public float FineAlignTolerance => fineAlignTolerance;
     public Color AchievedValueColor => achievedValueColor;
     public bool CurrentXHighlighted { get; private set; }
@@ -426,8 +446,8 @@ public class CraneInformationDisplay : MonoBehaviour
         // フェーズや下降高さ、監視状態にかかわらず、現在位置を毎フレーム判定します。
         Vector3 currentPosition = targetTransform.position;
         float tolerance = Mathf.Max(0f, fineAlignTolerance);
-        xWithinTarget = Mathf.Abs(currentPosition.x - targetX) <= tolerance;
-        zWithinTarget = Mathf.Abs(currentPosition.z - targetZ) <= tolerance;
+        xWithinTarget = IsWithinDisplayedCoordinateTolerance(currentPosition.x, targetX, tolerance);
+        zWithinTarget = IsWithinDisplayedCoordinateTolerance(currentPosition.z, targetZ, tolerance);
         return true;
     }
 
