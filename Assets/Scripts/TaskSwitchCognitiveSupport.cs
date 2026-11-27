@@ -82,8 +82,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private Vector3 lastRequiredMovement, lastMainStudyGuidance;
     private Vector2 lastMainStudyGoal;
     private bool hasMainStudyGoal;
-    private const double MainStudyNeutralCueDelaySeconds = 0.5;
-    private double mainStudyNeutralSince = double.NaN;
+    private const double MainStudyStallSeconds = 0.5;
+    private const float MainStudyMinimumDisplacement = 0.001f;
+    private readonly double[] mainStudyLastMovementAt = new double[3];
+    private Vector3 mainStudyMovementAnchor, mainStudyTrackedDirection, mainStudyStallArrows;
     private CraneWorkStepDefinition overrunStep;
     private float overrunGoalX, overrunGoalZ, overrunStartX, overrunStartZ;
     private bool overrunTracking;
@@ -291,16 +293,6 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void UpdateMainStudyArrowInput(Vector3 movement)
     {
-        // Axis limits and phase gates can zero out accepted movement while the operator is still holding the stick.
-        if (operationManager.ReadMovementCommand() == Vector3.zero && lastRequiredMovement != Vector3.zero)
-        {
-            double now = ExperimentPauseManager.ActiveRealtime;
-            if (double.IsNaN(mainStudyNeutralSince)) mainStudyNeutralSince = now;
-            if (now - mainStudyNeutralSince >= MainStudyNeutralCueDelaySeconds)
-                ShowErrorCue("InputNeutral");
-            return;
-        }
-        mainStudyNeutralSince = double.NaN;
         if (movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
         if (WrongAxis(movement.x, lastRequiredMovement.x) ||
             WrongAxis(movement.y, lastRequiredMovement.y) ||
@@ -309,9 +301,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ShowErrorCue("WrongDirection");
             return;
         }
-        if (!visible || inputFadeStarted) return;
+        if (!visible || inputFadeStarted ||
+            (mainStudyStallArrows != Vector3.zero && Vector3.Dot(movement, mainStudyStallArrows) <= 0f)) return;
         inputFadeStarted = true;
-        hideAt = ExperimentPauseManager.ActiveRealtime + EffectiveFadeSeconds;
+        double now = ExperimentPauseManager.ActiveRealtime;
+        for (int axis = 0; axis < 3; axis++)
+            if (movement[axis] != 0f) mainStudyLastMovementAt[axis] = now;
+        hideAt = now + EffectiveFadeSeconds;
         Record("ArrowFadeStarted", "Anchor=AcceptedMovement;Role=" + (targetSide ? "Target" : "Source") +
             ";FadeSeconds=" + EffectiveFadeSeconds.ToString("F3", CultureInfo.InvariantCulture));
     }
@@ -339,7 +335,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         overrunStep = null;
         lastRequiredMovement = lastMainStudyGuidance = Vector3.zero;
         hasMainStudyGoal = false;
-        mainStudyNeutralSince = double.NaN;
+        mainStudyTrackedDirection = mainStudyStallArrows = Vector3.zero;
     }
 
     private void ShowPhaseCue(string anchor = "MajorPhaseStarted")
@@ -517,7 +513,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         if (MainStudySupport) UpdateMainStudyGuidance(hasGoal, goalX, goalZ, movement);
         CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position, ref movement);
         lastRequiredMovement = movement;
-        if (MainStudySupport && movement == Vector3.zero) mainStudyNeutralSince = double.NaN;
+        if (MainStudySupport && position != null)
+        {
+            var measuredPosition = new Vector3(position.position.x, localY, position.position.z);
+            UpdateMainStudyStallCue(measuredPosition, movement, hasY);
+            if (mainStudyStallArrows != Vector3.zero)
+                movement = mainStudyStallArrows;
+        }
 
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
@@ -594,7 +596,45 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
         if (movement == Vector3.zero || (!goalChanged && !directionChanged)) return;
         chevronCountsCaptured = false;
+        mainStudyTrackedDirection = mainStudyStallArrows = Vector3.zero;
         ShowErrorCue(goalChanged ? "TargetPositionChanged" : "RequiredDirectionChanged");
+    }
+
+    private void UpdateMainStudyStallCue(Vector3 position, Vector3 required, bool hasY)
+    {
+        if (!arrowTimerStarted || awaitingConfirmation) return;
+
+        double now = ExperimentPauseManager.ActiveRealtime;
+        Vector3 stalled = Vector3.zero;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            float direction = axis == 1 && !hasY ? 0f : required[axis];
+            if (direction == 0f || direction != mainStudyTrackedDirection[axis] ||
+                Mathf.Abs(position[axis] - mainStudyMovementAnchor[axis]) >= MainStudyMinimumDisplacement)
+            {
+                mainStudyMovementAnchor[axis] = position[axis];
+                mainStudyLastMovementAt[axis] = now;
+                mainStudyTrackedDirection[axis] = direction;
+            }
+            if (direction != 0f && now - mainStudyLastMovementAt[axis] >= MainStudyStallSeconds)
+                stalled[axis] = direction;
+        }
+
+        if (overrunCueShown || required == Vector3.zero)
+        {
+            mainStudyStallArrows = Vector3.zero;
+            return;
+        }
+        if (stalled != Vector3.zero && (!visible || inputFadeStarted || mainStudyStallArrows != Vector3.zero))
+        {
+            mainStudyStallArrows = stalled;
+            chevronCountsCaptured = false;
+            ShowErrorCue("MovementStalled");
+        }
+        else if (!inputFadeStarted)
+        {
+            mainStudyStallArrows = Vector3.zero;
+        }
     }
 
     private void CheckOverrunCue(CraneStatusManager.WorkPhase phase, CraneWorkStepDefinition step,
