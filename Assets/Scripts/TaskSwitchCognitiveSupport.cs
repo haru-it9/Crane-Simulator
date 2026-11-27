@@ -286,12 +286,14 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
 
     private void UpdateMainStudyArrowInput(Vector3 movement)
     {
-        if (movement == Vector3.zero)
+        // Axis limits and phase gates can zero out accepted movement while the operator is still holding the stick.
+        if (operationManager.ReadMovementCommand() == Vector3.zero)
         {
             ShowErrorCue("InputNeutral");
             return;
         }
-        if (lastRequiredMovement == Vector3.zero) return;
+        // Keep the fade latched until the operator actually releases the movement input.
+        if (inputFadeStarted || movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
         if (WrongAxis(movement.x, lastRequiredMovement.x) ||
             WrongAxis(movement.y, lastRequiredMovement.y) ||
             WrongAxis(movement.z, lastRequiredMovement.z))
@@ -299,7 +301,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ShowErrorCue("WrongDirection");
             return;
         }
-        if (!visible || inputFadeStarted) return;
+        if (!visible) return;
         inputFadeStarted = true;
         hideAt = ExperimentPauseManager.ActiveRealtime + EffectiveFadeSeconds;
         Record("ArrowFadeStarted", "Anchor=AcceptedMovement;Role=" + (targetSide ? "Target" : "Source") +
