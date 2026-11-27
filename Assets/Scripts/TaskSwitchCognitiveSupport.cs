@@ -295,15 +295,17 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private void UpdateMainStudyArrowInput(Vector3 movement)
     {
         if (movement == Vector3.zero || lastRequiredMovement == Vector3.zero) return;
-        if (WrongAxis(movement.x, lastRequiredMovement.x) ||
-            WrongAxis(movement.y, lastRequiredMovement.y) ||
-            WrongAxis(movement.z, lastRequiredMovement.z))
+        if (movement.x * lastRequiredMovement.x < 0f ||
+            movement.y * lastRequiredMovement.y < 0f ||
+            movement.z * lastRequiredMovement.z < 0f)
         {
+            mainStudyStallArrows = Vector3.zero;
             ShowErrorCue("WrongDirection");
             return;
         }
-        if (!visible || inputFadeStarted ||
-            (mainStudyStallArrows != Vector3.zero && Vector3.Dot(movement, mainStudyStallArrows) <= 0f)) return;
+        Vector3 displayedDirection = mainStudyStallArrows != Vector3.zero
+            ? mainStudyStallArrows : lastRequiredMovement;
+        if (!visible || inputFadeStarted || Vector3.Dot(movement, displayedDirection) <= 0f) return;
         inputFadeStarted = true;
         double now = ExperimentPauseManager.ActiveRealtime;
         for (int axis = 0; axis < 3; axis++)
@@ -522,7 +524,10 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             var measuredPosition = new Vector3(position.position.x, localY, position.position.z);
             UpdateMainStudyStallCue(measuredPosition, movement, hasY);
             if (mainStudyStallArrows != Vector3.zero)
-                movement = mainStudyStallArrows;
+                movement = Vector3.Scale(movement, new Vector3(
+                    Mathf.Abs(mainStudyStallArrows.x),
+                    Mathf.Abs(mainStudyStallArrows.y),
+                    Mathf.Abs(mainStudyStallArrows.z)));
         }
 
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
@@ -634,10 +639,6 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             mainStudyStallArrows = stalled;
             chevronCountsCaptured = false;
             ShowErrorCue("MovementStalled");
-        }
-        else if (!inputFadeStarted)
-        {
-            mainStudyStallArrows = Vector3.zero;
         }
     }
 
