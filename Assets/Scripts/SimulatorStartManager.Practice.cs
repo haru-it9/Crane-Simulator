@@ -130,9 +130,9 @@ public partial class SimulatorStartManager
         if (practiceCompleted) return;
         if (previousPracticeDirection < 0 && !ValidatePracticeStartPoses()) return;
 
-        // Choose a new approach direction while keeping both travel distances fixed.
+        // Randomize the approach without repeating the exact previous start.
         var eligibleDirections = practiceStartDirections.FindAll(candidate =>
-            previousPracticeDirection < 0 || (candidate & 1) != (previousPracticeDirection & 1));
+            candidate != previousPracticeDirection);
         int direction = eligibleDirections[Random.Range(0, eligibleDirections.Count)];
         if (!TrySetPracticeStartPose(direction))
         {
