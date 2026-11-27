@@ -64,7 +64,7 @@ public partial class SimulatorStartManager : MonoBehaviour
     public static bool IsOperationEnabled { get; private set; } = false;
     public SimulatorMode CurrentMode => simulatorMode;
 
-    private IEnumerator Start()
+    private void Start()
     {
         IsOperationEnabled = false;
 
@@ -74,9 +74,6 @@ public partial class SimulatorStartManager : MonoBehaviour
         }
 
         SetOperationUIInteractable(false);
-        // The display layout applies its selected mode in Start as well.
-        yield return null;
-        if (PracticeSelected && !IsPracticeActive) yield return PrepareFirstPracticeTrial();
     }
 
     public void OnStartButtonClicked()

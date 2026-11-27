@@ -105,7 +105,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField, Tooltip("作業切替実験のStartボタンから練習試行を開始します。")]
     private bool enablePracticeMode;
 
-    public bool IsPracticeModeEnabled => enablePracticeMode;
+    public enum ExperimentRunMode { Experiment, Practice }
+
+    [SerializeField] private ExperimentRunMode runMode;
+
+    public bool IsPracticeModeEnabled => runMode == ExperimentRunMode.Practice || enablePracticeMode;
+    public int PracticeSourceCraneIndex => sourceCondition != null ? sourceCondition.craneIndex : 0;
 
     public bool IsPilotExperiment => pilotExperiment;
     public PilotDirectionDisplay PilotSupport => pilotDirectionDisplay;
@@ -648,7 +653,14 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     /// </summary>
     public void StartExperiment()
     {
-        if (ExperimentPauseManager.IsPaused || SimulatorStartManager.IsPracticeActive) return;
+        if (ExperimentPauseManager.IsPaused) return;
+        if (IsPracticeModeEnabled || SimulatorStartManager.IsPracticeActive)
+        {
+            var startManager = FindObjectOfType<SimulatorStartManager>();
+            if (startManager != null) startManager.StartPracticeTrial();
+            else Debug.LogError("練習の開始に必要なSimulatorStartManagerが見つかりません。", this);
+            return;
+        }
         ApplyPilotCondition();
         FindReferences();
         ResolveWorkPhaseTrackers();

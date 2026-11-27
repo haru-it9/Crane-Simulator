@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +9,8 @@ public partial class SimulatorStartManager
     [Header("Task Switch 練習")]
     [SerializeField, Tooltip("従来の設定。通常はTaskSwitchExperimentManagerのEnable Practice Modeを使用します。")]
     private bool enableTaskSwitchPractice;
-    [SerializeField] private int practiceCraneIndex;
+    [SerializeField, Tooltip("負の値の場合は実験のSourceクレーンを使います。")]
+    private int practiceCraneIndex = -1;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
     [SerializeField] private Vector2 practiceTravelDistance = new Vector2(2f, 2f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
@@ -25,11 +25,10 @@ public partial class SimulatorStartManager
     {
         get
         {
-            if (simulatorMode != SimulatorMode.TaskSwitchExperiment) return false;
-            if (enableTaskSwitchPractice) return true;
             if (practiceModeSettings == null)
                 practiceModeSettings = FindObjectOfType<TaskSwitchExperimentManager>(true);
-            return practiceModeSettings != null && practiceModeSettings.IsPracticeModeEnabled;
+            return (practiceModeSettings != null && practiceModeSettings.IsPracticeModeEnabled) ||
+                enableTaskSwitchPractice;
         }
     }
     private readonly List<double> practiceTimes = new List<double>();
@@ -37,34 +36,36 @@ public partial class SimulatorStartManager
     private CraneInstance practiceCrane;
     private CraneWorkCycleController practiceCycle;
     private BoardGenerator practiceBoards;
-    private bool practicePreparing, practiceReady, practiceRunning, practiceCompleted;
+    private bool practiceReady, practiceRunning, practiceCompleted;
     private int previousPracticeDirection = -1;
     private double practiceStartTime, practiceFinishTime;
 
-    private IEnumerator PrepareFirstPracticeTrial()
-    {
-        IsPracticeActive = practicePreparing = true;
-        yield return null;
-        practicePreparing = false;
-        PreparePracticeTrial();
-    }
-
     private bool InitializePracticeCrane()
     {
+        var layout = FindObjectOfType<DisplayLayoutManager>(true);
+        if (layout != null) layout.SelectTaskSwitchDisplayMode();
+        SelectTaskSwitchExperimentMode();
         if (!ApplyCraneCountForSelectedMode()) return false;
 
+        int craneIndex = practiceCraneIndex >= 0 ? practiceCraneIndex
+            : practiceModeSettings != null ? practiceModeSettings.PracticeSourceCraneIndex : 0;
         var operation = FindObjectOfType<CraneOperationManager>();
         var registry = FindObjectOfType<CraneRegistry>();
-        var crane = registry != null ? registry.GetCraneByRuntimeIndex(practiceCraneIndex) : null;
+        var crane = registry != null ? registry.GetCraneByRuntimeIndex(craneIndex) : null;
         var cycle = crane != null ? crane.GetComponentInChildren<CraneWorkCycleController>(true) : null;
         var boards = crane != null ? crane.BoardGenerator : null;
         if (boards == null && crane != null) boards = crane.GetComponentInChildren<BoardGenerator>(true);
+        if (boards == null)
+        {
+            var scenarios = FindObjectOfType<CraneInterventionScenarioManager>();
+            if (scenarios != null) boards = scenarios.GetBoardGeneratorForCrane(craneIndex);
+        }
         if (operation == null || crane == null || crane.CraneUnit == null ||
             crane.InformationTarget == null || cycle == null || boards == null) return false;
 
         StopAllLogging();
         operation.BeginTaskSwitchExperimentMode();
-        if (!operation.SelectCraneForTaskSwitch(practiceCraneIndex))
+        if (!operation.SelectCraneForTaskSwitch(craneIndex))
         {
             operation.EndTaskSwitchExperimentMode();
             return false;
@@ -115,7 +116,7 @@ public partial class SimulatorStartManager
             !practiceBoards.TryGetPickupTargetWeightKg(practicePickupWorld.x, practicePickupWorld.y,
                 1, out _, out _, out _))
         {
-            SetPracticeStatus("練習の移動距離と、厚板のあるつり上げ目標座標を確認してください。", true);
+            SetPracticeStatus($"練習クレーンの板置場に指定した厚板がありません。Practice Pickup World（X={practicePickupWorld.x:F2}, Z={practicePickupWorld.y:F2}）と移動距離を確認してください。", true);
             return;
         }
 
@@ -135,14 +136,11 @@ public partial class SimulatorStartManager
         SetPracticeStatus($"練習 {practiceTimes.Count + 1} 試行目の準備完了。Startで開始します。");
     }
 
-    private void StartPracticeTrial()
+    public void StartPracticeTrial()
     {
-        if (practiceCompleted || practiceRunning || practicePreparing || ExperimentPauseManager.IsPaused) return;
-        if (!practiceReady)
-        {
-            PreparePracticeTrial();
-            return;
-        }
+        if (practiceCompleted || practiceRunning || ExperimentPauseManager.IsPaused) return;
+        if (!practiceReady) PreparePracticeTrial();
+        if (!practiceReady) return;
 
         practiceCycle.SetExperimentConditions(new[] { new TaskSwitchWorkCondition
         {
