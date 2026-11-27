@@ -17,6 +17,8 @@ public partial class SimulatorStartManager
     [SerializeField] private float practiceStartLocalY = -1.56f;
     [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
     [SerializeField, Min(0f)] private float practiceStableChangePercent = 5f;
+    [SerializeField, Min(0.01f), Tooltip("練習終了に必要な直近3試行それぞれの上限時間（秒）。")]
+    private float practiceMaximumTrialSeconds = 40f;
     [SerializeField] private Text practiceStatusText;
 
     public static bool IsPracticeActive { get; private set; }
@@ -241,6 +243,9 @@ public partial class SimulatorStartManager
         Debug.Log($"練習 {count} 試行目: {duration:F2} 秒（{activePracticePickupCount} 枚）", this);
         double limit = practiceStableChangePercent / 100.0;
         practiceCompleted = count >= MinimumPracticeTrials &&
+            practiceTimes[count - 3] <= practiceMaximumTrialSeconds &&
+            practiceTimes[count - 2] <= practiceMaximumTrialSeconds &&
+            duration <= practiceMaximumTrialSeconds &&
             IsPracticeTimeStable(practiceTimes[count - 3], practiceTimes[count - 2], limit) &&
             IsPracticeTimeStable(practiceTimes[count - 2], practiceTimes[count - 1], limit);
 
