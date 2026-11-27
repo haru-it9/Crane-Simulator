@@ -14,6 +14,7 @@ public partial class SimulatorStartManager
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
     [SerializeField] private Vector2 practiceAlternatePickupWorld = new Vector2(4f, 2f);
     private Vector2 activePracticePickup;
+    private int activePracticePickupCount;
     private static readonly Vector2 PracticeTravelDistance = new Vector2(6f, 4f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
     [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
@@ -142,6 +143,7 @@ public partial class SimulatorStartManager
 
         practiceCrane.CraneUnit.ResetSpeedLevel();
         activePracticePickup = GetPracticePickup(direction);
+        activePracticePickupCount = Random.Range(1, 3);
         previousPracticeDirection = direction;
         practiceReady = true;
         string previousResult = practiceTimes.Count > 0
@@ -156,14 +158,14 @@ public partial class SimulatorStartManager
         {
             Vector2 pickup = GetPracticePickup(direction);
             if (pickup.x != Mathf.Round(pickup.x) || pickup.y != Mathf.Round(pickup.y) ||
-                !practiceBoards.TryGetPickupTargetWeightKg(pickup.x, pickup.y, 1, out _, out _, out _))
+                !practiceBoards.TryGetPickupTargetWeightKg(pickup.x, pickup.y, 2, out _, out _, out _))
                 continue;
             if (TrySetPracticeStartPose(direction)) practiceStartDirections.Add(direction);
         }
 
         if (practiceStartDirections.Exists(candidate => (candidate & 1) == 0) &&
             practiceStartDirections.Exists(candidate => (candidate & 1) != 0)) return true;
-        SetPracticeStatus("横行6 m・走行4 mで左右から開始できません。練習用の板山座標と開始高さを確認してください。", true);
+        SetPracticeStatus("横行6 m・走行4 mで左右から開始できません。各板山に厚板が2枚以上あることと、板山座標・開始高さを確認してください。", true);
         return false;
     }
 
@@ -193,7 +195,7 @@ public partial class SimulatorStartManager
         {
             role = "Source", index = 1,
             pickupX = activePracticePickup.x, pickupZ = activePracticePickup.y,
-            pickupCount = 1, placementCount = 1
+            pickupCount = activePracticePickupCount, placementCount = activePracticePickupCount
         } });
         practiceCycle.SetAutomaticPhaseAdvance(true);
         if (!practiceCycle.StartTaskSegment(CraneStatusManager.WorkPhase.Move1, CraneStatusManager.WorkPhase.LiftUp))
@@ -242,7 +244,7 @@ public partial class SimulatorStartManager
         double duration = practiceFinishTime - practiceStartTime;
         practiceTimes.Add(duration);
         int count = practiceTimes.Count;
-        Debug.Log($"練習 {count} 試行目: {duration:F2} 秒", this);
+        Debug.Log($"練習 {count} 試行目: {duration:F2} 秒（{activePracticePickupCount} 枚）", this);
         double limit = practiceStableChangePercent / 100.0;
         practiceCompleted = count >= MinimumPracticeTrials &&
             IsPracticeTimeStable(practiceTimes[count - 3], practiceTimes[count - 2], limit) &&
