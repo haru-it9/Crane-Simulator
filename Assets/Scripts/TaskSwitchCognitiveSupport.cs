@@ -181,7 +181,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         EnsureNormalCurrentFeedback();
         if (visible && ExperimentPauseManager.ActiveRealtime >= hideAt)
             HideArrows("Timeout");
-        if (visible || currentHighlightWindowActive || currentFeedbackActive) RefreshPresentation();
+        if (visible || currentHighlightWindowActive || currentFeedbackActive ||
+            (MainStudySupport && arrowTimerStarted && inputFadeStarted)) RefreshPresentation();
         UpdateCurrentInputLabel();
     }
 
@@ -504,8 +505,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             }
         }
 
+        CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position, ref movement);
         lastRequiredMovement = movement;
-        if (!MainStudySupport) CheckOverrunCue(phase, step, hasGoal, goalX, goalZ, position);
 
         bool showPhase = !experimentManager.IsPilotExperiment && supportContent != TaskSwitchSupportContent.InputDirectionOnly;
         bool directionEnabled = supportContent != TaskSwitchSupportContent.PhaseOnly;
@@ -568,7 +569,7 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     }
 
     private void CheckOverrunCue(CraneStatusManager.WorkPhase phase, CraneWorkStepDefinition step,
-        bool hasGoal, float goalX, float goalZ, Transform position)
+        bool hasGoal, float goalX, float goalZ, Transform position, ref Vector3 movement)
     {
         if (!InputTriggeredPilotArrows || !arrowTimerStarted || awaitingConfirmation ||
             !hasGoal || position == null || step == null ||
@@ -579,7 +580,8 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         }
 
         float x = position.position.x, z = position.position.z;
-        if (!overrunTracking || overrunStep != step || overrunGoalX != goalX || overrunGoalZ != goalZ)
+        if (!overrunTracking || (!MainStudySupport && overrunStep != step) ||
+            overrunGoalX != goalX || overrunGoalZ != goalZ)
         {
             overrunTracking = true;
             overrunCueShown = false;
@@ -595,6 +597,13 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ? coordinateColorSource.FineAlignTolerance : 0.05f);
         bool xOverrun = BeyondStartingSide(goalX - overrunStartX, goalX - x, tolerance);
         bool zOverrun = BeyondStartingSide(goalZ - overrunStartZ, goalZ - z, tolerance);
+        if (MainStudySupport && (xOverrun || zOverrun))
+        {
+            // Use the green-coordinate tolerance even during coarse alignment.
+            if (xOverrun) movement.x = Mathf.Sign(goalX - x);
+            if (zOverrun) movement.z = Mathf.Sign(goalZ - z);
+            movement.y = 0f;
+        }
         if ((xOverrun || zOverrun) && !overrunCueShown)
         {
             overrunCueShown = true;
