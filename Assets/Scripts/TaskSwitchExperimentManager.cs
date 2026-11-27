@@ -92,7 +92,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     }
 
     [Header("予備実験・本検証")]
-    [SerializeField] private bool pilotExperiment;
+    [SerializeField, Tooltip("Custom条件で予備実験設定を使用する場合にオンにします。名前付きの実験条件は自動で有効になります。")]
+    private bool pilotExperiment;
     [Tooltip("予備実験・本検証・練習の条件を選択。Practiceは2軸移動とつり上げの練習です。変更は実験終了後に行ってください。")]
     [SerializeField] private PilotCondition pilotCondition = PilotCondition.Custom;
     [SerializeField] private PilotDirectionDisplay pilotDirectionDisplay = PilotDirectionDisplay.None;
@@ -102,17 +103,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField] private bool pilotLongFirst;
     [SerializeField] private int pilotOrderSeed;
 
-    [Header("練習モード")]
-    [SerializeField, Tooltip("作業切替実験のStartボタンから練習試行を開始します。")]
-    private bool enablePracticeMode;
-
-    public enum ExperimentRunMode { Experiment, Practice }
-
-    [SerializeField] private ExperimentRunMode runMode;
-
     public bool IsPracticeConditionSelected => pilotCondition == PilotCondition.Practice;
-    public bool IsPracticeModeEnabled => IsPracticeConditionSelected ||
-        runMode == ExperimentRunMode.Practice || enablePracticeMode;
+    public bool HasNamedPilotCondition => pilotCondition != PilotCondition.Custom;
     public int PracticeSourceCraneIndex => sourceCondition != null ? sourceCondition.craneIndex : 0;
 
     public bool IsPilotExperiment => pilotExperiment;
@@ -162,7 +154,8 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
 
     private void ApplyPilotCondition()
     {
-        if (!pilotExperiment || pilotCondition == PilotCondition.Custom) return;
+        if (!HasNamedPilotCondition || IsPracticeConditionSelected) return;
+        pilotExperiment = true;
         if (IsMainStudy)
         {
             ApplyMainStudyCondition();
@@ -669,13 +662,15 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     public void StartExperiment()
     {
         if (ExperimentPauseManager.IsPaused) return;
-        if (IsPracticeModeEnabled || SimulatorStartManager.IsPracticeActive)
+        if (IsPracticeConditionSelected)
         {
             var startManager = FindObjectOfType<SimulatorStartManager>();
             if (startManager != null) startManager.StartPracticeTrial(this);
             else Debug.LogError("練習の開始に必要なSimulatorStartManagerが見つかりません。", this);
             return;
         }
+        if (SimulatorStartManager.IsPracticeActive) return;
+
         ApplyPilotCondition();
         FindReferences();
         SubscribeMainStudyMovementInput();

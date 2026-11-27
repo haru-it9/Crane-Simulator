@@ -7,8 +7,6 @@ public partial class SimulatorStartManager
     private const int MinimumPracticeTrials = 8;
 
     [Header("Task Switch 練習")]
-    [SerializeField, Tooltip("従来の設定。通常はTaskSwitchExperimentManagerのEnable Practice Modeを使用します。")]
-    private bool enableTaskSwitchPractice;
     [SerializeField, Tooltip("負の値の場合は実験のSourceクレーンを使います。")]
     private int practiceCraneIndex = -1;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
@@ -29,16 +27,12 @@ public partial class SimulatorStartManager
         if (practiceModeSettings == null)
             practiceModeSettings = FindObjectOfType<TaskSwitchExperimentManager>(true);
         if (IsPracticeActive) return true;
-        if (practiceModeSettings != null && practiceModeSettings.IsPracticeConditionSelected)
-        {
-            ApplyPracticeDisplay();
-            return false;
-        }
-        return enableTaskSwitchPractice ||
-            (practiceModeSettings != null && practiceModeSettings.IsPracticeModeEnabled);
+        if (practiceModeSettings != null && practiceModeSettings.HasNamedPilotCondition)
+            ApplyTaskSwitchDisplay();
+        return false;
     }
 
-    private void ApplyPracticeDisplay()
+    private void ApplyTaskSwitchDisplay()
     {
         var layout = FindObjectOfType<DisplayLayoutManager>(true);
         if (layout != null) layout.SelectTaskSwitchDisplayMode();
@@ -59,7 +53,7 @@ public partial class SimulatorStartManager
 
     private bool InitializePracticeCrane()
     {
-        ApplyPracticeDisplay();
+        ApplyTaskSwitchDisplay();
         if (!ApplyCraneCountForSelectedMode()) return false;
 
         int craneIndex = practiceCraneIndex >= 0 ? practiceCraneIndex
@@ -187,7 +181,7 @@ public partial class SimulatorStartManager
         if (experiment != null) practiceModeSettings = experiment;
         ResolvePracticeStartButtonText();
         if (practiceModeSettings != null && practiceModeSettings.IsPracticeConditionSelected)
-            ApplyPracticeDisplay();
+            ApplyTaskSwitchDisplay();
         if (!practiceReady) PreparePracticeTrial();
         if (!practiceReady) return;
 
