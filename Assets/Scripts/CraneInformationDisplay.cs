@@ -419,9 +419,10 @@ public class CraneInformationDisplay : MonoBehaviour
                 Mathf.Max(0f, weightToleranceKg);
         }
 
-        CurrentXHighlighted = !neutralTaskSwitchFeedback && xWithinTarget;
-        CurrentZHighlighted = !neutralTaskSwitchFeedback && zWithinTarget;
-        CurrentWeightHighlighted = !neutralTaskSwitchFeedback && weightWithinTarget;
+        bool showAchievementColors = !neutralTaskSwitchFeedback && !SimulatorStartManager.IsPracticeActive;
+        CurrentXHighlighted = showAchievementColors && xWithinTarget;
+        CurrentZHighlighted = showAchievementColors && zWithinTarget;
+        CurrentWeightHighlighted = showAchievementColors && weightWithinTarget;
         AchievementFrame = Time.frameCount;
         foreach (InformationTextSet textSet in GetTextSets())
         {
