@@ -101,6 +101,12 @@ public partial class TaskSwitchExperimentManager : MonoBehaviour
     [SerializeField] private bool pilotLongFirst;
     [SerializeField] private int pilotOrderSeed;
 
+    [Header("練習モード")]
+    [SerializeField, Tooltip("作業切替実験のStartボタンから練習試行を開始します。")]
+    private bool enablePracticeMode;
+
+    public bool IsPracticeModeEnabled => enablePracticeMode;
+
     public bool IsPilotExperiment => pilotExperiment;
     public PilotDirectionDisplay PilotSupport => pilotDirectionDisplay;
     public float PilotDisplaySeconds => pilotDisplaySeconds;

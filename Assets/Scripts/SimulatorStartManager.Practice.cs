@@ -8,7 +8,8 @@ public partial class SimulatorStartManager
     private const int MinimumPracticeTrials = 8;
 
     [Header("Task Switch 練習")]
-    [SerializeField] private bool enableTaskSwitchPractice;
+    [SerializeField, Tooltip("従来の設定。通常はTaskSwitchExperimentManagerのEnable Practice Modeを使用します。")]
+    private bool enableTaskSwitchPractice;
     [SerializeField] private int practiceCraneIndex;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
     [SerializeField] private Vector2 practiceTravelDistance = new Vector2(2f, 2f);
@@ -18,7 +19,19 @@ public partial class SimulatorStartManager
     [SerializeField] private Text practiceStatusText;
 
     public static bool IsPracticeActive { get; private set; }
-    private bool PracticeSelected => enableTaskSwitchPractice && simulatorMode == SimulatorMode.TaskSwitchExperiment;
+    [SerializeField] private TaskSwitchExperimentManager practiceModeSettings;
+
+    private bool PracticeSelected
+    {
+        get
+        {
+            if (simulatorMode != SimulatorMode.TaskSwitchExperiment) return false;
+            if (enableTaskSwitchPractice) return true;
+            if (practiceModeSettings == null)
+                practiceModeSettings = FindObjectOfType<TaskSwitchExperimentManager>(true);
+            return practiceModeSettings != null && practiceModeSettings.IsPracticeModeEnabled;
+        }
+    }
     private readonly List<double> practiceTimes = new List<double>();
     private CraneOperationManager practiceOperation;
     private CraneInstance practiceCrane;
