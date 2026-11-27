@@ -12,7 +12,7 @@ public partial class SimulatorStartManager
     [SerializeField, Tooltip("負の値の場合は実験のSourceクレーンを使います。")]
     private int practiceCraneIndex = -1;
     [SerializeField] private Vector2 practicePickupWorld = new Vector2(-4f, 4f);
-    [SerializeField] private Vector2 practiceTravelDistance = new Vector2(1f, 2f);
+    private static readonly Vector2 PracticeTravelDistance = new Vector2(6f, 4f);
     [SerializeField] private float practiceStartLocalY = -1.56f;
     [SerializeField] private Vector2 practiceDisplayOrigin = new Vector2(1f, -1f);
     [SerializeField, Min(0f)] private float practiceStableChangePercent = 5f;
@@ -48,7 +48,7 @@ public partial class SimulatorStartManager
     private CraneWorkCycleController practiceCycle;
     private BoardGenerator practiceBoards;
     private Text practiceStartButtonText;
-    private Vector2 practiceTrialDistance;
+    private readonly List<int> practiceStartDirections = new List<int>(4);
     private bool practiceReady, practiceRunning, practiceCompleted;
     public bool IsPracticeWaitingForStart => IsPracticeActive && !practiceRunning && !practiceCompleted;
     private int previousPracticeDirection = -1;
@@ -132,21 +132,22 @@ public partial class SimulatorStartManager
             return;
         }
 
-        if (!(practiceTravelDistance.x > 0f && practiceTravelDistance.y > 0f) ||
-            !practiceBoards.TryGetPickupTargetWeightKg(practicePickupWorld.x, practicePickupWorld.y,
+        if (!practiceBoards.TryGetPickupTargetWeightKg(practicePickupWorld.x, practicePickupWorld.y,
                 1, out _, out _, out _))
         {
-            SetPracticeStatus($"練習クレーンの板置場に指定した厚板がありません。Practice Pickup World（X={practicePickupWorld.x:F2}, Z={practicePickupWorld.y:F2}）と移動距離を確認してください。", true);
+            SetPracticeStatus($"練習クレーンの板置場に指定した厚板がありません。Practice Pickup World（X={practicePickupWorld.x:F2}, Z={practicePickupWorld.y:F2}）を確認してください。", true);
             return;
         }
 
         if (previousPracticeDirection < 0 && !ValidatePracticeStartPoses()) return;
 
-        int direction = Random.Range(0, previousPracticeDirection < 0 ? 4 : 3);
-        if (previousPracticeDirection >= 0 && direction >= previousPracticeDirection) direction++;
-        if (!TrySetPracticeStartPose(direction, practiceTrialDistance))
+        int previousIndex = practiceStartDirections.IndexOf(previousPracticeDirection);
+        int directionIndex = Random.Range(0, practiceStartDirections.Count - (previousIndex >= 0 ? 1 : 0));
+        if (previousIndex >= 0 && directionIndex >= previousIndex) directionIndex++;
+        int direction = practiceStartDirections[directionIndex];
+        if (!TrySetPracticeStartPose(direction))
         {
-            SetPracticeStatus("練習の開始座標が操作範囲外です。Practice Travel Distanceと開始高さを確認してください。", true);
+            SetPracticeStatus("練習の開始座標が操作範囲外です。板山の座標と開始高さを確認してください。", true);
             return;
         }
 
@@ -160,38 +161,19 @@ public partial class SimulatorStartManager
 
     private bool ValidatePracticeStartPoses()
     {
-        practiceTrialDistance = new Vector2(Mathf.Floor(practiceTravelDistance.x),
-            Mathf.Floor(practiceTravelDistance.y));
-        if (practiceTrialDistance.x >= 1f && practiceTrialDistance.y >= 1f &&
-            CanSetAllPracticeStartPoses(practiceTrialDistance)) return true;
+        practiceStartDirections.Clear();
+        for (int direction = 0; direction < 4; direction++)
+            if (TrySetPracticeStartPose(direction)) practiceStartDirections.Add(direction);
 
-        // Older scenes may still serialize the original 2 m X distance.
-        // Use a single shorter distance for every direction if it fits the crane.
-        if (Mathf.Approximately(practiceTrialDistance.x, 2f) && practiceTrialDistance.y >= 1f)
-        {
-            practiceTrialDistance.x = 1f;
-            if (CanSetAllPracticeStartPoses(practiceTrialDistance))
-            {
-                Debug.Log("練習の横行距離は、全方向で開始できるよう1.00 mに設定しました。", this);
-                return true;
-            }
-        }
-
-        SetPracticeStatus("練習の開始座標が操作範囲外です。Practice Travel Distanceと開始高さを確認してください。", true);
+        if (practiceStartDirections.Count >= 2) return true;
+        SetPracticeStatus("横行6 m・走行4 mで開始できる位置が2か所未満です。板山の座標と開始高さを確認してください。", true);
         return false;
     }
 
-    private bool CanSetAllPracticeStartPoses(Vector2 distance)
+    private bool TrySetPracticeStartPose(int direction)
     {
-        for (int direction = 0; direction < 4; direction++)
-            if (!TrySetPracticeStartPose(direction, distance)) return false;
-        return true;
-    }
-
-    private bool TrySetPracticeStartPose(int direction, Vector2 distance)
-    {
-        float x = practicePickupWorld.x + ((direction & 1) == 0 ? -distance.x : distance.x);
-        float z = practicePickupWorld.y + ((direction & 2) == 0 ? -distance.y : distance.y);
+        float x = practicePickupWorld.x + ((direction & 1) == 0 ? -PracticeTravelDistance.x : PracticeTravelDistance.x);
+        float z = practicePickupWorld.y + ((direction & 2) == 0 ? -PracticeTravelDistance.y : PracticeTravelDistance.y);
         return practiceCrane.CraneUnit.TryAlignInterventionPickup(
             practiceCrane.InformationTarget, x, z, practiceStartLocalY);
     }
