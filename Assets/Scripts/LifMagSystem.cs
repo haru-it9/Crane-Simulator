@@ -266,11 +266,10 @@ public class LifMagSystem : MonoBehaviour
         }
 
         if ((phase == CraneStatusManager.WorkPhase.Place ||
-             phase ==
-                 CraneStatusManager.WorkPhase.PlaceToTrack) &&
-            !workPhaseTracker.IsPlacementTouchdownConfirmed)
+             phase == CraneStatusManager.WorkPhase.PlaceToTrack) &&
+            !workPhaseTracker.IsPlacementReleaseReady)
         {
-            reason = $"PlacementBeforeTouchdown:{phase}";
+            reason = $"PlacementReleaseNotReady:{phase}";
             return true;
         }
 
@@ -279,8 +278,13 @@ public class LifMagSystem : MonoBehaviour
 
     private bool IsCurrentReleaseProtected(out string reason)
     {
+        // Preloaded experiment boards may bypass the transport policy, but placement
+        // must advance past touchdown before a low current can detach them.
+        var phase = workPhaseTracker?.CurrentMajorPhase;
         if (allowTaskSwitchPreloadedCurrentRelease &&
-            craneOperationManager != null && craneOperationManager.IsTaskSwitchExperimentMode)
+            craneOperationManager != null && craneOperationManager.IsTaskSwitchExperimentMode &&
+            phase != CraneStatusManager.WorkPhase.Place &&
+            phase != CraneStatusManager.WorkPhase.PlaceToTrack)
         {
             reason = string.Empty;
             return false;
@@ -1661,7 +1665,7 @@ public class LifMagSystem : MonoBehaviour
         Physics.SyncTransforms();
         allowTaskSwitchPreloadedCurrentRelease = true;
         BoardAttachmentChanged?.Invoke(this, "TaskSwitchBoardsPreloaded",
-            $"Count={boards.Count};MagnetBottomWorldY={surface.min.y};CurrentReleaseWithoutTouchdown=True");
+            $"Count={boards.Count};MagnetBottomWorldY={surface.min.y};PlacementReleaseRequiresTouchdown=True");
         return true;
     }
 

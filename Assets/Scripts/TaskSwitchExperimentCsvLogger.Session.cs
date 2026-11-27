@@ -164,11 +164,7 @@ public partial class TaskSwitchExperimentCsvLogger
         taskSwitchExperimentManager.AuditorySubtaskEventOccurred += HandleAuditoryEvent;
         taskSwitchExperimentManager.VisualSubtaskEventOccurred += HandleVisualEvent;
         if (craneOperationManager != null) craneOperationManager.MovementInputAccepted += HandleMovementAccepted;
-        foreach (CraneWorkPhaseTracker t in subscribedTrackers)
-        {
-            t.PickupWeightInvalidated += HandleWeightInvalidated;
-            t.AirbornePlacementChanged += HandleAirbornePlacement;
-        }
+        foreach (CraneWorkPhaseTracker t in subscribedTrackers) t.PickupWeightInvalidated += HandleWeightInvalidated;
         foreach (LifMagSystem l in subscribedLifMagSystems)
         {
             l.ElectricCurrentInputAccepted += HandleCurrentAccepted;
@@ -193,11 +189,7 @@ public partial class TaskSwitchExperimentCsvLogger
         if (taskSwitchExperimentManager != null) taskSwitchExperimentManager.AuditorySubtaskEventOccurred -= HandleAuditoryEvent;
         if (taskSwitchExperimentManager != null) taskSwitchExperimentManager.VisualSubtaskEventOccurred -= HandleVisualEvent;
         if (craneOperationManager != null) craneOperationManager.MovementInputAccepted -= HandleMovementAccepted;
-        foreach (CraneWorkPhaseTracker t in subscribedTrackers) if (t != null)
-        {
-            t.PickupWeightInvalidated -= HandleWeightInvalidated;
-            t.AirbornePlacementChanged -= HandleAirbornePlacement;
-        }
+        foreach (CraneWorkPhaseTracker t in subscribedTrackers) if (t != null) t.PickupWeightInvalidated -= HandleWeightInvalidated;
         foreach (LifMagSystem l in subscribedLifMagSystems) if (l != null)
         {
             l.ElectricCurrentInputAccepted -= HandleCurrentAccepted;
@@ -363,12 +355,6 @@ public partial class TaskSwitchExperimentCsvLogger
             t != null ? t.CurrentStepId : "", board);
         if (name == "BoardAttached" || name == "BoardsDetached") MarkEffectiveInput(index, "Attachment", name);
     }
-    private void HandleAirbornePlacement(CraneWorkPhaseTracker tracker, string outcome)
-    {
-        WriteEvent("WorkPhase", outcome, GetCraneIndex(tracker), tracker.CurrentMajorPhase,
-            tracker.CurrentStepId, "");
-    }
-
     private void HandleWeightInvalidated(CraneWorkPhaseTracker t, CraneStatusManager.WorkPhase phase, string step)
     {
         WriteEvent("WorkPhase", "PickupWeightInvalidated", GetCraneIndex(t), phase, step,

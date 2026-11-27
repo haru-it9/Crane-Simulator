@@ -141,10 +141,6 @@ public class CraneInformationDisplay : MonoBehaviour
 
     public bool ReportDescentInput()
     {
-        // During recovery the board may need to be picked up away from the placement target.
-        if (workPhaseTracker != null && workPhaseTracker.IsMonitoring &&
-            workPhaseTracker.AirbornePlacementNeedsRepositioning) return false;
-
         if (!neutralTaskSwitchFeedback ||
             !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
             (xWithinTarget && zWithinTarget)) return false;
@@ -162,18 +158,8 @@ public class CraneInformationDisplay : MonoBehaviour
 
     private void UpdateInvalidDescentWarning()
     {
-        if (!ExperimentPauseManager.IsPaused && workPhaseTracker != null &&
-            workPhaseTracker.IsMonitoring && workPhaseTracker.AirbornePlacementNeedsRepositioning)
-        {
-            ShowOperationWarning("厚板を再吸着して再配置");
-            return;
-        }
-
         if (!neutralTaskSwitchFeedback || invalidDescentWarningUntil <= 0f)
-        {
-            ClearInvalidDescentWarning();
             return;
-        }
 
         if (Time.unscaledTime >= invalidDescentWarningUntil || ExperimentPauseManager.IsPaused ||
             !TryGetCoordinateAchievementState(out bool xWithinTarget, out bool zWithinTarget) ||
@@ -183,16 +169,11 @@ public class CraneInformationDisplay : MonoBehaviour
             return;
         }
 
-        ShowOperationWarning("座標が不適です");
-    }
-
-    private void ShowOperationWarning(string message)
-    {
         if (invalidDescentWarningText == null)
             CreateInvalidDescentWarning();
         if (invalidDescentWarningText != null)
         {
-            invalidDescentWarningText.text = message;
+            invalidDescentWarningText.text = "座標が不適です";
             invalidDescentWarningText.color = Color.red;
             invalidDescentWarningText.raycastTarget = false;
             invalidDescentWarningText.gameObject.SetActive(true);
