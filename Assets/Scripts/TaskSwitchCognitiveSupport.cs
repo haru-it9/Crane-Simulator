@@ -85,7 +85,6 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
     private bool overrunTracking;
     [Header("本検証の支援表示")]
     [SerializeField] private Color mainStudyCurrentAdjustmentColor = new Color(1f, 0.65f, 0.15f, 1f);
-    private const float MainStudyArrowFadeDelaySeconds = 1.5f;
     private bool MainStudySupport => experimentManager != null && experimentManager.MainStudySupportEnabled;
     private bool CurrentRangeColoring => MainStudySupport || useCurrentRangeColoring;
 
@@ -292,10 +291,19 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
             ShowErrorCue("InputNeutral");
             return;
         }
+        if (lastRequiredMovement == Vector3.zero) return;
+        if (WrongAxis(movement.x, lastRequiredMovement.x) ||
+            WrongAxis(movement.y, lastRequiredMovement.y) ||
+            WrongAxis(movement.z, lastRequiredMovement.z))
+        {
+            ShowErrorCue("WrongDirection");
+            return;
+        }
         if (!visible || inputFadeStarted) return;
         inputFadeStarted = true;
-        hideAt = ExperimentPauseManager.ActiveRealtime + MainStudyArrowFadeDelaySeconds + EffectiveFadeSeconds;
-        Record("ArrowFadeScheduled", "Anchor=AcceptedMovement;DelaySeconds=1.5");
+        hideAt = ExperimentPauseManager.ActiveRealtime + EffectiveFadeSeconds;
+        Record("ArrowFadeStarted", "Anchor=AcceptedMovement;Role=" + (targetSide ? "Target" : "Source") +
+            ";FadeSeconds=" + EffectiveFadeSeconds.ToString("F3", CultureInfo.InvariantCulture));
     }
 
     private static bool WrongAxis(float accepted, float required)
