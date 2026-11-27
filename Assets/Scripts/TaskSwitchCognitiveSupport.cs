@@ -471,13 +471,24 @@ public class TaskSwitchCognitiveSupport : MonoBehaviour
         CraneUnit unit = selectedCrane.CraneUnit;
         float localY = 0f;
         bool hasY = unit != null && unit.TryGetMainLifMagLocalY(out localY);
-        float travelTolerance = ContinuousPilotArrows
-            ? Mathf.Max(0f, coordinateColorSource != null ? coordinateColorSource.FineAlignTolerance : 0.05f)
-            : -1f;
+        float fineTolerance = Mathf.Max(0f,
+            coordinateColorSource != null ? coordinateColorSource.FineAlignTolerance : 0.05f);
+        float travelTolerance = ContinuousPilotArrows ? fineTolerance : -1f;
         Vector3 movement = position != null && tracker != null
             ? TaskSwitchSupportGuidance.RequiredMovement(step, position.position,
                 hasGoal, goalX, goalZ, unit == null || unit.IsDownwardMovementBlockedByTouchdown,
                 hasY, localY, travelTolerance) : Vector3.zero;
+        if (MainStudySupport && hasGoal && position != null &&
+            (phase == CraneStatusManager.WorkPhase.Move1 || phase == CraneStatusManager.WorkPhase.Move2))
+        {
+            // The remaining alignment can be finer than the tracker's current step tolerance.
+            float xError = goalX - position.position.x;
+            float zError = goalZ - position.position.z;
+            movement = new Vector3(
+                Mathf.Abs(xError) > fineTolerance ? Mathf.Sign(xError) : 0f,
+                0f,
+                Mathf.Abs(zError) > fineTolerance ? Mathf.Sign(zError) : 0f);
+        }
 
         bool currentRangeExpanded;
         string currentGuidance = EvaluateCurrentGuidance(phase, pendingPhase, out currentRangeExpanded);
